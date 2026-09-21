@@ -1,0 +1,63 @@
+<!-- @dsCard group="App" viewport="396x760" name="Mindi App" subtitle="Onboarding → home → Ask Mindi → resources → profile, click-through" -->
+<link rel="stylesheet" href="../../styles.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>body{margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;background:var(--sand-200)}</style>
+<div id="root"></div>
+<script type="text/babel" src="./Shell.jsx"></script>
+<script type="text/babel" src="./OnboardingScreen.jsx"></script>
+<script type="text/babel" src="./HomeScreen.jsx"></script>
+<script type="text/babel" src="./AskMindiScreen.jsx"></script>
+<script type="text/babel" src="./CheckinScreen.jsx"></script>
+<script type="text/babel" src="./ResourcesScreen.jsx"></script>
+<script type="text/babel" src="./ProfileScreen.jsx"></script>
+<script type="text/babel">
+const { Button, Input, Card, Badge, Tag, Tabs, Switch, Toast, Icon, Radio, SensitiveQuestion, GuidanceCard, TrustPanel, ReviewedBy, SourceList } = window.MindiDesignSystem_ef6b32;
+
+function App() {
+  const [screen, setScreen] = React.useState('onboarding');
+  const [tab, setTab] = React.useState('home');
+  const [showToast, setShowToast] = React.useState(false);
+
+  const finishCheckin = () => {
+    setShowToast(true);
+    setTab('home');
+    setTimeout(() => setShowToast(false), 2200);
+  };
+
+  let body;
+  if (screen === 'onboarding') {
+    body = <OnboardingScreen Button={Button} Input={Input} onDone={() => { setScreen('app'); setTab('home'); }} />;
+  } else if (tab === 'home') {
+    body = <HomeScreen Card={Card} Badge={Badge} Button={Button} Icon={Icon} onOpenAsk={() => setTab('mindi')} onOpenCheckin={() => setTab('checkin')} />;
+  } else if (tab === 'mindi') {
+    body = <AskMindiScreen Button={Button} Icon={Icon} SensitiveQuestion={SensitiveQuestion} GuidanceCard={GuidanceCard} TrustPanel={TrustPanel} ReviewedBy={ReviewedBy} SourceList={SourceList} />;
+  } else if (tab === 'checkin') {
+    body = <CheckinScreen Tag={Tag} Button={Button} Radio={Radio} onDone={finishCheckin} />;
+  } else if (tab === 'resources') {
+    body = <ResourcesScreen Card={Card} Badge={Badge} Tabs={Tabs} Icon={Icon} />;
+  } else {
+    body = <ProfileScreen Card={Card} Switch={Switch} Button={Button} Icon={Icon} />;
+  }
+
+  const navTab = tab === 'checkin' ? 'home' : tab;
+
+  return (
+    <PhoneFrame>
+      <div style={{ position: 'relative', flex: 1, overflowY: 'auto' }}>
+        {body}
+        {showToast && (
+          <div style={{ position: 'sticky', bottom: '12px', display: 'flex', justifyContent: 'center' }}>
+            <Toast tone="success">Registro guardado</Toast>
+          </div>
+        )}
+      </div>
+      {screen === 'app' && <BottomNav active={navTab} onSelect={setTab} Icon={Icon} />}
+    </PhoneFrame>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
