@@ -8,12 +8,15 @@ const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || '';
 const CONSENT_VERSION = import.meta.env.VITE_CONSENT_VERSION || 'v1';
 const BACKEND_ON = !!(SUPABASE_URL && SUPABASE_KEY);
 /* Marca cada sesión como de prueba. VITE_TEST_MODE es el interruptor general (en
-   producción ya está en false: cuenta como real por defecto). Aparte, ?test=1 en la URL
-   fuerza is_test:true para ESA sesión sin importar VITE_TEST_MODE — es el link que se
-   comparte entre el equipo (mindi-beta.vercel.app/?test=1) para seguir probando sin
-   mezclarse con usuarias reales, sin tener que tocar variables de entorno ni desplegar. */
-const TEST_MODE = (import.meta.env.VITE_TEST_MODE ?? 'true') !== 'false'
-  || new URLSearchParams(location.search).get('test') === '1';
+   producción ya está en false: cuenta como real por defecto). Aparte, ?test=<lo que sea>
+   en la URL fuerza is_test:true para ESA sesión sin importar VITE_TEST_MODE — es el link
+   que se comparte entre el equipo para seguir probando sin mezclarse con usuarias reales,
+   sin tocar variables de entorno ni desplegar. Cualquier valor sirve (?test=1, ?test=ara,
+   ?test=lo-que-sea): no hace falta que sea exactamente "1" — se guarda tal cual en los
+   eventos (campo "tester") por si más adelante quieren ver quién probó qué.
+   Ej.: mindi-beta.vercel.app/?test=ara y mindi-beta.vercel.app/?test=compa */
+const TEST_PARAM = new URLSearchParams(location.search).get('test');
+const TEST_MODE = (import.meta.env.VITE_TEST_MODE ?? 'true') !== 'false' || !!TEST_PARAM;
 
 function newId(){
   return (crypto.randomUUID ? crypto.randomUUID()
@@ -36,7 +39,9 @@ function track(event, props){
   const payload = Object.assign({event:'mindi_'+event, ts:Date.now()}, props||{});
   window.dataLayer.push(payload);
   if(window.console) console.debug('[mindi]', payload);
-  sb('events', {session_id:SESSION_ID, name:event, props:Object.assign({is_test:TEST_MODE}, props||{})});
+  const base = {is_test:TEST_MODE};
+  if(TEST_PARAM) base.tester = TEST_PARAM;
+  sb('events', {session_id:SESSION_ID, name:event, props:Object.assign(base, props||{})});
 }
 
 function saveSession(level){
