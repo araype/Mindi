@@ -17,6 +17,8 @@
     <nav class="nav" aria-label="Principal">
       <a href="#sintomas">Lo que notas</a>
       <a href="#como-funciona">Cómo funciona</a>
+      <a href="#preguntas-frecuentes">Preguntas frecuentes</a>
+      <a href="#eventos">Eventos</a>
     </nav>
     <button class="btn btn-sm" type="button" data-open-chat data-track="cta_nav">Hablar con Mindi</button>
   </div>
@@ -95,6 +97,56 @@
     </div>
   </section>
 
+  <section class="section" id="preguntas-frecuentes" aria-labelledby="faq-title">
+    <div class="wrap">
+      <div class="section-head">
+        <h2 id="faq-title">Preguntas frecuentes</h2>
+        <p>Antes de conversar con Mindi, quizá esto ya responda algo.</p>
+      </div>
+      <div class="faq-list">
+        <details class="faq-item">
+          <summary>¿Qué es el climaterio?</summary>
+          <p>Es la etapa de transición que va desde los años previos a la menopausia hasta después de ella — incluye cambios físicos, emocionales y sociales, no solo el fin de la regla.<span class="cite">Fuente: Guía HNHU (RD N° 211-2024-DG/HNHU), sección 5.1.2.</span></p>
+        </details>
+        <details class="faq-item">
+          <summary>¿Es lo mismo que la menopausia?</summary>
+          <p>No exactamente. La menopausia es un solo día: tu última regla. El climaterio es todo el proceso alrededor de ese momento, antes y después.<span class="cite">Fuente: Guía HNHU (RD N° 211-2024-DG/HNHU), sección 5.1.1.</span></p>
+        </details>
+        <details class="faq-item">
+          <summary>¿Esto reemplaza una consulta médica?</summary>
+          <p>No. Mindi ofrece orientación informativa, no un diagnóstico. Solo un médico o una médica puede evaluarte con exámenes clínicos.</p>
+        </details>
+        <details class="faq-item">
+          <summary>¿Cómo calculan mi resultado?</summary>
+          <p>Con la Escala de Puntuación en Menopausia (MRS), la misma que usan los ginecólogos — 11 preguntas agrupadas en tres áreas: cuerpo, ánimo e íntimo.<span class="cite">Fuente: Guía HNHU (RD N° 211-2024-DG/HNHU), Anexo 1.</span></p>
+        </details>
+        <details class="faq-item">
+          <summary>¿Es normal sentir varios síntomas a la vez?</summary>
+          <p>Sí. Ningún síntoma por separado tiene por qué sentirse insoportable, pero tener varios presentes a la vez, incluso en un nivel moderado, suma una carga real — por eso miramos el conjunto, no solo el más fuerte.</p>
+        </details>
+        <details class="faq-item">
+          <summary>¿A qué edad empieza esto?</summary>
+          <p>Varía mucho. En Perú, la edad promedio de la menopausia es 47 años, aunque la transición puede empezar antes. Cada cuerpo tiene su propio ritmo.<span class="cite">Fuente: Guía HNHU (RD N° 211-2024-DG/HNHU), sección 5.4.</span></p>
+        </details>
+        <details class="faq-item">
+          <summary>¿Mis respuestas son privadas?</summary>
+          <p>Tú decides qué compartir con Mindi. Tus respuestas se guardan sin tu nombre, separadas de tu contacto — y siempre queremos que entiendas cómo usamos tu información.</p>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <section class="section events-section" id="eventos" aria-labelledby="events-title">
+    <div class="wrap">
+      <div class="events-panel">
+        <p class="eyebrow">Próximamente</p>
+        <h2 id="events-title">Un espacio para conversar juntas</h2>
+        <p>Estamos preparando un conversatorio donde puedas compartir tu experiencia y escuchar la de otras mujeres que están pasando por lo mismo — para sentirte acompañada, no solo informada.</p>
+        <button class="btn" type="button" data-open-chat data-track="cta_eventos">Avísame cuando esté listo</button>
+      </div>
+    </div>
+  </section>
+
   <section class="band" aria-label="Lo que creemos">
     <div class="wrap">
       <h2>Ver a la mujer, <em>no solo al síntoma.</em></h2>
@@ -118,7 +170,7 @@
           </div>
           <button class="chat-exit" type="button" id="exitBtn">Salir</button>
         </div>
-        <div class="proto-note"><span class="tag-ph">Prototipo</span>Las respuestas no se envían a ningún servidor todavía.</div>
+        <div class="proto-note"><span class="tag-ph">Prototipo</span>Tus respuestas se guardan de forma anónima (sin tu nombre) para ayudarnos a mejorar el acompañamiento.</div>
         <div class="progress" aria-hidden="true"><div class="progress-fill" id="progressFill"></div></div>
         <div class="chat-meta" id="chatMeta" hidden>
           <span id="sectionLabel" aria-live="polite"></span>
@@ -131,7 +183,6 @@
             <button class="btn" type="button" id="startBtn" data-track="cta_chat">Empezar</button>
           </div>
         </div>
-        <div class="composer" id="composer"></div>
       </div>
     </div>
   </section>
@@ -139,8 +190,37 @@
 
 <footer class="site-footer">
   <div class="wrap">
-    <p>Mindi ofrece orientación informativa y no reemplaza la valoración de un profesional de salud. Solo un médico o una médica puede evaluarte con exámenes clínicos.</p>
-    <p><span class="tag-ph">Marcador de posición</span>Revisión clínica y fuentes: pendientes de un especialista real antes de publicar. Política de privacidad: pendiente.</p>
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <span class="footer-word">Mindi</span>
+        <p>Un espacio para entender qué te pasa en esta etapa, a tu ritmo y sin juicio.</p>
+      </div>
+      <nav class="footer-col" aria-label="Explorar">
+        <h3>Explorar</h3>
+        <a href="#sintomas">Lo que notas</a>
+        <a href="#como-funciona">Cómo funciona</a>
+        <a href="#preguntas-frecuentes">Preguntas frecuentes</a>
+        <a href="#eventos">Eventos</a>
+        <a href="#conversar" data-open-chat data-track="cta_footer">Hablar con Mindi</a>
+      </nav>
+      <div class="footer-col" aria-label="Confianza">
+        <h3>Confianza</h3>
+        <a href="https://doi.org/10.33421/inmp.2020204" target="_blank" rel="noopener">Fuente clínica (Guía HNHU 2024)</a>
+        <span>Privacidad: tú decides qué compartir</span>
+        <span class="tag-ph">Revisión clínica: pendiente</span>
+      </div>
+    </div>
+
+    <div class="footer-notice">
+      <p><strong>Aviso médico:</strong> Mindi ofrece orientación informativa y no reemplaza la valoración de un profesional de salud. Solo un médico o una médica puede evaluarte con exámenes clínicos. Si en algún momento necesitas ayuda urgente, no esperes: acude a un servicio de urgencias.</p>
+    </div>
+
+    <p class="footer-sources">La escala de síntomas, los umbrales de resultado, las banderas rojas y las medidas de estilo de vida del reporte citan la <em>Guía de Práctica Clínica para Diagnóstico y Tratamiento del Climaterio</em>, Hospital Nacional Hipólito Unanue (Resolución Directoral N° 211-2024-DG/HNHU, 2024). El dato de prevalencia del inicio cita además: Ayala-Peralta FD. Estrategias de manejo durante el climaterio y menopausia. Guía práctica de atención rápida. <em>Rev Peru Investig Matern Perinat.</em> 2020;9(2):34-41. <a href="https://doi.org/10.33421/inmp.2020204" target="_blank" rel="noopener">doi.org/10.33421/inmp.2020204</a>. El resto del contenido demostrativo sigue marcado como "Ejemplo" o "Marcador de posición" hasta contar con revisión clínica real.</p>
+
+    <div class="footer-bottom">
+      <span>© 2026 Mindi. Proyecto en desarrollo — sin entidad legal registrada todavía.</span>
+      <span>Hecho con cuidado, a tu ritmo.</span>
+    </div>
   </div>
 </footer>
 

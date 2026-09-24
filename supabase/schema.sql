@@ -21,7 +21,8 @@ create table if not exists public.sessions (
   score_total      smallint not null check (score_total      between 0 and 44),
   level            text not null check (level in ('A','B','C','alert')),
   red_flags        text[] not null default '{}',
-  skipped_intimate boolean not null default false
+  skipped_intimate boolean not null default false,
+  is_test          boolean not null default false  -- sesión de prueba, se excluye del embudo real
 );
 
 -- Contacto separado de las respuestas de salud.
@@ -32,7 +33,8 @@ create table if not exists public.leads (
   name          text check (char_length(name) <= 80),
   contact       text not null check (char_length(contact) between 5 and 120),
   consent       boolean not null check (consent = true),
-  consent_text_version text not null check (char_length(consent_text_version) <= 20)
+  consent_text_version text not null check (char_length(consent_text_version) <= 20),
+  is_test       boolean not null default false
 );
 
 -- Embudo: page_view, cta_click, chat_start, mrs_complete, redflags_answered, lead, result, price_validation
@@ -59,16 +61,23 @@ grant insert on public.sessions, public.leads, public.events to anon;
 grant usage, select on all sequences in schema public to anon;
 
 -- Vista de embudo (consultar en el panel; anon no tiene acceso).
-create or replace view public.funnel as
+-- DROP + CREATE, no REPLACE: Postgres no deja que REPLACE reordene columnas de una vista.
+drop view if exists public.funnel;
+create view public.funnel as
 select
   count(distinct session_id) filter (where name = 'page_view')         as visitas,
   count(distinct session_id) filter (where name = 'chat_start')        as inician_chat,
   count(distinct session_id) filter (where name = 'mrs_complete')      as completan_sintomas,
   count(distinct session_id) filter (where name = 'result')            as ven_resultado,
+  count(distinct session_id) filter (where name = 'goals')             as eligen_metas,
   count(distinct session_id) filter (where name = 'lead' and (props->>'captured') = 'true') as leads,
-  count(distinct session_id) filter (where name = 'price_validation' and props->>'answer' = 'Sí, lo probaría')     as precio_si,
-  count(distinct session_id) filter (where name = 'price_validation' and props->>'answer' = 'Tal vez, depende')     as precio_tal_vez,
-  count(distinct session_id) filter (where name = 'price_validation' and props->>'answer' = 'No lo creo')           as precio_no
-from public.events;
+  count(distinct session_id) filter (where name = 'price_validation' and props->>'answer' = 'Sí, lo probaría')  as precio_si,
+  count(distinct session_id) filter (where name = 'price_validation' and props->>'answer' = 'Tal vez, depende')  as precio_tal_vez,
+  count(distinct session_id) filter (where name = 'price_validation' and props->>'answer' = 'No lo probaría')    as precio_no,
+  count(distinct session_id) filter (where name = 'satisfaction' and (props->>'score')::int >= 3) as satisfaccion_alta,
+  count(distinct session_id) filter (where name = 'satisfaction' and (props->>'score')::int = 2)  as satisfaccion_neutra,
+  count(distinct session_id) filter (where name = 'satisfaction' and (props->>'score')::int <= 1) as satisfaccion_baja
+from public.events
+where (props->>'is_test') is distinct from 'true';
 alter view public.funnel set (security_invoker = true);
 revoke all on public.funnel from anon, authenticated;
