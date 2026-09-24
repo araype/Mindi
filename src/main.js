@@ -77,7 +77,7 @@ function requestReport(){
           `<a class="btn btn-sm" href="${res.wa}" target="_blank" rel="noopener">Abrir en WhatsApp</a>` +
           pdfBtn +
           `<a class="btn btn-sm btn-ghost" href="${res.url}" target="_blank" rel="noopener">Ver como página</a></div>`,
-          ''
+          'report'
         );
       }
     } else {
@@ -103,7 +103,7 @@ function requestDownloadOnly(){
       addCard(
         '<h3>Tu reporte está listo</h3>No guardamos ningún dato de contacto — aquí tienes tu reporte en PDF para descargar directamente.' +
         `<div style="margin-top:12px;"><a class="btn btn-sm" href="${res.pdfUrl}" target="_blank" rel="noopener">Descargar mi reporte (PDF)</a></div>`,
-        ''
+        'report'
       );
     } else {
       track('report_failed', {error:(res && res.error) || 'unknown', channel:'download'});
@@ -644,7 +644,7 @@ function askItem(items, idx, domain){
   if(idx >= items.length){
     if(domain === 'somatico') return startDomain('psicologico');
     if(domain === 'psicologico') return startDomain('urogenital');
-    if(domain === 'urogenital') return showMrsSummary();
+    if(domain === 'urogenital') return finishMrs();
   }
   const item = items[idx];
   const msgs = [];
@@ -660,47 +660,14 @@ function askItem(items, idx, domain){
   });
 }
 
-function showMrsSummary(){
-  setSection('Repaso');
-  const card = document.createElement('div');
-  card.className = 'card';
-  function rowsHtml(){
-    return MRS_ITEMS.map(item=>{
-      const val = state.answers[item.id];
-      const has = !(val === null || val === undefined);
-      return `<div class="summary-row"><span>${item.short}</span>
-        <button type="button" class="pill-btn ${has ? 's'+val : ''}" data-edit="${item.id}" aria-label="${item.short}: ${has ? SCALE_LABELS[val] : 'sin responder'}. Cambiar respuesta">${has ? SCALE_LABELS[val] : 'Sin responder'}</button></div>`;
-    }).join('');
-  }
-  function continueChip(){
-    renderChips([{label:'Se ve bien, continuemos', primary:true}], ()=>{ track('mrs_complete'); askSmoking(); });
-  }
-  function bind(){
-    card.innerHTML = `<h3>Lo que me contaste hasta ahora</h3><p class="card-note">Toca una respuesta si quieres cambiarla.</p>${rowsHtml()}`;
-    card.querySelectorAll('[data-edit]').forEach(btn=>{
-      btn.onclick = ()=>{
-        const item = MRS_ITEMS.find(i=>i.id===btn.dataset.edit);
-        renderScale((val)=>{
-          state.answers[item.id] = val;
-          state.skippedIntimate = ['p11','p13'].some(id=>state.answers[id] === null);
-          bind();
-          continueChip();
-        }, !!item.skippable, `Cambiar: ${item.short}`, item.scaleLabels);
-      };
-    });
-  }
-  botSay([
-    'Estos síntomas se agrupan en tres áreas: lo físico, lo emocional y lo íntimo. La menopausia no es un solo síntoma — afecta distintas partes de tu vida a la vez, por eso lo miramos así.',
-    'Antes de seguir, revisa rápido lo que marcaste. Si algo no refleja cómo te sientes, puedes cambiarlo ahora.',
-  ]).then(()=>{
-    const row = document.createElement('div');
-    row.className = 'row bot';
-    row.appendChild(card);
-    chat.appendChild(row);
-    bind();
-    scrollBottom();
-    continueChip();
-  });
+/* Antes había una tarjeta de repaso editable ("Lo que me contaste hasta ahora") entre las
+   11 respuestas y el bloque de contexto — se quitó porque sumaba un paso más sin avanzar la
+   conversación (fricción). Se sigue marcando mrs_complete para no perder esa métrica del
+   embudo, solo que ahora sin la pausa de revisión. */
+function finishMrs(){
+  track('mrs_complete');
+  setSection('Contexto para tu reporte');
+  botSay(['Gracias por contarme todo esto.']).then(()=> askSmoking());
 }
 
 function askSmoking(){
@@ -940,7 +907,7 @@ function continueToGoals(){
 function askGoals(dominio){
   setSection('Tus metas');
   botSay([`Vimos que ${dominio} es lo que más te está afectando hoy.`]).then(()=>{
-    addCard('<h3>¿Qué te gustaría lograr a partir de ahora?</h3><p class="card-note">Elige todas las que apliquen — no hay una respuesta correcta.</p>', 'notice');
+    addCard('<h3>¿Qué te gustaría lograr a partir de ahora?</h3><p class="card-note">Elige todas las que apliquen — no hay una respuesta correcta.</p>', 'goals');
     const options = GOAL_OPTIONS.map((text,i)=>({id:'g'+i, text}));
     renderMultiSelect(options, (selected)=>{
       const labels = selected.map(id => GOAL_OPTIONS[+id.slice(1)]);
@@ -985,11 +952,12 @@ function validContact(v){
 }
 
 function askContact(){
-  botSay(['Para terminar, ¿a qué correo o número de WhatsApp te envío tu reporte completo?', 'Es opcional — si prefieres no dejarlo, igual te dejo tu reporte para descargar. Al dejar tu contacto, aceptas que lo usemos solo para enviarte tu reporte y avisarte cuando el acompañamiento esté listo. Tus respuestas se guardan sin tu nombre, separadas de tus datos de contacto. Tú decides qué compartir.']).then(()=>{
+  botSay(['Para terminar, ¿a qué correo o número de WhatsApp te envío tu reporte completo? Es opcional — si prefieres no dejarlo, igual te dejo tu reporte para descargar.']).then(()=>{
     renderTextInput('correo@ejemplo.com o WhatsApp', {
       skipLabel:'Prefiero no dejar mis datos',
       validate:validContact,
       errorText:'Revisa el correo o el número (mínimo 9 dígitos), o elige no dejar tus datos.',
+      hint:'Solo lo usamos para enviarte tu reporte y avisarte del acompañamiento. Tus respuestas se guardan sin tu nombre, separadas de tu contacto.',
     }, (val)=>{
       state.contact = val;
       track('lead', {captured: !!val});

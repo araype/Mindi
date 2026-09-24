@@ -14,15 +14,24 @@
     --border:#DDDDD1;
     --border-warm:#E9D9C7;    /* borde cálido para tarjetas neutras del chat */
 
-    --brand-accent:#D98467;   /* decorativo: nunca texto blanco encima */
-    --action-primary:#A4502F; /* acción: 5.6:1 con blanco */
-    --action-primary-hover:#8C4226;
+    /* Naranja de marca: F13C0F exacto (Figma), pero solo donde no hay texto encima —
+       contra blanco da 3.89:1 y no llega al mínimo de accesibilidad (4.5:1). Para texto
+       y relleno de botones se usa una versión ~18% más oscura, mismo tono, que sí pasa. */
+    --brand-accent:#F13C0F;   /* decorativo exacto de Figma: nunca texto blanco encima */
+    --action-primary:#C6310C; /* versión con texto: 5.5:1 con blanco */
+    --action-primary-hover:#9D270A;
     --brand-secondary:#6E3A4E;/* plum-rose, fill alterno de alto contraste */
     --brand-secondary-hover:#592D3E;
 
-    --calm-bg:#EDF1E6;   --calm-border:#A3B58D;   --calm-text:#33421F;
-    --notice-bg:#FBF1DF; --notice-border:#E0B872; --notice-text:#5E3F0C;
-    --alert-bg:#FAE9E4;  --alert-border:#D58B7E;  --alert-text:#6E2519;
+    /* Tarjetas de estado del chat: los mismos 5 pasteles cálidos que ya usan las tarjetas
+       de síntoma (durazno/blush/salvia/rosa/crema) — se probó una versión más saturada
+       y se sintió "muy fuerte", así que el fondo vuelve al mismo pastel de siempre; solo
+       el borde y el título llevan algo más de color para diferenciar cada tipo. */
+    --calm-bg:#DDE6D0;   --calm-border:#A9C68E;   --calm-text:#2F5322;
+    --notice-bg:#F6E9C9; --notice-border:#DCB671; --notice-text:#6B4308;
+    --alert-bg:#EFCFD3;  --alert-border:#D69A85;  --alert-text:#6E2519;
+    --goals-bg:#F9DCE6;  --goals-border:#E499BB;  --goals-text:#7A1F3D;
+    --report-bg:#FFE0C4; --report-border:#EFA36C; --report-text:#9D270A;
 
     --s0-bg:#EDF1E6; --s0-border:#A3B58D; --s0-text:#33421F;
     --s1-bg:#F4ECD8; --s1-border:#D2BC86; --s1-text:#57461F;
@@ -30,8 +39,11 @@
     --s3-bg:#F3D8CC; --s3-border:#C97658; --s3-text:#5A2A17;
     --s4-bg:#EBD5DC; --s4-border:#8E4A62; --s4-text:#4E1F30;
 
-    --font-editorial:'Source Serif 4', Georgia, serif;
-    --font-ui:'Hanken Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    /* Antes eran dos familias (serif editorial + sans para UI); ahora Poppins hace los
+       dos roles, con peso como única diferencia — se mantienen los dos nombres de token
+       por si más adelante se vuelve a separar. */
+    --font-editorial:'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-ui:'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 
     --r-s:10px; --r-m:16px; --r-l:24px;
     --shadow-card:0 1px 2px rgba(90,55,40,.06), 0 6px 20px rgba(90,55,40,.07);
@@ -97,11 +109,14 @@
     display:inline-flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:var(--brand-secondary);
     background:var(--blush);border-radius:999px;padding:6px 14px;margin-bottom:22px;
   }
+  /* Referencia: samara.com/adus — el peso liviano es lo que da elegancia, no el bold (antes
+     en 700 se sentía tosco). El tamaño se había subido de más para "compensar presencia" y
+     terminó ocupando tanto alto que tapaba el botón — vuelve a un tope más chico. */
   .hero h1{
-    font-family:var(--font-editorial);font-weight:500;letter-spacing:-.025em;
-    font-size:clamp(36px,5.6vw,66px);line-height:1.04;color:var(--ink);
+    font-family:var(--font-editorial);font-weight:400;letter-spacing:-.02em;
+    font-size:clamp(32px,4.2vw,52px);line-height:1.1;color:var(--ink);
   }
-  .hero h1 em{font-style:italic;font-weight:400;color:var(--action-primary);}
+  .hero h1 em{font-style:normal;font-weight:400;color:var(--action-primary);}
   .hero .lead{margin-top:24px;font-size:19px;line-height:1.55;color:var(--ink-soft);max-width:32em;}
   .hero-cta{margin-top:34px;display:flex;flex-wrap:wrap;align-items:center;gap:16px 22px;}
   .hero-cta small{font-size:14px;color:var(--ink-soft);}
@@ -126,7 +141,10 @@
   /* El mock reutiliza .scale-row/.chip del chat real (ver landing.css más abajo) — aquí
      solo lo que hace falta para que se vea bien dentro de la tarjeta del hero. */
   .mock-scale-row{margin-top:4px;}
-  .mock-scale-row .chip{cursor:default;box-shadow:var(--shadow-card);}
+  /* Aquí sí con relleno blanco (a diferencia del chat real): el fondo detrás es el degradado
+     durazno/blush del hero, no el sand-50 del chat, así que blanco sigue siendo lo que más
+     contrasta y se ve limpio. */
+  .mock-scale-row .chip{cursor:default;background:var(--white);box-shadow:var(--shadow-card);}
   .mock-tag{
     position:relative;display:inline-block;margin-top:18px;font-size:12.5px;font-weight:600;
     color:var(--ink);background:rgba(255,255,255,.75);border-radius:999px;padding:3px 12px;
@@ -219,10 +237,10 @@
 
   .band{background:var(--ink);color:#F4F1EA;padding:88px 0;}
   .band h2{
-    font-family:var(--font-editorial);font-weight:400;letter-spacing:-.025em;
+    font-family:var(--font-editorial);font-weight:600;letter-spacing:-.025em;
     font-size:clamp(34px,5.4vw,62px);line-height:1.05;max-width:16em;
   }
-  .band h2 em{color:#F2A98C;font-style:italic;}
+  .band h2 em{color:#F2A98C;font-style:normal;}
   .band p{margin-top:24px;font-size:18px;max-width:34em;color:#CFCABF;}
 
   /* ---------- Chat section ---------- */
@@ -251,10 +269,6 @@
   }
   .chat-top-title{font-weight:600;font-size:16px;line-height:1.2;}
   .chat-top-sub{font-size:13px;color:var(--ink-soft);}
-  .proto-note{
-    font-size:13px;color:var(--ink-soft);text-align:center;padding:6px 16px;
-    border-bottom:1px solid var(--border);flex-shrink:0;background:var(--sand-50);
-  }
   .progress{height:4px;background:var(--sand-200);flex-shrink:0;}
   .progress-fill{height:100%;width:0;background:var(--action-primary);transition:width .4s var(--ease);}
 
@@ -269,20 +283,29 @@
     max-width:82%;padding:11px 15px;border-radius:var(--r-m);font-size:15.5px;line-height:1.5;
     animation:pop .25s var(--ease);
   }
-  .bot .bubble{background:var(--white);border:1px solid var(--border);border-bottom-left-radius:4px;}
+  .bot .bubble{background:var(--white);border:1px solid var(--border);border-bottom-left-radius:4px;box-shadow:var(--shadow-card);}
   .user .bubble{background:var(--brand-secondary);color:#fff;border-bottom-right-radius:4px;}
   .bubble.example{color:var(--ink-soft);font-size:14.5px;}
   @keyframes pop{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
 
   .card{
     max-width:94%;border-radius:var(--r-m);padding:16px 17px;font-size:15px;line-height:1.55;
-    border:1px solid var(--border-warm);border-left:3px solid var(--brand-accent);
+    border:1px solid var(--border-warm);border-left:4px solid var(--brand-accent);
     background:var(--sand-100);animation:pop .25s var(--ease);
   }
+  /* Cada tipo de tarjeta lleva su propio color (fondo + borde + título) de la misma paleta
+     cálida que las tarjetas de síntoma — ya no el plomo/ciruela genérico para todas. */
   .card.calm{background:var(--calm-bg);border-color:var(--calm-border);color:var(--calm-text);}
   .card.notice{background:var(--notice-bg);border-color:var(--notice-border);color:var(--notice-text);}
   .card.alert{background:var(--alert-bg);border-color:var(--alert-border);color:var(--alert-text);}
-  .card h3{font-family:var(--font-editorial);font-size:19px;margin-bottom:6px;line-height:1.25;color:var(--brand-secondary);}
+  .card.goals{background:var(--goals-bg);border-color:var(--goals-border);color:var(--goals-text);}
+  .card.report{background:var(--report-bg);border-color:var(--report-border);color:var(--report-text);}
+  .card h3{font-family:var(--font-editorial);font-size:19px;font-weight:600;margin-bottom:6px;line-height:1.25;color:var(--brand-secondary);}
+  .card.calm h3{color:var(--calm-text);}
+  .card.notice h3{color:var(--notice-text);}
+  .card.alert h3{color:var(--alert-text);}
+  .card.goals h3{color:var(--goals-text);}
+  .card.report h3{color:var(--report-text);}
   .card ul{margin:8px 0 0;padding-left:20px;}
   .card li{margin:5px 0;}
   .card li b{font-weight:600;}
@@ -290,8 +313,6 @@
     margin:12px 0;padding:12px 14px;border-radius:var(--r-s);
     background:var(--alert-bg);border:2px solid var(--alert-border);color:var(--alert-text);font-weight:600;
   }
-  .summary-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:5px 0;}
-
   .typing{
     display:inline-flex;gap:5px;padding:13px 15px;background:var(--white);
     border:1px solid var(--border);border-radius:var(--r-m);border-bottom-left-radius:4px;
@@ -306,8 +327,12 @@
      que tapa la pregunta. */
   .composer-inline{padding:2px 0 6px;}
   .chips{display:flex;flex-wrap:wrap;gap:8px;}
+  /* background:sand-50 (no blanco) a propósito: el fondo del chat YA es sand-50, así que
+     una opción sin relleno propio se lee como una pastilla de contorno sobre la página —
+     distinta a simple vista de las burbujas de mensaje (.bubble), que sí son blancas y con
+     algo de elevación. Antes ambas eran blancas y, en preguntas sin escala, se perdían entre sí. */
   .chip{
-    min-height:44px;border:1.5px solid var(--border);background:var(--white);color:var(--ink);
+    min-height:44px;border:1.5px solid var(--border);background:var(--sand-50);color:var(--ink);
     padding:10px 16px;border-radius:999px;font:500 15px/1.25 var(--font-ui);cursor:pointer;
     text-align:left;display:inline-flex;align-items:center;gap:8px;
     transition:border-color .15s, background .15s, transform .12s;
@@ -362,6 +387,22 @@
   }
   .chat-start h3{font-family:var(--font-editorial);font-size:22px;margin-bottom:8px;}
   .chat-start p{color:var(--ink-soft);margin-bottom:18px;font-size:15.5px;}
+
+  /* En mobile el chat ocupa toda la pantalla y ese tamaño de letra tiene sentido (además
+     de ser buen objetivo táctil); en desktop la caja sigue siendo angosta (max 560px) pero
+     se lee de más lejos, así que el mismo tamaño se siente grande. Un poco más chico solo
+     ahí, sin tocar mobile. */
+  @media(min-width:760px){
+    .bubble{font-size:14.5px;}
+    .bubble.question{font-size:17.5px;}
+    .bubble .sub{font-size:13.5px;}
+    .bubble.example{font-size:13.5px;}
+    .card{font-size:14px;}
+    .card h3{font-size:17.5px;}
+    .chip{font-size:14px;}
+    .scale-row .chip{font-size:13.5px;}
+    .chat-start p{font-size:14.5px;}
+  }
 
   /* ---------- Footer ---------- */
   .site-footer{padding:56px 0 32px;background:var(--sand-100);border-top:1px solid var(--border);}
@@ -432,18 +473,7 @@
 
   .composer-heading{font-size:13.5px;font-weight:600;color:var(--brand-secondary);margin:0 0 10px;}
 
-  /* Resumen editable */
-  .card-note{font-size:13.5px;color:var(--ink-soft);margin:0 0 8px;}
-  .pill-btn{
-    min-height:36px;border:1.5px solid var(--border);border-radius:999px;background:var(--white);color:var(--ink);
-    padding:4px 14px;font:600 13px var(--font-ui);cursor:pointer;
-  }
-  .pill-btn:hover{border-color:var(--brand-secondary);}
-  .pill-btn.s0{background:var(--s0-bg);border-color:var(--s0-border);color:var(--s0-text);}
-  .pill-btn.s1{background:var(--s1-bg);border-color:var(--s1-border);color:var(--s1-text);}
-  .pill-btn.s2{background:var(--s2-bg);border-color:var(--s2-border);color:var(--s2-text);}
-  .pill-btn.s3{background:var(--s3-bg);border-color:var(--s3-border);color:var(--s3-text);}
-  .pill-btn.s4{background:var(--s4-bg);border-color:var(--s4-border);color:var(--s4-text);}
+  .card-note{font-size:13.5px;color:#4E4B44;margin:0 0 8px;} /* más oscuro que ink-soft: mantiene AA también sobre goals-bg */
 
   /* Resultado por áreas */
   .area{margin-top:14px;}
@@ -504,7 +534,6 @@
       max-width:none;height:100dvh;min-height:0;border:none;border-radius:0;box-shadow:none;
     }
     .chat-section.focus .chat-exit{display:inline-flex;align-items:center;}
-    .chat-section.focus .proto-note{display:none;}
     /* Menos "chrome" fijo = más alto real para leer la conversación en pantallas chicas. */
     .chat-section.focus .chat-top{padding:9px 14px;gap:10px;}
     .chat-section.focus .avatar{width:32px;height:32px;font-size:16px;}
