@@ -220,13 +220,11 @@ function setFocus(on){
   document.getElementById('conversar').classList.toggle('focus', on);
   document.body.classList.toggle('no-scroll', on);
 }
-/* El modo pantalla completa se re-evalúa en vivo (no solo al apretar "Empezar"), para que
-   siga siendo correcto si la ventana cambia de tamaño o el celular rota mientras se conversa
-   — pero solo mientras la usuaria no lo haya cerrado a propósito (ver focusDismissed). */
-const mobileQuery = window.matchMedia('(max-width:640px)');
-function syncFocus(){ if(started && !focusDismissed) setFocus(mobileQuery.matches); }
-mobileQuery.addEventListener('change', syncFocus);
-window.addEventListener('resize', syncFocus);
+/* El modo pantalla completa ya no depende del ancho de pantalla (antes solo pasaba en
+   mobile) — ahora, mientras se conversa, tapa el resto de la landing en cualquier tamaño,
+   para que el chat tenga todo el espacio. Se mantiene apagado solo si la usuaria lo cerró
+   a propósito con "Salir" (ver focusDismissed). */
+function syncFocus(){ if(started && !focusDismissed) setFocus(true); }
 function setProgress(n){ progressFill.style.width = Math.min(100, Math.round((n/TOTAL_STEPS)*100)) + '%'; }
 function advance(){ step++; setProgress(step); }
 function scrollBottom(){ requestAnimationFrame(()=>{ chat.scrollTop = chat.scrollHeight; }); }
@@ -1020,6 +1018,20 @@ document.querySelectorAll('[data-open-chat]').forEach(el=>{
   el.addEventListener('click', ()=>{ track('cta_click',{source:el.dataset.track || 'section'}); openChat('section'); });
 });
 document.getElementById('restartBtn').addEventListener('click', ()=>{ track('restart'); location.hash = 'conversar'; location.reload(); });
+
+/* ---------- Menú de mobile (hamburguesa) ----------
+   En mobile no existe el .nav horizontal (no entra) — este panel es la única forma de
+   llegar a "Cómo funciona"/"Preguntas frecuentes"/"Eventos" desde ahí. */
+const navToggle = document.getElementById('navToggle');
+const mobileNav = document.getElementById('mobileNav');
+if(navToggle && mobileNav){
+  const setNavOpen = (open)=>{
+    navToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    mobileNav.hidden = !open;
+  };
+  navToggle.addEventListener('click', ()=> setNavOpen(mobileNav.hidden));
+  mobileNav.querySelectorAll('a').forEach(a=> a.addEventListener('click', ()=> setNavOpen(false)));
+}
 
 /* ---------- Lista de espera del conversatorio (sección "Eventos") ----------
    Aparte del chat: no es una evaluación de síntomas, solo separa un cupo. Guarda en

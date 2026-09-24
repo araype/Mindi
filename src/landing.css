@@ -18,8 +18,11 @@
        contra blanco da 3.89:1 y no llega al mínimo de accesibilidad (4.5:1). Para texto
        y relleno de botones se usa una versión ~18% más oscura, mismo tono, que sí pasa. */
     --brand-accent:#F13C0F;   /* decorativo exacto de Figma: nunca texto blanco encima */
-    --action-primary:#C6310C; /* versión con texto: 5.5:1 con blanco */
-    --action-primary-hover:#9D270A;
+    /* Un melón puro (como el "indi" del logo, ~#D88B79) da 2.66:1 contra blanco — no pasa
+       ni de cerca el mínimo de accesibilidad (4.5:1) para el texto de los botones. Este es
+       el tono más claro y cálido, mismo matiz que el logo, que todavía cumple. */
+    --action-primary:#D33D17; /* 4.7:1 con blanco — mismo matiz que el logo, más claro que antes */
+    --action-primary-hover:#A82F11;
     --brand-secondary:#6E3A4E;/* plum-rose, fill alterno de alto contraste */
     --brand-secondary-hover:#592D3E;
 
@@ -31,7 +34,7 @@
     --notice-bg:#F6E9C9; --notice-border:#DCB671; --notice-text:#6B4308;
     --alert-bg:#EFCFD3;  --alert-border:#D69A85;  --alert-text:#6E2519;
     --goals-bg:#F9DCE6;  --goals-border:#E499BB;  --goals-text:#7A1F3D;
-    --report-bg:#FFE0C4; --report-border:#EFA36C; --report-text:#9D270A;
+    --report-bg:#FFE0C4; --report-border:#EFA36C; --report-text:#A82F11;
 
     --s0-bg:#EDF1E6; --s0-border:#A3B58D; --s0-text:#33421F;
     --s1-bg:#F4ECD8; --s1-border:#D2BC86; --s1-text:#57461F;
@@ -78,6 +81,33 @@
   .nav a{color:var(--ink);text-decoration:none;}
   .nav a:hover{color:var(--action-primary);}
   @media(min-width:760px){ .nav{display:flex;} }
+
+  /* Antes, en mobile, estos links simplemente no existían en ninguna parte — .nav se
+     ocultaba y no había forma de llegar a "Cómo funciona"/"Preguntas frecuentes"/"Eventos".
+     El botón hamburguesa + panel desplegable les da un lugar en mobile; en desktop nunca
+     se muestran (ya está el .nav horizontal). */
+  .header-actions{display:flex;align-items:center;gap:8px;}
+  .nav-toggle{
+    display:inline-flex;align-items:center;justify-content:center;
+    width:44px;height:44px;border:1.5px solid var(--border);border-radius:50%;
+    background:var(--white);color:var(--ink);cursor:pointer;flex-shrink:0;
+  }
+  .nav-toggle svg{width:20px;height:20px;}
+  .nav-toggle[aria-expanded="true"]{background:var(--brand-secondary);border-color:var(--brand-secondary);color:#fff;}
+  @media(min-width:760px){ .nav-toggle{display:none;} }
+
+  .mobile-nav{
+    display:flex;flex-direction:column;gap:2px;
+    padding:10px 20px 16px;border-top:1px solid var(--border);
+    background:var(--sand-50);
+  }
+  .mobile-nav[hidden]{display:none;}
+  .mobile-nav a{
+    color:var(--ink);text-decoration:none;font-weight:500;font-size:16px;
+    padding:12px 4px;border-bottom:1px solid var(--border);
+  }
+  .mobile-nav a:last-child{border-bottom:none;}
+  @media(min-width:760px){ .mobile-nav{display:none !important;} }
 
   /* ---------- Buttons ---------- */
   .btn{
@@ -218,7 +248,11 @@
   .events-section{padding-top:8px;}
   .events-panel{
     background:linear-gradient(160deg,var(--blush) 0%,var(--peach) 100%);
-    border-radius:var(--r-l);padding:44px 32px;text-align:center;max-width:42em;margin:0 auto;
+    /* Blob orgánico: cada esquina con un radio horizontal y vertical distinto (no simétrico
+       como una cápsula) — los % horizontales de cada borde suman 100% (no se pisan entre sí),
+       los verticales en px varían para que cada esquina abulte distinto. */
+    border-radius:60% 40% 45% 55% / 100px 130px 90px 120px;
+    padding:68px 32px;text-align:center;max-width:42em;margin:0 auto;
   }
   .events-panel .eyebrow{background:rgba(255,255,255,.65);}
   .events-panel h2{font-family:var(--font-editorial);font-weight:500;font-size:clamp(24px,3.6vw,32px);margin:10px 0 14px;color:var(--ink);}
@@ -280,16 +314,16 @@
   .row.bot{justify-content:flex-start;}
   .row.user{justify-content:flex-end;}
   .bubble{
-    max-width:82%;padding:11px 15px;border-radius:var(--r-m);font-size:15.5px;line-height:1.5;
+    max-width:82%;padding:11px 15px;border-radius:var(--r-m);font-size:14.5px;line-height:1.5;
     animation:pop .25s var(--ease);
   }
   .bot .bubble{background:var(--white);border:1px solid var(--border);border-bottom-left-radius:4px;box-shadow:var(--shadow-card);}
   .user .bubble{background:var(--brand-secondary);color:#fff;border-bottom-right-radius:4px;}
-  .bubble.example{color:var(--ink-soft);font-size:14.5px;}
+  .bubble.example{color:var(--ink-soft);font-size:13.5px;}
   @keyframes pop{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
 
   .card{
-    max-width:94%;border-radius:var(--r-m);padding:16px 17px;font-size:15px;line-height:1.55;
+    max-width:94%;border-radius:var(--r-m);padding:16px 17px;font-size:14px;line-height:1.55;
     border:1px solid var(--border-warm);border-left:4px solid var(--brand-accent);
     background:var(--sand-100);animation:pop .25s var(--ease);
   }
@@ -300,7 +334,7 @@
   .card.alert{background:var(--alert-bg);border-color:var(--alert-border);color:var(--alert-text);}
   .card.goals{background:var(--goals-bg);border-color:var(--goals-border);color:var(--goals-text);}
   .card.report{background:var(--report-bg);border-color:var(--report-border);color:var(--report-text);}
-  .card h3{font-family:var(--font-editorial);font-size:19px;font-weight:600;margin-bottom:6px;line-height:1.25;color:var(--brand-secondary);}
+  .card h3{font-family:var(--font-editorial);font-size:17.5px;font-weight:600;margin-bottom:6px;line-height:1.25;color:var(--brand-secondary);}
   .card.calm h3{color:var(--calm-text);}
   .card.notice h3{color:var(--notice-text);}
   .card.alert h3{color:var(--alert-text);}
@@ -333,7 +367,7 @@
      algo de elevación. Antes ambas eran blancas y, en preguntas sin escala, se perdían entre sí. */
   .chip{
     min-height:44px;border:1.5px solid var(--border);background:var(--sand-50);color:var(--ink);
-    padding:10px 16px;border-radius:999px;font:500 15px/1.25 var(--font-ui);cursor:pointer;
+    padding:10px 16px;border-radius:999px;font:500 14px/1.25 var(--font-ui);cursor:pointer;
     text-align:left;display:inline-flex;align-items:center;gap:8px;
     transition:border-color .15s, background .15s, transform .12s;
   }
@@ -349,7 +383,7 @@
   .scale-row{display:flex;flex-direction:column;gap:6px;}
   .scale-row .chip{
     width:100%;justify-content:space-between;text-align:left;
-    padding:9px 14px;font-size:14.5px;font-weight:500;min-height:44px;
+    padding:9px 14px;font-size:13.5px;font-weight:500;min-height:44px;
   }
   .scale-badge{
     width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;
@@ -386,22 +420,21 @@
     margin:auto;text-align:center;max-width:30em;padding:48px 20px;
   }
   .chat-start h3{font-family:var(--font-editorial);font-size:22px;margin-bottom:8px;}
-  .chat-start p{color:var(--ink-soft);margin-bottom:18px;font-size:15.5px;}
+  .chat-start p{color:var(--ink-soft);margin-bottom:18px;font-size:14.5px;}
 
-  /* En mobile el chat ocupa toda la pantalla y ese tamaño de letra tiene sentido (además
-     de ser buen objetivo táctil); en desktop la caja sigue siendo angosta (max 560px) pero
-     se lee de más lejos, así que el mismo tamaño se siente grande. Un poco más chico solo
-     ahí, sin tocar mobile. */
+  /* En mobile el chat ocupa toda la pantalla, así que ese tamaño (bueno también como
+     objetivo táctil) tiene sentido; en desktop la caja sigue siendo angosta (max 560px)
+     pero se lee de más lejos, así que un poco más chico todavía. */
   @media(min-width:760px){
-    .bubble{font-size:14.5px;}
-    .bubble.question{font-size:17.5px;}
-    .bubble .sub{font-size:13.5px;}
-    .bubble.example{font-size:13.5px;}
-    .card{font-size:14px;}
-    .card h3{font-size:17.5px;}
-    .chip{font-size:14px;}
-    .scale-row .chip{font-size:13.5px;}
-    .chat-start p{font-size:14.5px;}
+    .bubble{font-size:13.5px;}
+    .bubble.question{font-size:16px;}
+    .bubble .sub{font-size:12.5px;}
+    .bubble.example{font-size:12.5px;}
+    .card{font-size:13px;}
+    .card h3{font-size:16px;}
+    .chip{font-size:13px;}
+    .scale-row .chip{font-size:12.5px;}
+    .chat-start p{font-size:13.5px;}
   }
 
   /* ---------- Footer ---------- */
@@ -465,10 +498,10 @@
 
   /* Pregunta MRS: pregunta + ejemplo en una sola burbuja */
   .bubble.question{padding:14px 16px 13px;max-width:88%;}
-  .bubble.question{font-family:var(--font-editorial);font-size:19px;line-height:1.3;font-weight:500;letter-spacing:-.005em;}
+  .bubble.question{font-family:var(--font-editorial);font-size:17.5px;line-height:1.3;font-weight:500;letter-spacing:-.005em;}
   .bubble .sub{
     display:block;margin-top:8px;font-family:var(--font-ui);font-weight:400;
-    font-size:14px;line-height:1.45;color:var(--ink-soft);letter-spacing:0;
+    font-size:13px;line-height:1.45;color:var(--ink-soft);letter-spacing:0;
   }
 
   .composer-heading{font-size:13.5px;font-weight:600;color:var(--brand-secondary);margin:0 0 10px;}
@@ -522,22 +555,34 @@
   .face-scale-bar{display:flex;gap:4px;margin-top:6px;padding:0 2px 4px;}
   .face-scale-bar span{flex:1;height:5px;border-radius:999px;}
 
-  /* Modo enfoque (celular): el chat ocupa toda la pantalla */
+  /* Modo enfoque: mientras se conversa, solo se ve el chat — el resto de la landing (header,
+     hero, secciones) queda tapado, en mobile Y en desktop. Antes esto solo pasaba en mobile
+     (<640px); en desktop el chat se quedaba embebido en medio de la landing, con el resto de
+     la página quitándole espacio para leer/responder. Ahora es universal: la base de abajo
+     aplica siempre, y el bloque @media solo AJUSTA el tratamiento en mobile (pantalla
+     completa borde a borde) vs. desktop (tarjeta centrada, como un modal). */
   body.no-scroll{overflow:hidden;}
+  .chat-section.focus{
+    position:fixed;inset:0;z-index:50;background:var(--sand-100);overflow:hidden;
+    display:flex;align-items:center;justify-content:center;padding:32px 20px;
+  }
+  .chat-section.focus .wrap{padding:0;max-width:none;width:100%;height:100%;display:flex;align-items:center;justify-content:center;}
+  .chat-section.focus .chat-intro{display:none;}
+  .chat-section.focus .chat-exit{display:inline-flex;align-items:center;}
   @media (max-width:640px){
-    .chat-section.focus{
-      position:fixed;inset:0;z-index:50;padding:0;background:var(--white);overflow:hidden;
-    }
-    .chat-section.focus .wrap{padding:0;height:100%;}
-    .chat-section.focus .chat-intro{display:none;}
+    .chat-section.focus{padding:0;background:var(--white);}
     .chat-section.focus .chat-shell{
       max-width:none;height:100dvh;min-height:0;border:none;border-radius:0;box-shadow:none;
     }
-    .chat-section.focus .chat-exit{display:inline-flex;align-items:center;}
     /* Menos "chrome" fijo = más alto real para leer la conversación en pantallas chicas. */
     .chat-section.focus .chat-top{padding:9px 14px;gap:10px;}
     .chat-section.focus .avatar{width:32px;height:32px;font-size:16px;}
     .chat-section.focus .chat-top-sub{display:none;}
     .chat-section.focus .chat-meta{padding:6px 14px;font-size:12.5px;}
     .chat-section.focus .chat{padding:14px 14px;}
+  }
+  @media (min-width:641px){
+    /* En desktop el chat queda como una tarjeta centrada (no borde a borde) — se sigue
+       viendo como el mismo chat de siempre, solo que ahora es lo único visible. */
+    .chat-section.focus .chat-shell{height:min(84vh, 760px);}
   }

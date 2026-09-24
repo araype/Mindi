@@ -20,8 +20,19 @@
       <a href="#preguntas-frecuentes">Preguntas frecuentes</a>
       <a href="#eventos">Eventos</a>
     </nav>
-    <button class="btn btn-sm" type="button" data-open-chat data-track="cta_nav">Hablar con Mindi</button>
+    <div class="header-actions">
+      <button class="btn btn-sm" type="button" data-open-chat data-track="cta_nav">Hablar con Mindi</button>
+      <button class="nav-toggle" type="button" id="navToggle" aria-expanded="false" aria-controls="mobileNav" aria-label="Abrir menú">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+    </div>
   </div>
+  <nav class="mobile-nav" id="mobileNav" aria-label="Principal (mobile)" hidden>
+    <a href="#sintomas">Lo que notas</a>
+    <a href="#como-funciona">Cómo funciona</a>
+    <a href="#preguntas-frecuentes">Preguntas frecuentes</a>
+    <a href="#eventos">Eventos</a>
+  </nav>
 </header>
 
 <main>
@@ -30,7 +41,7 @@
       <div>
         <p class="eyebrow">Para esta etapa de cambios</p>
         <h1 id="hero-title">Mindi te ayuda a entender qué le pasa a tu cuerpo <em>sin que te genere miedo</em></h1>
-        <p class="lead">Conversa a tu ritmo, en pocos minutos, y llévate un resumen claro de lo que noto en lo que me cuentes, para conversarlo con tu médico(a).</p>
+        <p class="lead">Conversa a tu ritmo, en pocos minutos, y llévate un resumen claro para tu próxima consulta.</p>
         <div class="hero-cta">
           <button class="btn" type="button" id="heroCta">Cuéntale a Mindi cómo te has sentido <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h15M13 6l6 6-6 6"/></svg></button>
           <small>Toma unos 3 minutos. Tú decides qué compartir.</small>
