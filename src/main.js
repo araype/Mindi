@@ -7,11 +7,13 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || '';
 const CONSENT_VERSION = import.meta.env.VITE_CONSENT_VERSION || 'v1';
 const BACKEND_ON = !!(SUPABASE_URL && SUPABASE_KEY);
-/* Marca cada sesión como de prueba mientras seguimos probando el flujo (por defecto,
-   ON — así no hace falta hacer nada ahora). Antes del lanzamiento real, poner
-   VITE_TEST_MODE=false en .env (y en las variables de entorno de Vercel) para que
-   las sesiones reales no se mezclen con las de prueba al medir el 15% de conversión. */
-const TEST_MODE = (import.meta.env.VITE_TEST_MODE ?? 'true') !== 'false';
+/* Marca cada sesión como de prueba. VITE_TEST_MODE es el interruptor general (en
+   producción ya está en false: cuenta como real por defecto). Aparte, ?test=1 en la URL
+   fuerza is_test:true para ESA sesión sin importar VITE_TEST_MODE — es el link que se
+   comparte entre el equipo (mindi-beta.vercel.app/?test=1) para seguir probando sin
+   mezclarse con usuarias reales, sin tener que tocar variables de entorno ni desplegar. */
+const TEST_MODE = (import.meta.env.VITE_TEST_MODE ?? 'true') !== 'false'
+  || new URLSearchParams(location.search).get('test') === '1';
 
 function newId(){
   return (crypto.randomUUID ? crypto.randomUUID()
