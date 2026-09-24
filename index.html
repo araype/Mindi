@@ -40,11 +40,16 @@
         <div class="mock">
           <div class="b bot">Hola, soy Mindi. Vamos a repasar juntas cómo te has sentido.</div>
           <div class="b bot">¿Cómo has dormido últimamente?</div>
-          <div class="b ex">Por ejemplo: te cuesta conciliar el sueño o te despiertas a medianoche.</div>
-          <div class="mock-scale">
-            <span>Nada<i>0</i></span><span>Leve<i>1</i></span><span class="on">Moderado<i>2</i></span><span>Fuerte<i>3</i></span><span>Muy fuerte<i>4</i></span>
+          <div class="b ex">Por ejemplo: te cuesta conciliar el sueño, te despiertas a medianoche o sientes que no descansas.</div>
+          <!-- Mismas clases que usa el chat real (.scale-row/.chip): así este mock nunca se
+               desincroniza visualmente del componente real. Solo 3 de los 5 niveles (con sus
+               frases reales), para no alargar el hero de más. -->
+          <div class="scale-row mock-scale-row" aria-hidden="true">
+            <button type="button" class="chip" tabindex="-1"><span>Duermo bien</span><span class="scale-badge s0">0</span></button>
+            <button type="button" class="chip selected s2" tabindex="-1"><span>Me despierto varias veces en la noche</span><span class="scale-badge s2">2</span></button>
+            <button type="button" class="chip" tabindex="-1"><span>Casi no logro descansar</span><span class="scale-badge s4">4</span></button>
           </div>
-          <div class="b me">Moderado (2/4)</div>
+          <div class="b me">Me despierto varias veces en la noche</div>
         </div>
         <span class="mock-tag">Ejemplo de la conversación</span>
       </div>
@@ -57,7 +62,8 @@
         <h2 id="sym-title">Lo que muchas mujeres notan y no siempre saben nombrar</h2>
         <p>Los cambios de esta etapa se sienten distinto en cada cuerpo. Elige el que más te suene y empieza por ahí.</p>
       </div>
-      <div class="symptoms">
+      <div class="symptoms-wrap">
+      <div class="symptoms" id="symptoms">
         <button type="button" class="sym-card c-peach" data-open-chat>
           <div><h3>Bochornos y sudoración</h3><p>Calor repentino en la cara, el cuello o el pecho, a veces por la noche.</p></div>
           <span class="go">Cuéntale a Mindi <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h15M13 6l6 6-6 6"/></svg></span>
@@ -82,6 +88,7 @@
           <div><h3>Dolores y palpitaciones</h3><p>Articulaciones, músculos o latidos que se sienten distintos.</p></div>
           <span class="go">Cuéntale a Mindi <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h15M13 6l6 6-6 6"/></svg></span>
         </button>
+      </div>
       </div>
     </div>
   </section>
@@ -142,7 +149,10 @@
         <p class="eyebrow">Próximamente</p>
         <h2 id="events-title">Un espacio para conversar juntas</h2>
         <p>Estamos preparando un conversatorio donde puedas compartir tu experiencia y escuchar la de otras mujeres que están pasando por lo mismo — para sentirte acompañada, no solo informada.</p>
-        <button class="btn" type="button" data-open-chat data-track="cta_eventos">Avísame cuando esté listo</button>
+        <div id="eventsSignup" class="events-signup">
+          <button class="btn" type="button" id="eventsJoinBtn" data-track="cta_eventos">Apúntame a la lista de espera</button>
+          <small>Cupos limitados para el primer conversatorio — sin costo, te avisamos apenas tengamos fecha.</small>
+        </div>
       </div>
     </div>
   </section>
@@ -161,7 +171,7 @@
         <p>Un espacio para entender qué te pasa, sin juicio.</p>
       </div>
 
-      <div class="chat-shell">
+      <div class="chat-shell idle">
         <div class="chat-top">
           <div class="avatar" aria-hidden="true">M</div>
           <div class="chat-top-text">

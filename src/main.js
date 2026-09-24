@@ -207,6 +207,11 @@ const TYPING_MS = reduceMotion ? 0 : 550;
 const TOTAL_STEPS = 27;
 let step = 0;
 let started = false;
+/* Se pone en true cuando la usuaria toca "Salir" del modo pantalla completa. Sin esto,
+   cualquier "resize" lo reactivaba solo — y en el navegador de un celular el alto de la
+   ventana cambia todo el tiempo (la barra de direcciones se oculta/aparece al hacer scroll),
+   así que un simple scroll por la landing la devolvía de golpe al chat ya terminado. */
+let focusDismissed = false;
 
 const sectionLabel = document.getElementById('sectionLabel');
 const chatMeta = document.getElementById('chatMeta');
@@ -216,9 +221,10 @@ function setFocus(on){
   document.body.classList.toggle('no-scroll', on);
 }
 /* El modo pantalla completa se re-evalúa en vivo (no solo al apretar "Empezar"), para que
-   siga siendo correcto si la ventana cambia de tamaño o el celular rota mientras se conversa. */
+   siga siendo correcto si la ventana cambia de tamaño o el celular rota mientras se conversa
+   — pero solo mientras la usuaria no lo haya cerrado a propósito (ver focusDismissed). */
 const mobileQuery = window.matchMedia('(max-width:640px)');
-function syncFocus(){ if(started) setFocus(mobileQuery.matches); }
+function syncFocus(){ if(started && !focusDismissed) setFocus(mobileQuery.matches); }
 mobileQuery.addEventListener('change', syncFocus);
 window.addEventListener('resize', syncFocus);
 function setProgress(n){ progressFill.style.width = Math.min(100, Math.round((n/TOTAL_STEPS)*100)) + '%'; }
@@ -550,6 +556,7 @@ async function start(){
   started = true;
   track('chat_start');
   const s = document.getElementById('chatStart'); if(s) s.remove();
+  document.querySelector('.chat-shell').classList.remove('idle');
   chatMeta.hidden = false;
   setSection('Bienvenida');
   syncFocus();
@@ -1015,16 +1022,83 @@ function askSatisfaction(){
   });
 }
 
+/* Oculta el degradado del carrusel de síntomas cuando ya no hay más hacia dónde
+   deslizar (por scroll o llegando al final) — mientras sí haya, queda visible como
+   señal de que hay más tarjetas fuera de vista. */
+const symptomsEl = document.getElementById('symptoms');
+if(symptomsEl){
+  const symptomsWrap = symptomsEl.closest('.symptoms-wrap');
+  const syncSymptomsFade = () => {
+    const atEnd = symptomsEl.scrollLeft + symptomsEl.clientWidth >= symptomsEl.scrollWidth - 4;
+    symptomsWrap.classList.toggle('at-end', atEnd);
+  };
+  symptomsEl.addEventListener('scroll', syncSymptomsFade, {passive:true});
+  window.addEventListener('resize', syncSymptomsFade);
+  syncSymptomsFade();
+}
+
 /* ---------- Entrada ---------- */
 function openChat(source){
   document.getElementById('conversar').scrollIntoView({behavior: reduceMotion ? 'auto' : 'smooth', block:'start'});
+  // Volver a tocar "Hablar con Mindi" es una señal explícita de que quiere volver al chat
+  // (a diferencia de un simple resize) — si antes tocó "Salir", esto sí puede reactivar
+  // la pantalla completa en mobile.
+  focusDismissed = false;
   start();
+  syncFocus(); // por si el chat ya estaba iniciado antes (start() no hace nada en ese caso)
 }
 document.getElementById('heroCta').addEventListener('click', ()=>{ track('cta_click',{source:'hero'}); openChat('hero'); });
 document.querySelectorAll('[data-open-chat]').forEach(el=>{
   el.addEventListener('click', ()=>{ track('cta_click',{source:el.dataset.track || 'section'}); openChat('section'); });
 });
 document.getElementById('restartBtn').addEventListener('click', ()=>{ track('restart'); location.hash = 'conversar'; location.reload(); });
-document.getElementById('exitBtn').addEventListener('click', ()=>{ setFocus(false); document.getElementById('conversar').scrollIntoView({block:'start'}); });
+
+/* ---------- Lista de espera del conversatorio (sección "Eventos") ----------
+   Aparte del chat: no es una evaluación de síntomas, solo separa un cupo. Guarda en
+   `event_signups` (misma forma que `leads`: solo INSERT para anon, nadie lee con la
+   clave pública). Reutiliza validContact/CONSENT_VERSION/TEST_MODE ya definidos arriba. */
+const eventsSignupEl = document.getElementById('eventsSignup');
+if(eventsSignupEl){
+  document.getElementById('eventsJoinBtn').addEventListener('click', ()=>{
+    track('cta_click', {source:'eventos'});
+    eventsSignupEl.innerHTML = `
+      <form class="events-form" id="eventsForm">
+        <input type="text" id="eventsName" placeholder="Tu nombre (opcional)" autocomplete="name">
+        <input type="text" id="eventsContact" placeholder="correo@ejemplo.com o WhatsApp" autocomplete="email" required>
+        <button class="btn btn-sm" type="submit">Guardar mi cupo</button>
+        <p class="hint">Solo lo usamos para avisarte de este conversatorio. Tú decides qué compartir.</p>
+      </form>`;
+    const form = document.getElementById('eventsForm');
+    const contactInput = document.getElementById('eventsContact');
+    contactInput.focus({preventScroll:true});
+    form.addEventListener('submit', (e)=>{
+      e.preventDefault();
+      const name = document.getElementById('eventsName').value.trim();
+      const contact = contactInput.value.trim();
+      let err = form.querySelector('.hint.err');
+      if(!validContact(contact)){
+        if(!err){ err = document.createElement('p'); err.className = 'hint err'; err.setAttribute('role','alert'); form.appendChild(err); }
+        err.textContent = 'Revisa el correo o el número (mínimo 9 dígitos).';
+        return;
+      }
+      if(err) err.remove();
+      const submitBtn = form.querySelector('button');
+      submitBtn.disabled = true;
+      sb('event_signups', {
+        name: name || null, contact, consent:true, consent_text_version:CONSENT_VERSION, is_test:TEST_MODE,
+      }).then(ok=>{
+        track('event_waitlist_join', {captured: ok});
+        eventsSignupEl.innerHTML = ok
+          ? `<p class="events-confirm"><b>¡Listo, tienes tu cupo!</b>Te escribimos apenas tengamos la fecha del conversatorio.</p>`
+          : `<p class="events-confirm"><b>Algo no salió bien</b>No pudimos guardar tu cupo — inténtalo de nuevo en un momento.</p>`;
+      });
+    });
+  });
+}
+document.getElementById('exitBtn').addEventListener('click', ()=>{
+  focusDismissed = true;
+  setFocus(false);
+  document.getElementById('conversar').scrollIntoView({block:'start'});
+});
 document.getElementById('startBtn').addEventListener('click', ()=>{ track('cta_click',{source:'chat'}); start(); });
 track('page_view');

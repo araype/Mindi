@@ -8,3 +8,5 @@ uploads/
 # Estado local del CLI de Supabase (referencia del proyecto vinculado, versiones, etc.)
 # — nada de esto es secreto, pero es específico de esta máquina, no del proyecto.
 supabase/.temp/
+
+.vercel

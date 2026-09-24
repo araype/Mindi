@@ -123,16 +123,10 @@
   .mock .b.bot{background:#fff;border-bottom-left-radius:5px;box-shadow:var(--shadow-card);}
   .mock .b.me{background:var(--brand-secondary);color:#fff;border-bottom-right-radius:5px;justify-self:end;}
   .mock .b.ex{background:rgba(255,255,255,.7);color:var(--ink-soft);font-size:14px;}
-  .mock-scale{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:4px;}
-  .mock-scale span{
-    background:#fff;border-radius:12px;padding:9px 2px 8px;text-align:center;font-size:12px;font-weight:500;
-    display:flex;flex-direction:column;align-items:center;gap:5px;box-shadow:var(--shadow-card);
-  }
-  .mock-scale span.on{outline:2.5px solid var(--s2-border);background:var(--s2-bg);color:var(--s2-text);}
-  .mock-scale i{
-    font-style:normal;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;
-    font-size:11.5px;font-weight:700;border:1.5px solid var(--border);
-  }
+  /* El mock reutiliza .scale-row/.chip del chat real (ver landing.css más abajo) — aquí
+     solo lo que hace falta para que se vea bien dentro de la tarjeta del hero. */
+  .mock-scale-row{margin-top:4px;}
+  .mock-scale-row .chip{cursor:default;box-shadow:var(--shadow-card);}
   .mock-tag{
     position:relative;display:inline-block;margin-top:18px;font-size:12.5px;font-weight:600;
     color:var(--ink);background:rgba(255,255,255,.75);border-radius:999px;padding:3px 12px;
@@ -148,10 +142,22 @@
   }
   .section-head p{margin-top:14px;font-size:18px;color:var(--ink-soft);}
 
+  .symptoms-wrap{position:relative;}
   .symptoms{
     display:flex;gap:16px;overflow-x:auto;scroll-snap-type:x mandatory;
     padding:4px 20px 18px;margin:0 -20px;scroll-padding-left:20px;scrollbar-width:thin;
   }
+  /* En el ancho del .wrap (1080px), 6 tarjetas nunca entran completas — sin esto, la
+     última se corta a la mitad sin ninguna señal de que hay más para deslizar, y en
+     desktop se ve como contenido roto en vez de un carrusel a propósito. main.js le
+     quita la clase "at-end" mientras haya más para desplazar, y se la pone (ocultando
+     el degradado) al llegar al final. */
+  .symptoms-wrap::after{
+    content:"";position:absolute;top:4px;right:0;bottom:18px;width:64px;
+    background:linear-gradient(to right, rgba(251,251,248,0), var(--sand-50));
+    pointer-events:none;transition:opacity .2s var(--ease);
+  }
+  .symptoms-wrap.at-end::after{opacity:0;}
   .sym-card{
     flex:0 0 min(272px,78vw);scroll-snap-align:start;text-align:left;cursor:pointer;
     border:none;border-radius:24px;padding:24px 22px 26px;min-height:212px;
@@ -199,6 +205,17 @@
   .events-panel .eyebrow{background:rgba(255,255,255,.65);}
   .events-panel h2{font-family:var(--font-editorial);font-weight:500;font-size:clamp(24px,3.6vw,32px);margin:10px 0 14px;color:var(--ink);}
   .events-panel p{font-size:16px;line-height:1.5;color:var(--ink);max-width:36em;margin:0 auto 22px;}
+  .events-signup small{display:block;margin-top:10px;font-size:13px;color:var(--ink);opacity:.75;}
+  .events-form{display:flex;flex-direction:column;gap:10px;max-width:22em;margin:0 auto;}
+  .events-form input{
+    min-height:46px;border:1.5px solid var(--border);background:var(--white);color:var(--ink);
+    border-radius:999px;padding:10px 18px;font:400 16px var(--font-ui);text-align:left;
+  }
+  .events-form input:focus{border-color:var(--brand-secondary);outline:none;box-shadow:0 0 0 3px rgba(110,58,78,.2);}
+  .events-form .hint{font-size:12.5px;color:var(--ink);opacity:.75;margin:0;}
+  .events-form .hint.err{color:var(--alert-text);opacity:1;font-weight:600;}
+  .events-confirm{font-size:15.5px;color:var(--ink);}
+  .events-confirm b{display:block;font-family:var(--font-editorial);font-size:19px;font-weight:500;margin-bottom:4px;}
 
   .band{background:var(--ink);color:#F4F1EA;padding:88px 0;}
   .band h2{
@@ -219,6 +236,10 @@
     background:var(--white);border:1px solid var(--border);border-radius:var(--r-l);
     box-shadow:var(--shadow-raised);display:flex;flex-direction:column;overflow:hidden;
   }
+  /* Antes de tocar "Empezar" no hay conversación que llenar la caja — con el alto fijo de
+     arriba, la tarjeta de saludo quedaba flotando en ~580px de espacio vacío. En reposo,
+     la caja se ajusta a su contenido; main.js quita esta clase en cuanto empieza el chat. */
+  .chat-shell.idle{height:auto;min-height:0;}
   .chat-top{
     display:flex;align-items:center;gap:12px;padding:14px 18px;
     border-bottom:1px solid var(--border);background:var(--sand-50);flex-shrink:0;
@@ -337,7 +358,7 @@
   .hint{font-size:13px;color:var(--ink-soft);margin-top:8px;}
 
   .chat-start{
-    margin:auto;text-align:center;max-width:30em;padding:12px;
+    margin:auto;text-align:center;max-width:30em;padding:48px 20px;
   }
   .chat-start h3{font-family:var(--font-editorial);font-size:22px;margin-bottom:8px;}
   .chat-start p{color:var(--ink-soft);margin-bottom:18px;font-size:15.5px;}
