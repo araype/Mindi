@@ -179,6 +179,27 @@ const MRS_ITEMS = [
 ];
 const SCALE_LABELS = ['Nada','Leve','Moderado','Fuerte','Muy fuerte'];
 
+/* Nota fisiológica que el bot agrega tras responder con intensidad 2-4 (Moderado o más).
+   Base fija por ítem + cierre según el nivel. Solo informativa: no toca puntajes ni flujo. */
+const PHYS_NOTES = {
+  p3:  'Los bochornos ocurren porque la caída de estrógeno afecta el centro que regula la temperatura en el cerebro — es una respuesta física real, no "está en tu cabeza".',
+  p4:  'Sentir el corazón acelerado también puede relacionarse con los cambios hormonales de esta etapa.',
+  p5:  'Los dolores articulares son más comunes en esta etapa — el estrógeno ayuda a proteger las articulaciones, y su descenso puede hacer que se sientan más.',
+  p6:  'Despertarse a medianoche es muy frecuente: las caídas nocturnas de estrógeno alteran el sueño profundo.',
+  p7:  'Los cambios de ánimo en esta etapa tienen una base hormonal real — las fluctuaciones de estrógeno afectan directamente la química del cerebro.',
+  p8:  'La irritabilidad también puede tener una causa hormonal, no solo de carácter — vale la pena tenerlo en cuenta antes de ser dura contigo misma por esto.',
+  p9:  'La ansiedad en esta etapa puede intensificarse por los mismos cambios hormonales, no solo por lo que está pasando en tu vida.',
+  p10: 'El cansancio de esta etapa no es solo falta de sueño — el cambio hormonal también afecta tu energía de forma directa.',
+  p11: 'Los cambios en el deseo sexual son comunes en esta etapa y tienen una explicación hormonal — no significa que algo esté mal contigo.',
+  p12: 'Los cambios al orinar se relacionan con cambios en los tejidos por la baja de estrógeno — es más común de lo que se habla.',
+  p13: 'La sequedad íntima ocurre porque esos tejidos también dependen del estrógeno — hay opciones simples que puedes comentar con tu médico(a).',
+};
+const PHYS_NOTE_CLOSING = {
+  2: 'Es algo que muchas mujeres notan en este punto.',
+  3: 'Vale la pena que lo tengas presente para tu próxima consulta.',
+  4: 'A este nivel, es de las cosas más importantes que comentarle a tu médico(a).',
+};
+
 const RED_FLAGS = [
   {id:'rf1', text:'Sangrado vaginal inesperado (más de 12 meses sin regla, o sin causa clara)'},
   {id:'rf2', text:'Dolor de pecho intenso, falta de aire repentina, o antecedente de infarto/ACV'},
@@ -705,7 +726,12 @@ function askItem(items, idx, domain){
       state.answers[item.id] = val;
       if(val === null && item.skippable) state.skippedIntimate = true;
       track('answer',{q:item.id});
-      askItem(items, idx+1, domain);
+      const note = PHYS_NOTES[item.id];
+      if(note && val !== null && val >= 2){
+        botSay([`${note} ${PHYS_NOTE_CLOSING[val]}`]).then(()=> askItem(items, idx+1, domain));
+      } else {
+        askItem(items, idx+1, domain);
+      }
     }, !!item.skippable, undefined, item.scaleLabels);
   });
 }
@@ -853,16 +879,32 @@ function selfCareCard(){
 }
 
 /* Autocuidado seguro para cualquier nivel (A/B/C) — no reemplaza tratamiento.
+   Específicas: solo si alguno de sus ítems MRS se respondió con 2-4 (en orden P3→P13).
+   Universales: siempre, al final. P11 no tiene recomendación propia a propósito.
    Mismo contenido que supabase/functions/send-report/index.ts — mantener sincronizado. */
+const SELF_CARE_SPECIFIC = [
+  {ids:['p3'], t:'Para los bochornos', d:'ropa en capas de fibras naturales, evitar bebidas muy calientes, café, alcohol y comidas muy condimentadas cuando puedas, y respirar lento y profundo en el momento del calor.'},
+  {ids:['p4'], t:'Para las palpitaciones', d:'evita la cafeína y el alcohol en exceso — pueden intensificar la sensación. Si son muy frecuentes, coméntalo con tu médico(a).'},
+  {ids:['p5'], t:'Para las molestias musculares', d:'estiramientos suaves y calor local pueden ayudar con la rigidez — el ejercicio regular también protege las articulaciones a largo plazo.'},
+  {ids:['p6'], t:'Para dormir mejor', d:'horarios fijos para acostarte, y un ambiente fresco y ventilado.'},
+  {ids:['p7','p8','p9'], t:'Para el ánimo y la irritabilidad', d:'el ejercicio regular ayuda especialmente aquí — libera endorfinas que estabilizan el ánimo y reducen la irritabilidad.'},
+  {ids:['p10'], t:'Para el cansancio', d:'mantener horarios regulares de sueño y actividad física moderada ayuda a recuperar energía — el sedentarismo tiende a empeorarlo.'},
+  {ids:['p12'], t:'Para las molestias al orinar', d:'los ejercicios de Kegel (fortalecer el piso pélvico) pueden ayudar con la urgencia y los escapes — puedes empezar por tu cuenta, sin receta.'},
+  {ids:['p13'], t:'Para la sequedad íntima', d:'lubricantes o humectantes de base acuosa y pH neutro, sin receta.'},
+];
+const SELF_CARE_UNIVERSAL = [
+  ['Para la alimentación', 'un patrón mediterráneo: legumbres, frutas, verduras, pescado y aceite de oliva.'],
+  ['Para el cuerpo en general', 'unos 150 minutos a la semana de actividad moderada (caminar rápido, nadar, bailar) — ayuda con el sueño, el ánimo y los huesos a la vez.'],
+  ['Para los huesos', '1,200 mg de calcio al día (dieta o suplementos) y al menos 800 UI de vitamina D — coméntalo con tu médico(a) antes de tomar suplementos.'],
+];
+function selfCareItems(answers){
+  const specific = SELF_CARE_SPECIFIC
+    .filter(s => s.ids.some(id => answers[id] != null && answers[id] >= 2))
+    .map(s => [s.t, s.d]);
+  return [...specific, ...SELF_CARE_UNIVERSAL];
+}
 function selfCareBody(){
-  const items = [
-    ['Para los bochornos', 'ropa en capas de fibras naturales, evitar bebidas muy calientes, café, alcohol y comidas muy condimentadas cuando puedas, y respirar lento y profundo en el momento del calor.'],
-    ['Para dormir mejor', 'horarios fijos para acostarte, y un ambiente fresco y ventilado.'],
-    ['Para la alimentación', 'un patrón mediterráneo: legumbres, frutas, verduras, pescado y aceite de oliva.'],
-    ['Para el cuerpo en general', 'unos 150 minutos a la semana de actividad moderada (caminar rápido, nadar, bailar) — ayuda con el sueño, el ánimo y los huesos a la vez.'],
-    ['Para los huesos', '1,200 mg de calcio al día (dieta o suplementos) y al menos 800 UI de vitamina D — coméntalo con tu médico(a) antes de tomar suplementos.'],
-    ['Para la sequedad íntima', 'lubricantes o humectantes de base acuosa y pH neutro, sin receta.'],
-  ];
+  const items = selfCareItems(state.answers);
   const rows = items.map(([t,d])=>`<li><strong>${t}:</strong> ${d}</li>`).join('');
   return `<p class="card-note">No reemplazan un tratamiento si tu médico(a) lo indica — son medidas seguras para cualquier momento de esta etapa.</p>` +
     `<ul class="card-list">${rows}</ul>` +

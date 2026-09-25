@@ -90,14 +90,30 @@ function esc(s: unknown) {
 /* ---------- Contenido compartido entre el HTML (correo/enlace) y el PDF ----------
    Un solo lugar para cada texto: así el correo, la página del enlace y el PDF adjunto
    nunca dicen cosas distintas. Mantener sincronizado con src/main.js. */
-const SELF_CARE_ITEMS: [string, string][] = [
-  ['Para los bochornos', 'ropa en capas de fibras naturales, evitar bebidas muy calientes, café, alcohol y comidas muy condimentadas cuando puedas, y respirar lento y profundo en el momento del calor.'],
-  ['Para dormir mejor', 'horarios fijos para acostarte, y un ambiente fresco y ventilado.'],
+/* Específicas: solo si alguno de sus ítems MRS se respondió con 2-4 (en orden P3→P13).
+   Universales: siempre, al final. P11 no tiene recomendación propia a propósito. */
+const SELF_CARE_SPECIFIC: { ids: string[]; t: string; d: string }[] = [
+  { ids: ['p3'], t: 'Para los bochornos', d: 'ropa en capas de fibras naturales, evitar bebidas muy calientes, café, alcohol y comidas muy condimentadas cuando puedas, y respirar lento y profundo en el momento del calor.' },
+  { ids: ['p4'], t: 'Para las palpitaciones', d: 'evita la cafeína y el alcohol en exceso — pueden intensificar la sensación. Si son muy frecuentes, coméntalo con tu médico(a).' },
+  { ids: ['p5'], t: 'Para las molestias musculares', d: 'estiramientos suaves y calor local pueden ayudar con la rigidez — el ejercicio regular también protege las articulaciones a largo plazo.' },
+  { ids: ['p6'], t: 'Para dormir mejor', d: 'horarios fijos para acostarte, y un ambiente fresco y ventilado.' },
+  { ids: ['p7', 'p8', 'p9'], t: 'Para el ánimo y la irritabilidad', d: 'el ejercicio regular ayuda especialmente aquí — libera endorfinas que estabilizan el ánimo y reducen la irritabilidad.' },
+  { ids: ['p10'], t: 'Para el cansancio', d: 'mantener horarios regulares de sueño y actividad física moderada ayuda a recuperar energía — el sedentarismo tiende a empeorarlo.' },
+  { ids: ['p12'], t: 'Para las molestias al orinar', d: 'los ejercicios de Kegel (fortalecer el piso pélvico) pueden ayudar con la urgencia y los escapes — puedes empezar por tu cuenta, sin receta.' },
+  { ids: ['p13'], t: 'Para la sequedad íntima', d: 'lubricantes o humectantes de base acuosa y pH neutro, sin receta.' },
+];
+const SELF_CARE_UNIVERSAL: [string, string][] = [
   ['Para la alimentación', 'un patrón mediterráneo: legumbres, frutas, verduras, pescado y aceite de oliva.'],
   ['Para el cuerpo en general', 'unos 150 minutos a la semana de actividad moderada (caminar rápido, nadar, bailar) — ayuda con el sueño, el ánimo y los huesos a la vez.'],
   ['Para los huesos', '1,200 mg de calcio al día (dieta o suplementos) y al menos 800 UI de vitamina D — coméntalo con tu médico(a) antes de tomar suplementos.'],
-  ['Para la sequedad íntima', 'lubricantes o humectantes de base acuosa y pH neutro, sin receta.'],
 ];
+function selfCareItems(session: Record<string, any>): [string, string][] {
+  const answers = session.answers || {};
+  const specific = SELF_CARE_SPECIFIC
+    .filter((s) => s.ids.some((id) => answers[id] != null && answers[id] >= 2))
+    .map((s) => [s.t, s.d] as [string, string]);
+  return [...specific, ...SELF_CARE_UNIVERSAL];
+}
 const SELF_CARE_SOURCE = 'Guía de Práctica Clínica para Diagnóstico y Tratamiento del Climaterio, Hospital Nacional Hipólito Unanue (RD N° 211-2024-DG/HNHU), sección 6.4.1 · dato inicial: Ayala-Peralta, 2020.';
 
 const CONSULT_GENERIC = [
@@ -164,8 +180,8 @@ function meterBar(pct: number, color: string) {
 
 /* Autocuidado seguro para cualquier nivel (A/B/C) — no reemplaza tratamiento.
    Mismo contenido que src/main.js (selfCareCard) — mantener sincronizado. */
-function selfCareFragment() {
-  const rows = SELF_CARE_ITEMS.map(([t, d]) => `<li style="margin:6px 0;"><b>${t}:</b> ${d}</li>`).join('');
+function selfCareFragment(session: Record<string, any>) {
+  const rows = selfCareItems(session).map(([t, d]) => `<li style="margin:6px 0;"><b>${t}:</b> ${d}</li>`).join('');
   return `<h2 style="font-family:Georgia,serif;font-size:18px;margin:24px 0 4px;">Algunas cosas que pueden ayudarte</h2>
     <p style="color:#5F5F57;font-size:13px;margin:0 0 8px;">No reemplazan un tratamiento si tu médico(a) lo indica — son medidas seguras para cualquier momento de esta etapa.</p>
     <ul style="padding-left:20px;margin:0;">${rows}</ul>
@@ -249,7 +265,7 @@ function buildFragment(session: Record<string, any>, lead: Record<string, any>) 
     <h2 style="font-family:Georgia,serif;font-size:18px;margin:24px 0 8px;">Tus 11 respuestas</h2>
     ${itemRows}
     ${session.score_psicologico >= 6 ? `<p style="background:#EDF1E6;border:1px solid #A3B58D;padding:12px 14px;border-radius:12px;margin-top:16px;">${PSICOLOGICO_NOTE}<br><span style="font-size:11px;color:#5F5F57;">${PSICOLOGICO_SOURCE}</span></p>` : ''}
-    ${selfCareFragment()}
+    ${selfCareFragment(session)}
     ${consultFragment(pts)}
     <p style="color:#5F5F57;font-size:13px;margin-top:16px;">Esto es solo orientación informativa. Solo un profesional de salud puede evaluarte con exámenes clínicos.</p>
     ${footer()}`;
@@ -277,7 +293,7 @@ function wrapForEmail(fragment: string, hasPdf: boolean) {
 /* ---------- PDF adjunto (pdf-lib: se dibuja a mano, sin navegador ni servicio externo) ----------
    Deno Deploy no permite correr Chrome/Puppeteer, así que no se puede "convertir" el HTML.
    Este PDF es más simple que el correo (texto + rectángulos, sin la tipografía de marca),
-   pero usa el mismo contenido (SELF_CARE_ITEMS, contextPoints, LEVEL_COPY, etc.) para que
+   pero usa el mismo contenido (selfCareItems, contextPoints, LEVEL_COPY, etc.) para que
    nunca diga algo distinto al correo o a la página del enlace. */
 const PAGE_W = 595.28, PAGE_H = 841.89; // A4
 const MARGIN = 50;
@@ -330,7 +346,7 @@ async function buildPdf(session: Record<string, any>, lead: Record<string, any>)
     page.drawLine({ start: { x: MARGIN, y }, end: { x: PAGE_W - MARGIN, y }, thickness: 0.75, color: PDF_COLOR.border });
     y -= 14;
   };
-  // Título corto en negrita (una sola línea — los títulos de SELF_CARE_ITEMS son breves)
+  // Título corto en negrita (una sola línea — los títulos de autocuidado son breves)
   // + cuerpo envuelto e indentado debajo, en gris.
   const bulletBlock = (label: string, body: string) => {
     ensure(14);
@@ -431,7 +447,7 @@ async function buildPdf(session: Record<string, any>, lead: Record<string, any>)
 
     heading('Algunas cosas que pueden ayudarte');
     para('No reemplazan un tratamiento si tu médico(a) lo indica — son medidas seguras para cualquier momento de esta etapa.', { size: 8.5, color: PDF_COLOR.inkSoft, gap: 8 });
-    for (const [t, d] of SELF_CARE_ITEMS) bulletBlock(t, d);
+    for (const [t, d] of selfCareItems(session)) bulletBlock(t, d);
     para(`Fuente: ${SELF_CARE_SOURCE}`, { size: 7.5, color: PDF_COLOR.inkSoft, gap: 10 });
 
     heading('Para tu consulta');
