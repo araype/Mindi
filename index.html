@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Mindi — Cuéntale a Mindi cómo te has sentido</title>
-<meta name="description" content="Mindi te ayuda a entender qué le pasa a tu cuerpo en el climaterio sin que te genere miedo, y cómo actuar después.">
+<meta name="description" content="No tienes que adivinar sola lo que te pasa. Cuéntaselo a Mindi, y llévate un reporte claro para tu médico(a) — sin costo.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -43,8 +43,8 @@
         <div class="hero-eyebrow-wrap">
           <span class="eyebrow"><span class="eyebrow-dot"></span> Para esta etapa de cambios</span>
         </div>
-        <h1 id="hero-title">Mindi te ayuda a entender qué le pasa a tu cuerpo <em class="editorial-accent">sin que te genere miedo</em></h1>
-        <p class="lead">Conversa a tu ritmo, en pocos minutos, y llévate un resumen claro y respaldado para tu próxima consulta médica.</p>
+        <h1 id="hero-title">No tienes que adivinar <em class="editorial-accent">sola</em> lo que te pasa.</h1>
+        <p class="lead">Cuéntaselo a Mindi, y llévate un reporte claro para tu médico(a) — sin costo.</p>
         
         <div class="hero-cta">
           <button class="btn btn-lg" type="button" id="heroCta">
@@ -134,37 +134,35 @@
 
   <!-- Clinical Trust Strip (Inspired by Midi Health & Samara) -->
   <section class="trust-strip" aria-label="Respaldo clínico y fuentes médicas">
-    <div class="wrap">
-      <div class="trust-grid">
-        <div class="trust-item">
-          <div class="trust-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-          </div>
-          <div class="trust-text">
-            <h3>Guía Clínica HNHU 2024</h3>
-            <p>Basado en la Guía de Diagnóstico y Tratamiento del Climaterio (RD N° 211-2024-DG/HNHU).</p>
-          </div>
-        </div>
-
-        <div class="trust-item">
-          <div class="trust-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
-          </div>
-          <div class="trust-text">
-            <h3>Escala MRS Validada</h3>
-            <p>11 síntomas evaluados con la Escala de Puntuación en Menopausia usada por ginecólogos.</p>
-          </div>
-        </div>
-
-        <div class="trust-item">
-          <div class="trust-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-          </div>
-          <div class="trust-text">
-            <h3>Privacidad y Autonomía</h3>
-            <p>Respuestas anónimas. Tú decides qué responder y qué saltarte, sin presión ni juicios.</p>
-          </div>
-        </div>
+    <div class="trust-marquee">
+      <div class="trust-track">
+        <!-- El contenido se repite 2 veces seguidas (la segunda con aria-hidden) para que
+             la animación pueda hacer un loop perfecto: cuando la primera copia termina de
+             salir por la izquierda, la segunda ya está exactamente donde empezó la primera. -->
+        <span class="trust-pill">
+          <span class="trust-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></span>
+          Guía Clínica HNHU 2024 <span class="trust-detail">— la fuente de todo lo que te decimos</span>
+        </span>
+        <span class="trust-pill">
+          <span class="trust-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></span>
+          Escala MRS Validada <span class="trust-detail">— la misma que usan los ginecólogos</span>
+        </span>
+        <span class="trust-pill">
+          <span class="trust-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>
+          Privacidad y Autonomía <span class="trust-detail">— respuestas anónimas, tú decides qué contar</span>
+        </span>
+        <span class="trust-pill" aria-hidden="true">
+          <span class="trust-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></span>
+          Guía Clínica HNHU 2024 <span class="trust-detail">— la fuente de todo lo que te decimos</span>
+        </span>
+        <span class="trust-pill" aria-hidden="true">
+          <span class="trust-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></span>
+          Escala MRS Validada <span class="trust-detail">— la misma que usan los ginecólogos</span>
+        </span>
+        <span class="trust-pill" aria-hidden="true">
+          <span class="trust-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>
+          Privacidad y Autonomía <span class="trust-detail">— respuestas anónimas, tú decides qué contar</span>
+        </span>
       </div>
     </div>
   </section>
@@ -174,7 +172,6 @@
     <div class="wrap">
       <div class="section-head-split">
         <div class="section-head">
-          <p class="section-subtitle">Explora lo que sientes</p>
           <h2 id="sym-title">Lo que muchas mujeres notan y no siempre saben nombrar</h2>
           <p>Los cambios hormonales se manifiestan de forma única en cada cuerpo. Selecciona el síntoma que más resuene contigo para empezar.</p>
         </div>

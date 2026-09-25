@@ -323,8 +323,8 @@ a { color: inherit; }
 
 /* El peso liviano (400) devuelve la elegancia y sutileza */
 .hero h1 {
-  font-size: clamp(27px, 3.3vw, 42px);
-  line-height: 1.18;
+  font-size: clamp(30px, 4vw, 56px);
+  line-height: 1.15;
   font-weight: 400;
   letter-spacing: -0.02em;
   color: var(--ink);
@@ -774,35 +774,65 @@ a { color: inherit; }
 /* ==================================================================
    Franja de Confianza Clínica
    ================================================================== */
+/* Antes era una franja fija con líneas arriba/abajo y (en mobile) las 3 tarjetas apiladas
+   ocupando bastante alto. Ahora es una sola línea que se desplaza sola hacia el costado en
+   loop infinito — mismo alto en cualquier pantalla, sin bordes que la separen del resto. */
 .trust-strip {
-  padding: 28px 0;
+  padding: 18px 0;
   background: var(--white);
-  border-top: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
+  overflow: hidden;
 }
 
-.trust-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 20px;
+.trust-marquee {
+  width: 100%;
+  overflow: hidden;
+  /* Degradado en los bordes: los pills entran/salen difuminándose, no de golpe. */
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 8%, #000 92%, transparent);
+  mask-image: linear-gradient(to right, transparent, #000 8%, #000 92%, transparent);
 }
 
-@media (min-width: 768px) {
-  .trust-grid {
-    grid-template-columns: repeat(3, 1fr);
-    gap: 32px;
-  }
-}
-
-.trust-item {
+.trust-track {
   display: flex;
-  gap: 12px;
-  align-items: flex-start;
+  align-items: center;
+  width: max-content;
+  animation: trust-scroll 26s linear infinite;
+}
+
+.trust-strip:hover .trust-track { animation-play-state: paused; }
+
+@keyframes trust-scroll {
+  from { transform: translateX(0); }
+  /* -50% porque el contenido está duplicado: en ese punto la segunda copia queda
+     exactamente donde arrancó la primera, así el loop no se nota. */
+  to { transform: translateX(-50%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .trust-track { animation: none; }
+}
+
+.trust-pill {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  white-space: nowrap;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--ink);
+  padding: 0 28px;
+}
+
+/* Frase corta para que se entienda a qué se refiere el título, sin alargar tanto la
+   pastilla como para que la línea se sienta pesada — más tenue, sin negrita. */
+.trust-detail {
+  font-weight: 400;
+  color: var(--ink-soft);
 }
 
 .trust-icon {
-  width: 36px;
-  height: 36px;
+  width: 30px;
+  height: 30px;
   border-radius: var(--r-s);
   background: var(--peach);
   display: flex;
@@ -812,20 +842,7 @@ a { color: inherit; }
   flex-shrink: 0;
 }
 
-.trust-icon svg { width: 18px; height: 18px; }
-
-.trust-text h3 {
-  font-size: 14.5px;
-  font-weight: 500;
-  margin-bottom: 3px;
-}
-
-.trust-text p {
-  font-size: 13px;
-  line-height: 1.5;
-  color: var(--ink-soft);
-  font-weight: 400;
-}
+.trust-icon svg { width: 15px; height: 15px; }
 
 /* ==================================================================
    Secciones y Títulos
@@ -858,6 +875,12 @@ a { color: inherit; }
   line-height: 1.2;
   font-weight: 500;
   letter-spacing: -0.015em;
+}
+
+/* Más grande que el resto de los títulos de sección — así lo pidió, a tamaño similar
+   al del resto de titulares grandes del sitio (como el del hero). */
+#sym-title {
+  font-size: clamp(28px, 4.4vw, 44px);
 }
 
 .section-head p {

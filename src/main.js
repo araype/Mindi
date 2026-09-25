@@ -210,7 +210,7 @@ const chat = document.getElementById('chat');
 let composer = null;
 const progressFill = document.getElementById('progressFill');
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-const TYPING_MS = reduceMotion ? 0 : 550;
+const TYPING_MS = reduceMotion ? 0 : 850; // antes 550 — conversación más pausada, menos apurada
 const TOTAL_STEPS = 27;
 let step = 0;
 let started = false;
@@ -280,7 +280,7 @@ function revealCard(html, kind, ms){
     setTimeout(()=>{
       hideTyping();
       addCard(html, kind);
-      setTimeout(resolve, reduceMotion ? 0 : 180);
+      setTimeout(resolve, reduceMotion ? 0 : 320);
     }, delay);
   });
 }
@@ -291,7 +291,7 @@ function revealCard(html, kind, ms){
 function revealCardWithPause(introMsg, html, kind, isLast = false, continueText = 'Cuéntame más'){
   return new Promise(async resolve => {
     if(introMsg) await botSay([introMsg]);
-    await revealCard(html, kind, 200);
+    await revealCard(html, kind, 400);
     if(isLast){ resolve(); return; }
     clearComposer();
     const wrap = document.createElement('div');
@@ -331,7 +331,7 @@ function botSay(messages){
         const m = messages[i];
         if(typeof m === 'string') addBubble(m, 'bot'); else addBubble(m.text, 'bot', m.cls, m.sub);
         i++;
-        setTimeout(next, reduceMotion ? 0 : 260);
+        setTimeout(next, reduceMotion ? 0 : 450);
       }, TYPING_MS);
     }
     next();
