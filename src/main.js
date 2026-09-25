@@ -190,7 +190,7 @@ const RED_FLAGS = [
 ];
 const NONE_TEXT = RED_FLAGS.find(f=>f.id==='none').text;
 
-const ICON_CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+const ICON_CHECK = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
 const ICON_SEND  = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h15M13 6l6 6-6 6"/></svg>';
 
 /* ---------- Estado ---------- */
@@ -273,15 +273,50 @@ function hideTyping(){ const t = document.getElementById('typingRow'); if(t) t.r
 
 /* Revela una tarjeta con el mismo ritmo que los mensajes del bot (pausa de "escribiendo")
    en vez de que todas aparezcan de golpe — para el resultado, que muestra varias seguidas. */
-function revealCard(html, kind){
+function revealCard(html, kind, ms){
   return new Promise(resolve=>{
     showTyping();
+    const delay = reduceMotion ? 0 : (ms !== undefined ? ms : TYPING_MS);
     setTimeout(()=>{
       hideTyping();
       addCard(html, kind);
-      setTimeout(resolve, reduceMotion ? 0 : 220);
-    }, reduceMotion ? 0 : TYPING_MS);
+      setTimeout(resolve, reduceMotion ? 0 : 180);
+    }, delay);
   });
+}
+
+/* Anuncia el tópico con un mensaje del bot, revela la tarjeta, y (si no es la última)
+   espera a que la usuaria responda para seguir — cada texto es la voz de la usuaria,
+   aparece como burbuja suya y mantiene el hilo de conversación. */
+function revealCardWithPause(introMsg, html, kind, isLast = false, continueText = 'Cuéntame más'){
+  return new Promise(async resolve => {
+    if(introMsg) await botSay([introMsg]);
+    await revealCard(html, kind, 200);
+    if(isLast){ resolve(); return; }
+    clearComposer();
+    const wrap = document.createElement('div');
+    wrap.className = 'chips';
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'chip primary';
+    btn.textContent = continueText;
+    btn.onclick = ()=>{ addBubble(continueText, 'user'); advance(); clearComposer(); resolve(); };
+    wrap.appendChild(btn);
+    composer.appendChild(wrap);
+    scrollBottom();
+    btn.focus({preventScroll:true});
+  });
+}
+
+/* Secuencia de cards de resultado compartida entre el flujo normal y el de banderas rojas */
+async function showResultsCardSequence(level){
+  const m = LEVEL_COPY[level];
+  await revealCardWithPause(null,                                         levelCard(m, level), m.kind,  false, 'Cuéntame más');
+  await revealCardWithPause('Veamos cómo se distribuye eso por áreas:',   areasCard(),         '',      false, '¿Y qué hago con esto?');
+  await revealCardWithPause('Sobre tu momento clínico:',                  stageCard(),         'calm',  false, 'Entendido, ¿qué sigue?');
+  await revealCardWithPause('¿Qué puedes preguntarle a tu médico(a)?',    consultCard(),       '',      false, 'Muy útil, ¿algo más?');
+  await revealCardWithPause('Y por último, ideas para el día a día:',     selfCareCard(),      'calm',  true);
+  addCard('<p class="topics-disclaimer">Esto es solo orientación informativa según la Guía HNHU (RD N° 211-2024-DG/HNHU). Solo un profesional de salud puede evaluarte con exámenes clínicos en consulta presencial.</p>', '');
 }
 
 /* messages: string | {text, cls} */
@@ -447,9 +482,8 @@ function renderMultiSelect(options, onConfirm, exclusiveId){
   composer.querySelector('button')?.focus({preventScroll:true});
 }
 
-/* Escala de satisfacción de 1 a 5 con carita — mismos tonos que ya usa el resto de la
-   app para intensidad (s0..s4), no colores nuevos. Excepción deliberada a "sin emojis"
-   del sistema de diseño: decisión explícita para esta pantalla, no un patrón a repetir. */
+/* Escala de satisfacción con caritas circulares, etiquetas de texto y estrella en la
+   más alta. Mismos tonos s0–s4 que el resto de la app. */
 const FACE_LABELS = ['Muy insatisfecha','Insatisfecha','Neutral','Satisfecha','Muy satisfecha'];
 const FACE_MOUTHS = [
   'M7,17 Q12,13 17,17',
@@ -458,6 +492,7 @@ const FACE_MOUTHS = [
   'M7,15 Q12,18 17,15',
   'M7,14.3 Q12,19 17,14.3',
 ];
+const STAR_PATH = 'M8 1.5l1.6 3.3 3.6.5-2.6 2.5.6 3.7L8 9.8 4.8 11.5l.6-3.7-2.6-2.5 3.6-.5z';
 function renderFaceScale(onPick){
   clearComposer();
   const wrap = document.createElement('div');
@@ -465,18 +500,37 @@ function renderFaceScale(onPick){
   wrap.setAttribute('role','group');
   wrap.setAttribute('aria-label','Qué tan satisfecha quedaste, de 1 a 5');
   for(let i=0;i<5;i++){
-    const color = `var(--s${4-i}-border)`; // 4=verde (feliz) ... 0=rosa (insatisfecha), igual que la escala de síntomas
+    const color = `var(--s${4-i}-border)`;
+    const bg    = `var(--s${4-i}-bg)`;
+    const isTop = i === 4;
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'face-btn';
     btn.setAttribute('aria-label', FACE_LABELS[i]);
-    btn.innerHTML = `<svg viewBox="0 0 24 24" width="36" height="36" aria-hidden="true">
-        <circle cx="12" cy="12" r="10" fill="${color}" opacity=".3"/>
-        <circle cx="12" cy="12" r="10" fill="none" stroke="${color}" stroke-width="1.6"/>
-        <circle cx="8.3" cy="10" r="1.15" fill="${color}"/>
-        <circle cx="15.7" cy="10" r="1.15" fill="${color}"/>
-        <path d="${FACE_MOUTHS[i]}" fill="none" stroke="${color}" stroke-width="1.6" stroke-linecap="round"/>
-      </svg>`;
+
+    const faceWrap = document.createElement('div');
+    faceWrap.className = 'face-wrap';
+    faceWrap.innerHTML =
+      `<svg viewBox="0 0 24 24" width="48" height="48" aria-hidden="true">
+        <circle cx="12" cy="12" r="11" fill="${bg}"/>
+        <circle cx="8.3"  cy="10" r="1.3" fill="${color}"/>
+        <circle cx="15.7" cy="10" r="1.3" fill="${color}"/>
+        <path d="${FACE_MOUTHS[i]}" fill="none" stroke="${color}" stroke-width="1.7" stroke-linecap="round"/>
+      </svg>` +
+      (isTop
+        ? `<span class="face-star" aria-hidden="true">
+             <svg viewBox="0 0 16 16" width="15" height="15" fill="${color}">
+               <path d="${STAR_PATH}"/>
+             </svg>
+           </span>`
+        : '');
+
+    const label = document.createElement('span');
+    label.className = 'face-label';
+    label.textContent = FACE_LABELS[i];
+
+    btn.appendChild(faceWrap);
+    btn.appendChild(label);
     btn.onclick = ()=>{
       addBubble(FACE_LABELS[i], 'user');
       advance();
@@ -486,15 +540,6 @@ function renderFaceScale(onPick){
     wrap.appendChild(btn);
   }
   composer.appendChild(wrap);
-  const bar = document.createElement('div');
-  bar.className = 'face-scale-bar';
-  bar.setAttribute('aria-hidden','true');
-  for(let i=0;i<5;i++){
-    const seg = document.createElement('span');
-    seg.style.background = `var(--s${4-i}-border)`;
-    bar.appendChild(seg);
-  }
-  composer.appendChild(bar);
   scrollBottom();
   wrap.querySelector('button')?.focus({preventScroll:true});
 }
@@ -743,28 +788,68 @@ const AREAS = [
   {key:'psicologico', label:'Ánimo y energía',  max:16, cut:6},
   {key:'urogenital',  label:'Lo íntimo',        max:12, cut:3},
 ];
-/* Cuerpo de cada tarjeta — SIN su propio <h3>: ahora viven dentro de un desplegable
-   (<summary>) que ya trae el título, para no repetirlo. */
-function areasBody(){
+function areasCard(){
   const s = state.scores;
   const rows = AREAS.map(a=>{
     const v = s[a.key];
-    const pct = Math.max(4, Math.round((v/a.max)*100));
+    const pct = Math.max(6, Math.round((v/a.max)*100));
     const notable = v >= a.cut;
     const desc = a.key==='urogenital' && state.skippedIntimate && v===0 ? 'Sin responder' : (notable ? 'Conviene comentarlo' : 'En un nivel leve');
     return `<div class="area">
-      <div class="area-top"><span>${a.label}</span><span class="area-tag ${notable ? 'hi' : ''}">${desc}</span></div>
-      <div class="meter" role="img" aria-label="${a.label}: ${desc}"><span style="width:${pct}%" class="${notable ? 'hi' : ''}"></span></div>
+      <div class="area-top">
+        <span class="area-name"><strong>${a.label}</strong></span>
+        <span class="area-tag ${notable ? 'hi' : ''}">${desc}</span>
+      </div>
+      <div class="meter-wrap">
+        <div class="meter" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100">
+          <span style="width:${pct}%" class="${notable ? 'hi' : ''}"></span>
+        </div>
+        <span class="meter-pct">${pct}%</span>
+      </div>
     </div>`;
   }).join('');
-  let html = `<p class="card-note">Es una mirada de conjunto, no una calificación.</p>${rows}`;
+  let html = `<h3>Lo que noto por áreas</h3><p class="card-note">Evaluación gráfica de conjunto según la Escala MRS (Menopause Rating Scale), no una calificación.</p>${rows}`;
   if(s.psicologico >= 6){
-    html += `<div class="area-note">Tu puntaje en la parte emocional pesa bastante en el conjunto. Cerca del 30% de las mujeres de 45 a 64 años presenta síntomas depresivos en esta etapa — no estás sola en eso. Vale la pena comentarlo también con un profesional de salud mental.<span class="cite">Fuente: Guía HNHU (RD N° 211-2024-DG/HNHU), sección 6.4.1.2.</span></div>`;
+    html += `<div class="area-note">
+      <div class="area-note-header">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <strong>Sobre tu bienestar emocional</strong>
+      </div>
+      <p>Tu puntaje en la parte emocional pesa bastante en el conjunto. Cerca del 30% de las mujeres de 45 a 64 años presenta síntomas depresivos en esta etapa — no estás sola en eso. Vale la pena comentarlo también con un profesional de salud mental.</p>
+      <span class="cite">Fuente: Guía HNHU (RD N° 211-2024-DG/HNHU), sección 6.4.1.2.</span>
+    </div>`;
   }
   if(state.skippedIntimate){
-    html += `<p style="margin-top:10px;">Preferiste no responder alguna pregunta íntima, y está bien. Si quieres, coméntalo directamente en la consulta.</p>`;
+    html += `<p style="margin-top:12px;font-size:13px;color:var(--ink-soft);">Preferiste no responder alguna pregunta íntima, y está bien. Si quieres, coméntalo directamente en tu consulta médica.</p>`;
   }
   return html;
+}
+
+function areasBody(){ return areasCard(); }
+
+function levelCard(m, level){
+  const badgeMap = {
+    A: '<span class="result-level-badge level-a">Nivel leve · Escala MRS</span>',
+    B: '<span class="result-level-badge level-b">Nivel moderado · Escala MRS</span>',
+    C: '<span class="result-level-badge level-c">Nivel alto · Escala MRS</span>',
+  };
+  return `<div class="result-badge-row">${badgeMap[level] || ''}</div>` +
+    `<h3>${m.title}</h3>` +
+    `<p>${m.text}</p>`;
+}
+
+function stageCard(){
+  return `<h3>Sobre tu etapa clínica</h3>` +
+    `<p>${stageNote()}</p>` +
+    `<span class="cite">${PERU_AGE_NOTE} Fuente: Guía HNHU (RD N° 211-2024-DG/HNHU), secciones 5.4 y 6.2.1.</span>`;
+}
+
+function consultCard(){
+  return `<h3>¿Qué preguntarle a tu médico(a)?</h3>` + consultBody();
+}
+
+function selfCareCard(){
+  return `<h3>Recomendaciones de autocuidado</h3>` + selfCareBody();
 }
 
 /* Autocuidado seguro para cualquier nivel (A/B/C) — no reemplaza tratamiento.
@@ -778,9 +863,9 @@ function selfCareBody(){
     ['Para los huesos', '1,200 mg de calcio al día (dieta o suplementos) y al menos 800 UI de vitamina D — coméntalo con tu médico(a) antes de tomar suplementos.'],
     ['Para la sequedad íntima', 'lubricantes o humectantes de base acuosa y pH neutro, sin receta.'],
   ];
-  const rows = items.map(([t,d])=>`<li><b>${t}:</b> ${d}</li>`).join('');
+  const rows = items.map(([t,d])=>`<li><strong>${t}:</strong> ${d}</li>`).join('');
   return `<p class="card-note">No reemplazan un tratamiento si tu médico(a) lo indica — son medidas seguras para cualquier momento de esta etapa.</p>` +
-    `<ul>${rows}</ul>` +
+    `<ul class="card-list">${rows}</ul>` +
     `<span class="cite">Fuente: Guía de Práctica Clínica para Diagnóstico y Tratamiento del Climaterio, Hospital Nacional Hipólito Unanue (RD N° 211-2024-DG/HNHU), sección 6.4.1 · dato inicial: Ayala-Peralta, 2020.</span>`;
 }
 
@@ -799,9 +884,9 @@ function consultBody(){
     '¿Me corresponde algún examen de rutina de esta etapa (hormonal, mamografía, densitometría)?',
   ];
   let html = `<p class="card-note">Puedes llevar contigo lo que viste en "Ver mis resultados por área" y, si quieres, estas preguntas:</p>` +
-    `<ul>${generic.map(g=>`<li>${g}</li>`).join('')}</ul>`;
+    `<ul class="card-list">${generic.map(g=>`<li>${g}</li>`).join('')}</ul>`;
   if(pts.length){
-    html += `<p style="margin-top:10px;font-weight:600;">También ten en cuenta:</p><ul>${pts.map(p=>`<li>${p}</li>`).join('')}</ul>` +
+    html += `<p style="margin-top:10px;font-weight:600;">También ten en cuenta:</p><ul class="card-list">${pts.map(p=>`<li>${p}</li>`).join('')}</ul>` +
       `<span class="cite">Estas sugerencias son de la guía (Figura 6 y 7) — la decisión final siempre es de tu médico(a), evaluando tu caso completo.</span>`;
   }
   return html;
@@ -809,16 +894,14 @@ function consultBody(){
 
 const LEVEL_COPY = {
   A:{title:'Tus síntomas están en un nivel leve',
-     text:'Es normal experimentar algunos cambios en esta etapa. A este nivel, cuidar algunos hábitos básicos suele ser suficiente — revisa "Quiero ver mis recomendaciones" para ideas concretas.', kind:'calm'},
+     text:'Es normal experimentar algunos cambios en esta etapa. A este nivel, cuidar algunos hábitos básicos suele ser suficiente — revisa las recomendaciones para ideas concretas.', kind:'calm'},
   B:{title:'Sería útil que converses esto con tu ginecólogo(a)',
      text:'Tus síntomas alcanzan un nivel en el que conviene evaluar contigo si un tratamiento (hormonal o no) tiene sentido para tu caso.<br><br>Puede que ningún síntoma se sienta insoportable por separado, pero tener varios presentes a la vez, incluso en un nivel moderado, suma una carga real. Por eso lo que noto toma en cuenta el conjunto, no solo el síntoma más fuerte.', kind:'notice'},
   C:{title:'Lo que sientes es real y tiene tratamiento',
      text:'Tu nivel de síntomas es alto según la escala clínica utilizada. En este rango, el tratamiento suele ser muy recomendable.<br><br>Puede que ningún síntoma se sienta insoportable por separado, pero tener varios presentes a la vez suma una carga real. Por eso lo que noto toma en cuenta el conjunto, no solo el síntoma más fuerte.', kind:'notice'},
 };
 
-/* Lista desplegable de resultados — se muestra colapsada para no volcar toda la
-   información de una vez; cada tema se abre solo si la usuaria quiere leerlo ahora.
-   Todo queda igual, completo, en el reporte por correo/WhatsApp. */
+/* Respaldo en acordeón por si se requiere en otras vistas */
 function resultTopicsCard(){
   const level = computeLevel();
   const m = LEVEL_COPY[level];
@@ -841,9 +924,12 @@ function resultTopicsCard(){
 function showResultsTopics(){
   setSection('Lo que noto');
   clearComposer();
-  botSay(['Gracias por contarme todo esto.']).then(async ()=>{
-    await revealCard(resultTopicsCard(), '');
-    track('result',{level:computeLevel()});
+  const nombre = state.name ? `, ${state.name}` : '';
+  const level = computeLevel();
+
+  botSay([`Gracias${nombre}. Esto es lo que noto en base a lo que me contaste:`]).then(async ()=>{
+    await showResultsCardSequence(level);
+    track('result',{level});
     continueToGoals();
   });
 }
@@ -869,7 +955,9 @@ function showSafetyMessage(){
     }
     track('result',{level:'alert', emergency:hasEmergency});
     await botSay(['De todas formas, esto es lo que notamos en el resto de tus respuestas:']);
-    await revealCard(resultTopicsCard(), '');
+
+    const level = computeLevel();
+    await showResultsCardSequence(level);
     continueToGoals();
   });
 }
@@ -1088,4 +1176,217 @@ document.getElementById('exitBtn').addEventListener('click', ()=>{
   document.getElementById('conversar').scrollIntoView({block:'start'});
 });
 document.getElementById('startBtn').addEventListener('click', ()=>{ track('cta_click',{source:'chat'}); start(); });
+
+/* ==================================================================
+   NUEVAS INTERACCIONES — Hero Simulator, Síntomas, FAQ, Mobile
+   ================================================================== */
+
+/* ---------- Simulador interactivo en el Hero ---------- */
+const SIM_DATA = {
+  sleep: {
+    question: '¿Cómo has dormido últimamente?',
+    example: 'Por ejemplo: te cuesta conciliar el sueño, te despiertas a medianoche o sientes que no descansas.',
+    options: [
+      { score: 0, text: 'Duermo bien y descanso' },
+      { score: 2, text: 'Me despierto varias veces en la noche' },
+      { score: 4, text: 'Casi no logro descansar nada' }
+    ],
+    reply: (score) => {
+      if (score === 0) return 'Dormir bien es un pilar protector clave. En Mindi revisamos periódicamente si otros cambios físicos o de ánimo interfieren con tu descanso.';
+      if (score === 2) return 'Despertarse a medianoche es muy frecuente: las caídas nocturnas de estrógeno alteran el sueño profundo. Mindi te orienta sobre medidas de higiene del sueño.';
+      return 'Un descanso severamente interrumpido desgasta tu energía y memoria. La Guía Clínica HNHU contempla pautas específicas para este nivel de carga.';
+    }
+  },
+  flashes: {
+    question: '¿Qué tanto te molestan los bochornos o calores?',
+    example: 'Por ejemplo: calor súbito en cuello o pecho, a veces acompañado de sudoración nocturna.',
+    options: [
+      { score: 0, text: 'No los he sentido' },
+      { score: 2, text: 'Calor repentino que interrumpe mi día' },
+      { score: 4, text: 'Muy intensos, con sudoración fuerte' }
+    ],
+    reply: (score) => {
+      if (score === 0) return 'Muchas mujeres no presentan bochornos al inicio y debutan con otros cambios como fatiga o ánimo. Cada cuerpo tiene su propia secuencia.';
+      if (score === 2) return 'Los bochornos son respuestas vasomotoras generadas por el hipotálamo frente a la variación hormonal. Reconocer sus momentos ayuda mucho.';
+      return 'Bochornos de intensidad alta afectan tu bienestar laboral y cotidiano. Existen alternativas terapéuticas tanto no farmacológicas como médicas comprobadas.';
+    }
+  },
+  mood: {
+    question: '¿Has notado cambios en tu ánimo o irritabilidad?',
+    example: 'Por ejemplo: sentirte más reactiva, desanimada o con ansiedad inexplicable.',
+    options: [
+      { score: 0, text: 'Me siento tranquila y con buen ánimo' },
+      { score: 2, text: 'Cambios de humor y tensión frecuentes' },
+      { score: 4, text: 'Me cuesta mucho controlar mi reacción' }
+    ],
+    reply: (score) => {
+      if (score === 0) return 'Conservar el equilibrio emocional en esta transición es un gran recurso. Mindi te ayuda a registrar qué hábitos te permiten sostenerlo.';
+      if (score === 2) return 'No es falta de paciencia: los estrógenos modulan directamente la serotonina cerebral. Entender el origen biológico alivia la culpa.';
+      return 'Sentir irritabilidad o angustia constante merece escucha atenta y evaluación médica, no aislamiento. Juntas armamos un reporte con preguntas precisas.';
+    }
+  }
+};
+
+function initHeroSimulator(){
+  const tabs = document.querySelectorAll('.sim-tab');
+  const questionEl = document.getElementById('simQuestion');
+  const exampleEl = document.getElementById('simExample');
+  const optionsEl = document.getElementById('simOptions');
+  const feedbackZone = document.getElementById('simFeedbackZone');
+  const replyText = document.getElementById('simReplyText');
+  const continueBtn = document.getElementById('simContinueBtn');
+
+  if(!optionsEl) return;
+
+  let currentTopic = 'sleep';
+
+  /* preselectIndex: al cargar la página por primera vez, mostramos una opción ya elegida
+     (con su respuesta) para que el simulador se vea "vivo" desde el primer momento, en vez
+     de una pantalla vacía a la espera de que alguien haga clic. Al cambiar de tab sí
+     arranca vacío otra vez — es una conversación nueva sobre ese síntoma. */
+  function renderTopic(topicKey, preselectIndex){
+    currentTopic = topicKey;
+    const data = SIM_DATA[topicKey];
+    if(!data) return;
+
+    if(questionEl) questionEl.textContent = data.question;
+    if(exampleEl) exampleEl.textContent = data.example;
+    if(feedbackZone) feedbackZone.hidden = true;
+
+    optionsEl.innerHTML = '';
+    // Separado de la selección "real" (clic) a propósito: el preselect inicial actualiza
+    // la vista pero no debe registrarse en analítica como si la usuaria hubiese elegido algo.
+    function applySelection(i){
+      const opt = data.options[i];
+      const btn = optionsEl.children[i];
+      optionsEl.querySelectorAll('.sim-option-btn').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      if(replyText) replyText.textContent = data.reply(opt.score);
+      if(feedbackZone) feedbackZone.hidden = false;
+    }
+    data.options.forEach((opt, i) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'sim-option-btn';
+      btn.innerHTML = `<span>${opt.text}</span><span class="sim-scale-num">${opt.score}</span>`;
+      btn.addEventListener('click', () => {
+        applySelection(i);
+        track('sim_option_select', { topic: currentTopic, score: opt.score });
+      });
+      optionsEl.appendChild(btn);
+    });
+    if(typeof preselectIndex === 'number') applySelection(preselectIndex);
+  }
+
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      tabs.forEach(t => {
+        t.classList.remove('active');
+        t.setAttribute('aria-selected', 'false');
+      });
+      tab.classList.add('active');
+      tab.setAttribute('aria-selected', 'true');
+      renderTopic(tab.dataset.simTopic);
+      track('sim_tab_switch', { topic: tab.dataset.simTopic });
+    });
+  });
+
+  if(continueBtn){
+    continueBtn.addEventListener('click', () => {
+      track('cta_click', { source: 'sim_continue' });
+      openChat('sim_continue');
+    });
+  }
+
+  renderTopic('sleep', 1); // preseleccionada la opción del medio ("Me despierto varias veces en la noche")
+}
+
+/* ---------- Filtros y Navegación del Carrusel de Síntomas ---------- */
+function initSymptomsExplorer(){
+  const filterChips = document.querySelectorAll('.filter-chip');
+  const cards = document.querySelectorAll('.sym-card');
+  const prevBtn = document.getElementById('carouselPrev');
+  const nextBtn = document.getElementById('carouselNext');
+  const carousel = document.getElementById('symptoms');
+
+  filterChips.forEach(chip => {
+    chip.addEventListener('click', () => {
+      filterChips.forEach(c => {
+        c.classList.remove('active');
+        c.setAttribute('aria-selected', 'false');
+      });
+      chip.classList.add('active');
+      chip.setAttribute('aria-selected', 'true');
+
+      const filter = chip.dataset.filter;
+      track('symptoms_filter', { filter });
+
+      cards.forEach(card => {
+        if(filter === 'all' || card.dataset.category === filter){
+          card.classList.remove('hidden');
+        } else {
+          card.classList.add('hidden');
+        }
+      });
+    });
+  });
+
+  if(prevBtn && carousel){
+    prevBtn.addEventListener('click', () => {
+      carousel.scrollBy({ left: -300, behavior: reduceMotion ? 'auto' : 'smooth' });
+    });
+  }
+  if(nextBtn && carousel){
+    nextBtn.addEventListener('click', () => {
+      carousel.scrollBy({ left: 300, behavior: reduceMotion ? 'auto' : 'smooth' });
+    });
+  }
+}
+
+/* ---------- Búsqueda interactiva de FAQ ---------- */
+function initFaqSearch(){
+  const searchInput = document.getElementById('faqSearchInput');
+  const faqItems = document.querySelectorAll('.faq-item');
+  if(!searchInput || !faqItems.length) return;
+
+  searchInput.addEventListener('input', () => {
+    const query = searchInput.value.toLowerCase().trim();
+    track('faq_search', { query });
+    faqItems.forEach(item => {
+      const summaryText = (item.querySelector('summary')?.textContent || '').toLowerCase();
+      const bodyText = (item.querySelector('.faq-answer')?.textContent || '').toLowerCase();
+      const matches = !query || summaryText.includes(query) || bodyText.includes(query);
+      item.style.display = matches ? '' : 'none';
+      if(query && matches){
+        item.open = true;
+      } else if (!query) {
+        item.open = false;
+      }
+    });
+  });
+}
+
+/* ---------- Barra flotante de acción para Mobile ---------- */
+function initMobileStickyBar(){
+  const bar = document.getElementById('mobileStickyBar');
+  if(!bar) return;
+
+  const onScroll = () => {
+    const pastHero = window.scrollY > 340;
+    const isMobile = window.innerWidth <= 820;
+    const chatInFocus = document.getElementById('conversar')?.classList.contains('focus');
+    bar.classList.toggle('visible', pastHero && isMobile && !chatInFocus);
+  };
+
+  window.addEventListener('scroll', onScroll, { passive: true });
+  window.addEventListener('resize', onScroll);
+}
+
+// Inicializar nuevos módulos interactivos
+initHeroSimulator();
+initSymptomsExplorer();
+initFaqSearch();
+initMobileStickyBar();
+
 track('page_view');
+
