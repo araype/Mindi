@@ -4,6 +4,7 @@
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || '';
 const KEY_STORE = 'mindi_panel_key';
+const TESTER_STORE = 'mindi_tester'; // mismo que src/main.js: marca este navegador como del equipo
 
 const $ = (id) => document.getElementById(id);
 const gate = $('gate'), dash = $('dash'), statusEl = $('status'), tooltip = $('tooltip');
@@ -43,6 +44,8 @@ async function load(){
     if(r.status === 401){ setKey(''); showStatus(''); showGate('Esa clave no coincide con ADMIN_KEY (o ADMIN_KEY aún no está configurada en Supabase).'); return; }
     const res = await r.json().catch(() => null);
     if(!r.ok || !res?.ok){ showStatus(`No se pudo leer el embudo (${res?.error || 'error ' + r.status}). Vuelve a intentarlo con "Actualizar".`); $('headActions').hidden = false; return; }
+    // Quien entra al panel es del equipo: sus visitas a la landing no deben contar como reales.
+    try { if(!localStorage.getItem(TESTER_STORE)) localStorage.setItem(TESTER_STORE, 'panel'); } catch {}
     gate.hidden = true;
     $('headActions').hidden = false;
     showStatus('');

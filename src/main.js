@@ -14,8 +14,19 @@ const BACKEND_ON = !!(SUPABASE_URL && SUPABASE_KEY);
    sin tocar variables de entorno ni desplegar. Cualquier valor sirve (?test=1, ?test=ara,
    ?test=lo-que-sea): no hace falta que sea exactamente "1" — se guarda tal cual en los
    eventos (campo "tester") por si más adelante quieren ver quién probó qué.
-   Ej.: mindi-beta.vercel.app/?test=ara y mindi-beta.vercel.app/?test=compa */
-const TEST_PARAM = new URLSearchParams(location.search).get('test');
+   Ej.: mindi-beta.vercel.app/?test=ara y mindi-beta.vercel.app/?test=compa
+   La marca queda guardada en ESE navegador (localStorage): basta abrir ?test=... una vez
+   y las visitas siguientes, aunque sean sin ?test, también cuentan como prueba. Entrar al
+   panel (/panel.html) con la clave también marca el navegador. ?test=off la quita. */
+const TESTER_STORE = 'mindi_tester';
+const TEST_PARAM = (()=>{
+  const fromUrl = new URLSearchParams(location.search).get('test');
+  try {
+    if(fromUrl === 'off'){ localStorage.removeItem(TESTER_STORE); return null; }
+    if(fromUrl){ localStorage.setItem(TESTER_STORE, fromUrl); return fromUrl; }
+    return localStorage.getItem(TESTER_STORE);
+  } catch { return fromUrl && fromUrl !== 'off' ? fromUrl : null; }
+})();
 const TEST_MODE = (import.meta.env.VITE_TEST_MODE ?? 'true') !== 'false' || !!TEST_PARAM;
 
 function newId(){
