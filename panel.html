@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Panel de Mindi</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/src/panel.css">
+</head>
+<body>
+
+<main class="panel">
+  <header class="panel-head">
+    <div>
+      <p class="eyebrow">Mindi · uso interno</p>
+      <h1>Embudo de conversación</h1>
+      <p class="meta" id="meta">Sesiones reales — las de prueba no cuentan.</p>
+    </div>
+    <div class="head-actions" id="headActions" hidden>
+      <button type="button" class="btn" id="refreshBtn">Actualizar</button>
+      <button type="button" class="btn quiet" id="logoutBtn">Cambiar clave</button>
+    </div>
+  </header>
+
+  <!-- Clave del panel: se guarda solo en este navegador -->
+  <form class="gate" id="gate" hidden>
+    <label for="keyInput">Clave del panel</label>
+    <p class="hint">Es la misma que configuraste como <code>ADMIN_KEY</code> en Supabase. Se guarda solo en este navegador.</p>
+    <div class="gate-row">
+      <input id="keyInput" type="password" autocomplete="current-password" required>
+      <button type="submit" class="btn">Entrar</button>
+    </div>
+    <p class="error" id="gateError" role="alert" hidden></p>
+  </form>
+
+  <p class="status" id="status" aria-live="polite" hidden></p>
+
+  <div id="dash" hidden>
+    <section class="tiles" aria-label="Resumen">
+      <div class="tile">
+        <span class="tile-label">Visitas</span>
+        <span class="tile-value" id="tVisitas">—</span>
+      </div>
+      <div class="tile">
+        <span class="tile-label">Reportes obtenidos</span>
+        <span class="tile-value" id="tReportes">—</span>
+        <span class="tile-sub" id="tReportesSub"></span>
+      </div>
+      <div class="tile">
+        <span class="tile-label">Dejan contacto</span>
+        <span class="tile-value" id="tLeads">—</span>
+        <span class="tile-sub">Correo o WhatsApp — el resto descarga sin dejar datos</span>
+      </div>
+      <div class="tile">
+        <span class="tile-label">Conversión inicio de chat → reporte</span>
+        <span class="tile-value" id="tConvChat">—</span>
+      </div>
+    </section>
+
+    <section class="block">
+      <h2>Dónde se quedan</h2>
+      <p class="block-note">Cada barra es un paso. A la derecha: cuántas siguen respecto al paso anterior — el número más bajo es donde más se pierden.</p>
+      <div class="funnel" id="funnel" role="table" aria-label="Embudo por paso"></div>
+    </section>
+
+    <section class="splits">
+      <div class="block" id="splitReport"></div>
+      <div class="block" id="splitPrice"></div>
+      <div class="block" id="splitSat"></div>
+    </section>
+  </div>
+
+  <div class="tooltip" id="tooltip" role="tooltip" hidden></div>
+</main>
+
+<script type="module" src="/src/panel.js"></script>
+</body>
+</html>
