@@ -257,6 +257,29 @@ function setProgress(n){ progressFill.style.width = Math.min(100, Math.round((n/
 function advance(){ step++; setProgress(step); }
 function scrollBottom(){ requestAnimationFrame(()=>{ chat.scrollTop = chat.scrollHeight; }); }
 
+/* Teclado en mobile: en pantallas táctiles no se enfoca el campo de texto solo (abriría el
+   teclado encima de la pregunta antes de que la usuaria la lea) — lo abre ella al tocarlo.
+   Y cuando el teclado aparece, el chat se achica al área visible (--app-h / --app-top, ver
+   landing.css) y baja al final, para que la pregunta y el campo queden justo encima.
+   Android lo hace además con interactive-widget=resizes-content (index.html); iOS no lo
+   soporta, por eso se usa visualViewport. */
+const isTouch = window.matchMedia('(pointer: coarse)').matches;
+const vv = window.visualViewport;
+if(vv){
+  let lastH = vv.height;
+  const syncViewport = ()=>{
+    if(Math.abs(vv.scale - 1) > 0.01) return; // zoom con los dedos, no teclado
+    const root = document.documentElement.style;
+    root.setProperty('--app-h', vv.height + 'px');
+    root.setProperty('--app-top', vv.offsetTop + 'px');
+    if(vv.height < lastH && started) scrollBottom();
+    lastH = vv.height;
+  };
+  vv.addEventListener('resize', syncViewport);
+  vv.addEventListener('scroll', syncViewport);
+  syncViewport();
+}
+
 function addBubble(text, who, cls, subText){
   const row = document.createElement('div');
   row.className = 'row ' + who;
@@ -617,7 +640,7 @@ function renderTextInput(placeholder, opts, onSubmit){
     const h = document.createElement('p'); h.className='hint'; h.textContent = opts.hint; composer.appendChild(h);
   }
   scrollBottom();
-  input.focus({preventScroll:true});
+  if(!isTouch) input.focus({preventScroll:true});
 }
 
 /* ---------- Flujo ---------- */

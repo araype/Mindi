@@ -1927,10 +1927,14 @@ body.no-scroll { overflow: hidden; }
 .chat-section.focus .chat-exit { display: inline-flex; align-items: center; }
 
 @media (max-width: 640px) {
-  .chat-section.focus { padding: 0; background: var(--white); }
+  /* --app-h / --app-top: área visible real (se achica con el teclado) — ver main.js */
+  .chat-section.focus {
+    padding: 0; background: var(--white);
+    top: var(--app-top, 0); bottom: auto; height: var(--app-h, 100dvh);
+  }
   .chat-section.focus .chat-shell {
     max-width: none;
-    height: 100dvh;
+    height: 100%;
     min-height: 0;
     border: none;
     border-radius: 0;
