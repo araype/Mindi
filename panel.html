@@ -30,7 +30,10 @@
     <label for="keyInput">Clave del panel</label>
     <p class="hint">Es la misma que configuraste como <code>ADMIN_KEY</code> en Supabase. Se guarda solo en este navegador.</p>
     <div class="gate-row">
-      <input id="keyInput" type="password" autocomplete="current-password" required>
+      <div class="pw-wrap">
+        <input id="keyInput" type="password" autocomplete="current-password" required>
+        <button type="button" class="pw-toggle" id="pwToggle" aria-label="Mostrar clave" aria-pressed="false"><svg class="eye-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg><svg class="eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 5.1A10.4 10.4 0 0 1 12 5c6.5 0 10 7 10 7a17.6 17.6 0 0 1-3.2 4.2M6.6 6.6C3.8 8.4 2 12 2 12s3.5 7 10 7a9.7 9.7 0 0 0 5.4-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg></button>
+      </div>
       <button type="submit" class="btn">Entrar</button>
     </div>
     <p class="error" id="gateError" role="alert" hidden></p>
@@ -39,6 +42,22 @@
   <p class="status" id="status" aria-live="polite" hidden></p>
 
   <div id="dash" hidden>
+    <section class="filters" aria-label="Filtros">
+      <div class="seg" role="radiogroup" aria-label="Periodo" id="periodSeg">
+        <button type="button" role="radio" data-period="today">Hoy</button>
+        <button type="button" role="radio" data-period="7d">7 días</button>
+        <button type="button" role="radio" data-period="30d">30 días</button>
+        <button type="button" role="radio" data-period="all">Todo</button>
+      </div>
+      <label class="switch" for="testToggle">
+        <input type="checkbox" id="testToggle">
+        <span class="switch-ui" aria-hidden="true"></span>
+        Incluir sesiones de prueba
+      </label>
+      <p class="filters-note" id="filtersNote" hidden>Los filtros se activan al correr <code>supabase/009_panel_stats.sql</code>.</p>
+    </section>
+    <p class="test-banner" id="testBanner" hidden>Estás viendo también las sesiones de prueba del equipo — estos números no son solo de usuarias reales.</p>
+
     <section class="tiles" aria-label="Resumen">
       <div class="tile">
         <span class="tile-label">Visitas</span>
@@ -70,6 +89,8 @@
       <div class="block" id="splitReport"></div>
       <div class="block" id="splitPrice"></div>
       <div class="block" id="splitSat"></div>
+      <div class="block" id="splitLevel"></div>
+      <div class="block" id="splitAge"></div>
     </section>
   </div>
 

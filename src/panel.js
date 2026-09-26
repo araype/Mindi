@@ -5,6 +5,7 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || '';
 const KEY_STORE = 'mindi_panel_key';
 const TESTER_STORE = 'mindi_tester'; // mismo que src/main.js: marca este navegador como del equipo
+const FILTER_STORE = 'mindi_panel_filters';
 
 const $ = (id) => document.getElementById(id);
 const gate = $('gate'), dash = $('dash'), statusEl = $('status'), tooltip = $('tooltip');
@@ -15,6 +16,35 @@ function setKey(v){ try { v ? localStorage.setItem(KEY_STORE, v) : localStorage.
 const fmt = (n) => Number(n || 0).toLocaleString('es-PE');
 const pct = (a, b) => b > 0 ? Math.round((a / b) * 1000) / 10 : null;
 const pctTxt = (p) => p === null ? '—' : `${p.toLocaleString('es-PE')}%`;
+
+/* ---------- Filtros (se recuerdan en este navegador) ---------- */
+const filters = (()=>{
+  try { return Object.assign({period:'all', includeTest:false}, JSON.parse(localStorage.getItem(FILTER_STORE) || '{}')); }
+  catch { return {period:'all', includeTest:false}; }
+})();
+function saveFilters(){ try { localStorage.setItem(FILTER_STORE, JSON.stringify(filters)); } catch {} }
+
+const PERIOD_LABEL = {today:'hoy', '7d':'últimos 7 días', '30d':'últimos 30 días', all:'desde el inicio'};
+// Días en hora de Lima (UTC-5, sin horario de verano): "Hoy" empieza a las 00:00 de Lima.
+function sinceFor(period){
+  if(period === 'all') return null;
+  const today = new Intl.DateTimeFormat('en-CA', {timeZone:'America/Lima'}).format(new Date()); // AAAA-MM-DD
+  const start = new Date(`${today}T00:00:00-05:00`);
+  const back = period === '7d' ? 6 : period === '30d' ? 29 : 0;
+  return new Date(start.getTime() - back * 86400000).toISOString();
+}
+function syncFilterUI(enabled){
+  document.querySelectorAll('#periodSeg button').forEach((b)=>{
+    const on = b.dataset.period === filters.period;
+    b.setAttribute('aria-checked', String(on));
+    b.tabIndex = on ? 0 : -1;
+    b.disabled = !enabled;
+  });
+  $('testToggle').checked = filters.includeTest;
+  $('testToggle').disabled = !enabled;
+  $('filtersNote').hidden = enabled;
+  $('testBanner').hidden = !(enabled && filters.includeTest);
+}
 
 function showStatus(text){ statusEl.textContent = text; statusEl.hidden = !text; }
 
@@ -39,7 +69,7 @@ async function load(){
     const r = await fetch(`${SUPABASE_URL}/functions/v1/funnel-stats`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY, 'x-admin-key': key },
-      body: '{}',
+      body: JSON.stringify({ since: sinceFor(filters.period), include_test: filters.includeTest }),
     });
     if(r.status === 401){ setKey(''); showStatus(''); showGate('Esa clave no coincide con ADMIN_KEY (o ADMIN_KEY aún no está configurada en Supabase).'); return; }
     const res = await r.json().catch(() => null);
@@ -49,7 +79,8 @@ async function load(){
     gate.hidden = true;
     $('headActions').hidden = false;
     showStatus('');
-    render(res.funnel, res.generated_at);
+    syncFilterUI(res.filters !== false);
+    render(res.funnel, res.generated_at, res.filters !== false);
   } catch {
     showStatus('Sin conexión con Supabase. Revisa tu internet y vuelve a intentarlo con "Actualizar".');
     $('headActions').hidden = false;
@@ -70,9 +101,11 @@ const STEPS = [
   ['reportes', 'Obtienen reporte'],
 ];
 
-function render(f, at){
+function render(f, at, filtered){
   const time = at ? new Date(at).toLocaleString('es-PE', { dateStyle: 'medium', timeStyle: 'short' }) : '';
-  $('meta').textContent = `Sesiones reales — las de prueba no cuentan.${time ? ' Actualizado: ' + time : ''}`;
+  const who = filtered && filters.includeTest ? 'Sesiones reales y de prueba' : 'Sesiones reales — las de prueba no cuentan';
+  const when = filtered ? `, ${PERIOD_LABEL[filters.period]}` : '';
+  $('meta').textContent = `${who}${when}.${time ? ' Actualizado: ' + time : ''}`;
 
   $('tVisitas').textContent = fmt(f.visitas);
   $('tReportes').textContent = f.reportes == null ? '—' : fmt(f.reportes);
@@ -99,6 +132,21 @@ function render(f, at){
     ['Neutra', f.satisfaccion_neutra, 'var(--div-mid)'],
     ['Baja', f.satisfaccion_baja, 'var(--div-neg)'],
   ]);
+
+  const noSessions = filtered ? null : 'Corre supabase/009_panel_stats.sql para ver este desglose.';
+  renderSplit($('splitLevel'), 'Nivel de resultado', 'De quienes terminaron el chat (Escala MRS).', [
+    ['Leve', f.nivel_a, 'var(--ord-1)'],
+    ['Moderado', f.nivel_b, 'var(--ord-2)'],
+    ['Alto', f.nivel_c, 'var(--ord-3)'],
+    ['Señal de alerta', f.nivel_alerta, 'var(--critical)'],
+  ], noSessions);
+
+  renderSplit($('splitAge'), 'Rango de edad', 'De quienes terminaron el chat.', [
+    ['Menor de 40', f.edad_menor_40, 'var(--ord-1)'],
+    ['40 a 45', f.edad_40_45, 'var(--ord-2)'],
+    ['46 a 52', f.edad_46_52, 'var(--ord-3)'],
+    ['Mayor de 52', f.edad_mayor_52, 'var(--ord-4)'],
+  ], noSessions);
 
   dash.hidden = false;
 }
@@ -170,9 +218,41 @@ gate.addEventListener('submit', (e) => {
   if(!v) return;
   setKey(v);
   $('keyInput').value = '';
+  $('keyInput').type = 'password';
+  $('pwToggle').setAttribute('aria-pressed', 'false');
+  $('pwToggle').setAttribute('aria-label', 'Mostrar clave');
   load();
 });
 $('refreshBtn').addEventListener('click', load);
+
+const periodBtns = [...document.querySelectorAll('#periodSeg button')];
+function pickPeriod(p){
+  if(p === filters.period) return;
+  filters.period = p; saveFilters(); syncFilterUI(true); load();
+}
+periodBtns.forEach((b, i)=>{
+  b.addEventListener('click', ()=> pickPeriod(b.dataset.period));
+  // Flechas para moverse dentro del grupo (patrón de radio group)
+  b.addEventListener('keydown', (e)=>{
+    const d = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : 0;
+    if(!d) return;
+    e.preventDefault();
+    const next = periodBtns[(i + d + periodBtns.length) % periodBtns.length];
+    next.focus(); pickPeriod(next.dataset.period);
+  });
+});
+$('testToggle').addEventListener('change', (e)=>{
+  filters.includeTest = e.target.checked; saveFilters(); syncFilterUI(true); load();
+});
+
+$('pwToggle').addEventListener('click', ()=>{
+  const input = $('keyInput');
+  const show = input.type === 'password';
+  input.type = show ? 'text' : 'password';
+  $('pwToggle').setAttribute('aria-pressed', String(show));
+  $('pwToggle').setAttribute('aria-label', show ? 'Ocultar clave' : 'Mostrar clave');
+  input.focus();
+});
 $('logoutBtn').addEventListener('click', () => { setKey(''); showGate(); });
 
 load();

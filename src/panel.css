@@ -21,6 +21,12 @@
   --div-pos: #2a78d6;        /* sí / alta */
   --div-mid: #cfcdc4;        /* tal vez / neutra */
   --div-neg: #e34948;        /* no / baja */
+  --ord-1: #86b6ef;          /* rampa ordinal (nivel, edad): menor → mayor */
+  --ord-2: #3987e5;
+  --ord-3: #1c5cab;
+  --ord-4: #0d366b;
+  --critical: #d03b3b;       /* señal de alerta (estado, siempre con etiqueta) */
+  --test-bg: #F6E9C9; --test-border: #DCB671; --test-text: #6B4308;
 
   --font: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
@@ -44,6 +50,8 @@
     --div-pos: #3987e5;
     --div-mid: #55514f;
     --div-neg: #e66767;
+    --ord-1: #184f95; --ord-2: #2a78d6; --ord-3: #6da7ec; --ord-4: #b7d3f6;
+    --test-bg: #3A3020; --test-border: #8A6A2E; --test-text: #F3D9A0;
   }
 }
 :root[data-theme="dark"] {
@@ -65,6 +73,8 @@
   --div-pos: #3987e5;
   --div-mid: #55514f;
   --div-neg: #e66767;
+  --ord-1: #184f95; --ord-2: #2a78d6; --ord-3: #6da7ec; --ord-4: #b7d3f6;
+  --test-bg: #3A3020; --test-border: #8A6A2E; --test-text: #F3D9A0;
 }
 
 * { box-sizing: border-box; }
@@ -141,8 +151,10 @@ h1 {
 .gate .hint { margin: 0; font-size: 13px; color: var(--ink-soft); }
 .gate code { font-size: 12.5px; }
 .gate-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+.pw-wrap { position: relative; flex: 1 1 200px; display: flex; }
 .gate input {
-  flex: 1 1 200px;
+  flex: 1;
+  padding-right: 48px !important;
   min-height: 42px;
   padding: 0 14px;
   font: 400 15px var(--font);
@@ -151,8 +163,56 @@ h1 {
   border: 1.5px solid var(--border);
   border-radius: 10px;
 }
+.pw-toggle {
+  position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+  width: 38px; height: 34px;
+  display: grid; place-items: center;
+  border: 0; border-radius: 8px; background: transparent;
+  color: var(--ink-soft); cursor: pointer;
+}
+.pw-toggle:hover { color: var(--ink); }
+.pw-toggle:focus-visible { outline: 2px solid var(--focus); outline-offset: 0; }
+.pw-toggle svg { width: 20px; height: 20px; }
+.pw-toggle .eye-off, .pw-toggle[aria-pressed="true"] .eye-on { display: none; }
+.pw-toggle[aria-pressed="true"] .eye-off { display: block; }
 .error { margin: 0; font-size: 13.5px; color: var(--action); font-weight: 500; }
 .status { margin: 0; color: var(--ink-soft); }
+
+/* Filtros: una sola fila sobre los gráficos */
+.filters { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; }
+.seg {
+  display: inline-flex; padding: 3px; gap: 2px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 999px;
+}
+.seg button {
+  font: 500 13.5px var(--font); color: var(--ink-soft);
+  min-height: 34px; padding: 0 14px;
+  border: 0; border-radius: 999px; background: transparent; cursor: pointer;
+}
+.seg button:hover { color: var(--ink); }
+.seg button[aria-checked="true"] { background: var(--brand); color: var(--surface); }
+.seg button:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.seg button:disabled { cursor: not-allowed; opacity: .5; }
+.switch { display: inline-flex; align-items: center; gap: 10px; font-size: 14px; cursor: pointer; }
+.switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.switch-ui {
+  width: 38px; height: 22px; border-radius: 999px; position: relative;
+  background: var(--track); border: 1px solid var(--border); transition: background .15s;
+}
+.switch-ui::after {
+  content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px;
+  border-radius: 50%; background: var(--surface); box-shadow: 0 1px 2px rgba(0,0,0,.25); transition: transform .15s;
+}
+.switch input:checked + .switch-ui { background: var(--brand); border-color: var(--brand); }
+.switch input:checked + .switch-ui::after { transform: translateX(16px); }
+.switch input:focus-visible + .switch-ui { outline: 2px solid var(--focus); outline-offset: 2px; }
+.switch input:disabled + .switch-ui { opacity: .5; }
+.filters-note { margin: 0; font-size: 13px; color: var(--ink-subtle); flex-basis: 100%; }
+.test-banner {
+  margin: 0; padding: 10px 14px; font-size: 13.5px; font-weight: 500;
+  background: var(--test-bg); border: 1px solid var(--test-border); color: var(--test-text); border-radius: 10px;
+}
+@media (prefers-reduced-motion: reduce) { .switch-ui, .switch-ui::after { transition: none; } }
 
 /* Resumen */
 .tiles {

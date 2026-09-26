@@ -1,8 +1,9 @@
 // Mindi · Edge Function `funnel-stats`
 //
-// Devuelve la fila de la vista `funnel` para el panel interno (/panel.html). La vista está
-// cerrada para la clave pública (anon), así que el navegador no puede leerla directo: esta
-// función la lee con la service_role key, pero SOLO si la petición trae la clave del panel
+// Devuelve los datos del panel interno (/panel.html): la función SQL `panel_stats` (con
+// filtros de periodo y de sesiones de prueba), o la vista `funnel` si aún no existe. Ambas
+// están cerradas para la clave pública (anon), así que el navegador no puede leerlas: esta
+// función las lee con la service_role key, pero SOLO si la petición trae la clave del panel
 // (header `x-admin-key`, igual al secreto ADMIN_KEY). Sin ese secreto configurado, responde
 // 401 a todo — nunca queda abierta por accidente.
 //
@@ -43,8 +44,23 @@ Deno.serve(async (req) => {
   const key = req.headers.get('x-admin-key') ?? '';
   if (!ADMIN_KEY || !sameKey(key, ADMIN_KEY)) return json({ error: 'unauthorized' }, 401);
 
-  const { data, error } = await supabase.from('funnel').select('*').maybeSingle();
-  if (error) return json({ error: error.message }, 500);
+  // Filtros del panel: desde qué fecha (ISO) y si incluye sesiones de prueba.
+  let since: string | null = null;
+  let includeTest = false;
+  try {
+    const body = await req.json();
+    if (typeof body.since === 'string' && !Number.isNaN(Date.parse(body.since))) since = new Date(body.since).toISOString();
+    includeTest = body.include_test === true;
+  } catch {
+    // cuerpo vacío: sin filtros
+  }
 
-  return json({ ok: true, funnel: data ?? {}, generated_at: new Date().toISOString() });
+  const generated_at = new Date().toISOString();
+  const { data, error } = await supabase.rpc('panel_stats', { p_since: since, p_include_test: includeTest });
+  if (!error) return json({ ok: true, funnel: data ?? {}, filters: true, generated_at });
+
+  // Si aún no se corrió supabase/009_panel_stats.sql, se usa la vista sin filtros.
+  const { data: view, error: vErr } = await supabase.from('funnel').select('*').maybeSingle();
+  if (vErr) return json({ error: vErr.message }, 500);
+  return json({ ok: true, funnel: view ?? {}, filters: false, generated_at });
 });
