@@ -332,11 +332,10 @@ function revealCardWithPause(introMsg, html, kind, isLast = false, continueText 
 /* Secuencia de cards de resultado compartida entre el flujo normal y el de banderas rojas */
 async function showResultsCardSequence(level){
   const m = LEVEL_COPY[level];
-  await revealCardWithPause(null,                                         levelCard(m, level), m.kind,  false, 'Cuéntame más');
+  await revealCardWithPause(null,                                         levelCard(m, level), m.kind,  false, 'Ver mis resultados por área');
   await revealCardWithPause('Veamos cómo se distribuye eso por áreas:',   areasCard(),         '',      false, '¿Y qué hago con esto?');
-  await revealCardWithPause('Sobre tu momento clínico:',                  stageCard(),         'calm',  false, 'Entendido, ¿qué sigue?');
-  await revealCardWithPause('¿Qué puedes preguntarle a tu médico(a)?',    consultCard(),       '',      false, 'Muy útil, ¿algo más?');
-  await revealCardWithPause('Y por último, ideas para el día a día:',     selfCareCard(),      'calm',  true);
+  await revealCardWithPause('Estas son algunas preguntas que puedes hacerle a tu médico(a):', consultCard(), '', false, 'Muy útil, ¿algo más?');
+  await revealCardWithPause('Estas son algunas recomendaciones de autocuidado según tus resultados:', selfCareCard(), 'calm', true);
   addCard('<p class="topics-disclaimer">Esto es solo orientación informativa según la Guía HNHU (RD N° 211-2024-DG/HNHU). Solo un profesional de salud puede evaluarte con exámenes clínicos en consulta presencial.</p>', '');
 }
 
@@ -1007,21 +1006,6 @@ function showSafetyMessage(){
 /* ---------- Metas + validación de precio + datos + satisfacción ----------
    Comparten el mismo cierre sin importar si hubo bandera roja: ya se mostró la
    información que corresponde (resultados o aviso de seguridad) antes de llegar aquí. */
-const DOMAIN_PHRASES = {
-  p3:'los bochornos y sudores', p4:'las palpitaciones', p5:'los dolores musculares o articulares',
-  p6:'tu sueño', p7:'tu ánimo', p8:'la irritabilidad', p9:'la ansiedad',
-  p10:'el cansancio y la concentración', p11:'tu vida íntima', p12:'las molestias al orinar', p13:'la sequedad íntima',
-};
-function dominantSymptomPhrase(){
-  let best = null, bestVal = -1;
-  for(const item of MRS_ITEMS){
-    const v = state.answers[item.id];
-    if(v != null && v > bestVal){ bestVal = v; best = item.id; }
-  }
-  if(best == null || bestVal <= 0) return 'estos cambios';
-  return DOMAIN_PHRASES[best];
-}
-
 const GOAL_OPTIONS = [
   'Manejar la perimenopausia o menopausia',
   'Detener los sofocos o sudores nocturnos',
@@ -1035,31 +1019,29 @@ const GOAL_OPTIONS = [
 ];
 
 function continueToGoals(){
-  const dominio = dominantSymptomPhrase();
-  askGoals(dominio);
+  askGoals();
 }
 
-function askGoals(dominio){
+function askGoals(){
   setSection('Tus metas');
-  botSay([`Vimos que ${dominio} es lo que más te está afectando hoy.`]).then(()=>{
-    addCard('<h3>¿Qué te gustaría lograr a partir de ahora?</h3><p class="card-note">Elige todas las que apliquen — no hay una respuesta correcta.</p>', 'goals');
+  revealCard('<h3>¿Qué te gustaría lograr a partir de ahora?</h3><p class="card-note">Elige todas las que apliquen — no hay una respuesta correcta.</p>', 'goals').then(()=>{
     const options = GOAL_OPTIONS.map((text,i)=>({id:'g'+i, text}));
     renderMultiSelect(options, (selected)=>{
       const labels = selected.map(id => GOAL_OPTIONS[+id.slice(1)]);
       state.goals = labels;
       track('goals', {selected:labels});
-      askPriceValidation(dominio);
+      askPriceValidation();
     });
   });
 }
 
-function askPriceValidation(dominio){
+function askPriceValidation(){
   setSection('Precio');
   botSay(['Una última pregunta, si me lo permites.']).then(()=>{
-    addCard(`<h3>¿Un acompañamiento así te sería útil?</h3>Ya que ${dominio} es lo que más te afecta hoy, y nos contaste varias cosas que te gustaría mejorar, estamos armando un plan personalizado con seguimiento continuo y acceso a especialistas para ayudarte con eso, por S/29 al mes. Aún no está disponible; tu respuesta nos ayuda a decidir si vale la pena construirlo. ¿Qué tan probable es que lo probaras?`, 'notice');
+    addCard(`<h3>¿Un acompañamiento así te sería útil?</h3>¿Estarías dispuesta a acceder a un plan personalizado con acceso a especialistas para alcanzar tus objetivos de salud y recuperar el equilibrio por S/30 al mes? Tu respuesta nos ayuda a decidir si vale la pena construirlo.`, 'notice');
     renderChips([{label:'Sí, lo probaría'},{label:'Tal vez, depende'},{label:'No lo probaría'}], (v)=>{
       state.priceInterest = v;
-      track('price_validation',{answer:v, price:29});
+      track('price_validation',{answer:v, price:30});
       const replies = {
         'Sí, lo probaría':'Qué bueno saberlo. Si nos dejas tus datos, te avisaremos cuando esté listo.',
         'Tal vez, depende':'Gracias por la honestidad. Si nos dejas tus datos, te avisaremos cuando esté listo, sin compromiso.',
