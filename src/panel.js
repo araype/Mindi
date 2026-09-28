@@ -284,6 +284,27 @@ document.addEventListener('pointermove', (e) => {
 });
 document.addEventListener('pointerout', (e) => { if(e.target.closest?.('[data-tip]')) tooltip.hidden = true; });
 
+/* ---------- Modo claro / oscuro ---------- */
+const THEME_STORE = 'mindi_panel_theme';
+const darkQuery = window.matchMedia('(prefers-color-scheme: dark)');
+function isDark(){
+  const t = document.documentElement.dataset.theme;
+  return t ? t === 'dark' : darkQuery.matches;
+}
+function syncThemeBtn(){
+  const dark = isDark();
+  document.body.classList.toggle('is-dark', dark);
+  $('themeBtn').setAttribute('aria-label', dark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro');
+}
+$('themeBtn').addEventListener('click', ()=>{
+  const next = isDark() ? 'light' : 'dark';
+  document.documentElement.dataset.theme = next;
+  try { localStorage.setItem(THEME_STORE, next); } catch {}
+  syncThemeBtn();
+});
+darkQuery.addEventListener?.('change', syncThemeBtn);
+syncThemeBtn();
+
 /* ---------- Eventos ---------- */
 gate.addEventListener('submit', (e) => {
   e.preventDefault();

@@ -14,6 +14,7 @@
   --action: #D33D17;
   --action-hover: #A82F11;
   --focus: #6E3A4E;
+  --on-action: #FFFFFF;
 
   --cat-1: #2a78d6;          /* correo */
   --cat-2: #eb6834;          /* WhatsApp */
@@ -44,6 +45,7 @@
     --action: #F0714F;
     --action-hover: #F58E71;
     --focus: #C58AA2;
+    --on-action: #1B1B19;
     --cat-1: #3987e5;
     --cat-2: #d95926;
     --cat-3: #199e70;
@@ -67,6 +69,7 @@
   --action: #F0714F;
   --action-hover: #F58E71;
   --focus: #C58AA2;
+  --on-action: #1B1B19;
   --cat-1: #3987e5;
   --cat-2: #d95926;
   --cat-3: #199e70;
@@ -128,9 +131,22 @@ h1 {
   border-radius: 999px;
   border: 1.5px solid var(--action);
   background: var(--action);
-  color: #fff;
+  color: var(--on-action);
   cursor: pointer;
 }
+.icon-btn {
+  width: 40px; height: 40px; flex: none;
+  display: grid; place-items: center;
+  border: 1.5px solid var(--border); border-radius: 999px;
+  background: transparent; color: var(--ink); cursor: pointer;
+}
+.icon-btn:hover { border-color: var(--ink-soft); }
+.icon-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.icon-btn svg { width: 18px; height: 18px; }
+/* Muestra el ícono del modo AL que se cambia: luna en claro, sol en oscuro */
+.icon-btn .ic-sun { display: none; }
+.is-dark .icon-btn .ic-sun { display: block; }
+.is-dark .icon-btn .ic-moon { display: none; }
 .btn:hover { background: var(--action-hover); border-color: var(--action-hover); }
 .btn.quiet { background: transparent; color: var(--ink); border-color: var(--border); }
 .btn.quiet:hover { border-color: var(--ink-soft); background: transparent; }
