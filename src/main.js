@@ -35,6 +35,26 @@ function newId(){
 }
 const SESSION_ID = newId(); // anónimo, vive solo en memoria de esta visita
 
+/* Origen de la visita (p. ej. TikTok), para separar canales en el panel sin tocar la data
+   anterior: lo ya registrado no tiene origen y queda como "Sin origen".
+   1) ?utm_source=tiktok (o ?src=tiktok) en el link — es el que se pone en TikTok.
+   2) Si no viene en el link: el navegador interno de TikTok o un referrer de tiktok.com.
+   3) Si tampoco: el origen guardado de una visita anterior en este navegador (vuelve
+      directo, pero llegó por TikTok la primera vez).
+   Se llama `origin` (no `source`: ese ya lo usa cta_click para saber qué botón fue). */
+const ORIGIN_STORE = 'mindi_origin';
+const ORIGIN = (()=>{
+  const clean = (v)=> (v || '').toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 30) || null;
+  const q = new URLSearchParams(location.search);
+  let o = clean(q.get('utm_source') || q.get('src'));
+  if(!o && (/tiktok|musical_ly|bytedance/i.test(navigator.userAgent) || /tiktok\.com/i.test(document.referrer))) o = 'tiktok';
+  try {
+    if(o) localStorage.setItem(ORIGIN_STORE, o);
+    else o = clean(localStorage.getItem(ORIGIN_STORE));
+  } catch {}
+  return o;
+})();
+
 function sb(table, row){
   if(!BACKEND_ON) return Promise.resolve(false);
   return fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
@@ -52,6 +72,7 @@ function track(event, props){
   if(window.console) console.debug('[mindi]', payload);
   const base = {is_test:TEST_MODE};
   if(TEST_PARAM) base.tester = TEST_PARAM;
+  if(ORIGIN) base.origin = ORIGIN;
   sb('events', {session_id:SESSION_ID, name:event, props:Object.assign(base, props||{})});
 }
 
@@ -1217,9 +1238,9 @@ if(eventsSignupEl){
       if(err) err.remove();
       const submitBtn = form.querySelector('button');
       submitBtn.disabled = true;
-      sb('event_signups', {
-        name: name || null, contact, consent:true, consent_text_version:CONSENT_VERSION, is_test:TEST_MODE,
-      }).then(ok=>{
+      const signup = {name: name || null, contact, consent:true, consent_text_version:CONSENT_VERSION, is_test:TEST_MODE};
+      // Si la columna `origin` aún no existe (012 sin correr), se reintenta sin ella: nunca se pierde un cupo.
+      (ORIGIN ? sb('event_signups', {...signup, origin:ORIGIN}).then(ok => ok || sb('event_signups', signup)) : sb('event_signups', signup)).then(ok=>{
         track('event_waitlist_join', {captured: ok});
         eventsSignupEl.innerHTML = ok
           ? `<p class="events-confirm"><b>¡Listo, tienes tu cupo!</b>Te escribimos apenas tengamos la fecha del conversatorio.</p>`

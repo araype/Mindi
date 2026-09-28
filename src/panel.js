@@ -20,11 +20,12 @@ const pctTxt = (p) => p === null ? '—' : `${p.toLocaleString('es-PE')}%`;
 
 /* ---------- Filtros (se recuerdan en este navegador) ---------- */
 const filters = (()=>{
-  try { return Object.assign({period:'all', includeTest:false}, JSON.parse(localStorage.getItem(FILTER_STORE) || '{}')); }
-  catch { return {period:'all', includeTest:false}; }
+  try { return Object.assign({period:'all', includeTest:false, origin:'all'}, JSON.parse(localStorage.getItem(FILTER_STORE) || '{}')); }
+  catch { return {period:'all', includeTest:false, origin:'all'}; }
 })();
 function saveFilters(){ try { localStorage.setItem(FILTER_STORE, JSON.stringify(filters)); } catch {} }
 
+const ORIGIN_LABEL = {all:'', tiktok:' · solo TikTok', none:' · solo sin origen'};
 const PERIOD_LABEL = {today:'hoy', '7d':'últimos 7 días', '30d':'últimos 30 días', all:'desde el inicio'};
 // Días en hora de Lima (UTC-5, sin horario de verano): "Hoy" empieza a las 00:00 de Lima.
 function sinceFor(period){
@@ -37,6 +38,12 @@ function sinceFor(period){
 function syncFilterUI(enabled){
   document.querySelectorAll('#periodSeg button').forEach((b)=>{
     const on = b.dataset.period === filters.period;
+    b.setAttribute('aria-checked', String(on));
+    b.tabIndex = on ? 0 : -1;
+    b.disabled = !enabled;
+  });
+  document.querySelectorAll('#originSeg button').forEach((b)=>{
+    const on = b.dataset.origin === filters.origin;
     b.setAttribute('aria-checked', String(on));
     b.tabIndex = on ? 0 : -1;
     b.disabled = !enabled;
@@ -94,7 +101,7 @@ async function load(){
     const r = await fetch(`${SUPABASE_URL}/functions/v1/funnel-stats`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY, 'x-admin-key': key },
-      body: JSON.stringify({ since: sinceFor(filters.period), include_test: filters.includeTest, view: tab }),
+      body: JSON.stringify({ since: sinceFor(filters.period), include_test: filters.includeTest, view: tab, origin: filters.origin === 'all' ? null : filters.origin }),
     });
     if(r.status === 401){ setKey(''); showStatus(''); showGate('Esa clave no coincide con ADMIN_KEY (o ADMIN_KEY aún no está configurada en Supabase).'); return; }
     const res = await r.json().catch(() => null);
@@ -107,7 +114,7 @@ async function load(){
     syncTabs();
     if(tab === 'eventos'){
       syncFilterUI(true);
-      renderEventos(res.eventos, res.generated_at);
+      renderEventos(res.eventos, res.generated_at, res.missing);
     } else {
       syncFilterUI(res.filters !== false);
       render(res.funnel, res.generated_at, res.filters !== false);
@@ -136,13 +143,15 @@ function setMeta(at, filtered){
   const time = at ? new Date(at).toLocaleString('es-PE', { dateStyle: 'medium', timeStyle: 'short' }) : '';
   const who = filtered && filters.includeTest ? 'Sesiones reales y de prueba' : 'Sesiones reales — las de prueba no cuentan';
   const when = filtered ? `, ${PERIOD_LABEL[filters.period]}` : '';
-  $('meta').textContent = `${who}${when}.${time ? ' Actualizado: ' + time : ''}`;
+  const from = filtered ? ORIGIN_LABEL[filters.origin] || '' : '';
+  $('meta').textContent = `${who}${when}${from}.${time ? ' Actualizado: ' + time : ''}`;
 }
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
-function renderEventos(e, at){
+function renderEventos(e, at, missing){
   setMeta(at, !!e);
+  if(missing) $('eventosMissingFile').textContent = 'supabase/' + missing;
   $('eventosMissing').hidden = !!e;
   $('eventosBody').hidden = !e;
   dash.hidden = false;
@@ -160,7 +169,7 @@ function renderEventos(e, at){
     const fecha = new Date(r.fecha).toLocaleString('es-PE', { timeZone: 'America/Lima', dateStyle: 'medium', timeStyle: 'short' });
     return `<tr>
       <td>${esc(fecha)}</td>
-      <td>${r.nombre ? esc(r.nombre) : '<span class="tile-sub">Sin nombre</span>'}${r.prueba ? '<span class="tag-test">prueba</span>' : ''}</td>
+      <td>${r.nombre ? esc(r.nombre) : '<span class="tile-sub">Sin nombre</span>'}${r.origen ? `<span class="tag-origin">${esc(r.origen)}</span>` : ''}${r.prueba ? '<span class="tag-test">prueba</span>' : ''}</td>
       <td class="contact">${esc(r.contacto)}</td>
     </tr>`;
   }).join('');
@@ -316,6 +325,21 @@ periodBtns.forEach((b, i)=>{
     e.preventDefault();
     const next = periodBtns[(i + d + periodBtns.length) % periodBtns.length];
     next.focus(); pickPeriod(next.dataset.period);
+  });
+});
+const originBtns = [...document.querySelectorAll('#originSeg button')];
+function pickOrigin(o){
+  if(o === filters.origin) return;
+  filters.origin = o; saveFilters(); syncFilterUI(true); load();
+}
+originBtns.forEach((b, i)=>{
+  b.addEventListener('click', ()=> pickOrigin(b.dataset.origin));
+  b.addEventListener('keydown', (e)=>{
+    const d = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : 0;
+    if(!d) return;
+    e.preventDefault();
+    const next = originBtns[(i + d + originBtns.length) % originBtns.length];
+    next.focus(); pickOrigin(next.dataset.origin);
   });
 });
 $('testToggle').addEventListener('change', (e)=>{

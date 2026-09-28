@@ -49,26 +49,31 @@ Deno.serve(async (req) => {
   let since: string | null = null;
   let includeTest = false;
   let panelView = 'chat';
+  let origin: string | null = null; // null = todos · 'none' = sin origen · 'tiktok', etc.
   try {
     const body = await req.json();
     if (typeof body.since === 'string' && !Number.isNaN(Date.parse(body.since))) since = new Date(body.since).toISOString();
     includeTest = body.include_test === true;
     if (body.view === 'eventos') panelView = 'eventos';
+    if (typeof body.origin === 'string' && /^[a-z0-9_-]{1,30}$/.test(body.origin)) origin = body.origin;
   } catch {
     // cuerpo vacío: sin filtros
   }
 
   const generated_at = new Date().toISOString();
+  // p_origin solo se manda si hay filtro: así sigue funcionando aunque 012 no se haya corrido.
+  const args = { p_since: since, p_include_test: includeTest, ...(origin ? { p_origin: origin } : {}) };
 
   // Pestaña "Conversatorio": función event_stats (supabase/011_event_stats.sql).
   if (panelView === 'eventos') {
-    const { data, error } = await supabase.rpc('event_stats', { p_since: since, p_include_test: includeTest });
-    if (error) return json({ ok: true, eventos: null, missing: '011_event_stats.sql', generated_at });
+    const { data, error } = await supabase.rpc('event_stats', args);
+    if (error) return json({ ok: true, eventos: null, missing: origin ? '012_origin.sql' : '011_event_stats.sql', generated_at });
     return json({ ok: true, eventos: data ?? {}, filters: true, generated_at });
   }
 
-  const { data, error } = await supabase.rpc('panel_stats', { p_since: since, p_include_test: includeTest });
+  const { data, error } = await supabase.rpc('panel_stats', args);
   if (!error) return json({ ok: true, funnel: data ?? {}, filters: true, generated_at });
+  if (origin) return json({ error: 'Para filtrar por origen, corre supabase/012_origin.sql en Supabase.' }, 500);
 
   // Si aún no se corrió supabase/009_panel_stats.sql, se usa la vista sin filtros.
   const { data: view, error: vErr } = await supabase.from('funnel').select('*').maybeSingle();
