@@ -38,7 +38,8 @@ const SESSION_ID = newId(); // anónimo, vive solo en memoria de esta visita
 /* Origen de la visita (p. ej. TikTok), para separar canales en el panel sin tocar la data
    anterior: lo ya registrado no tiene origen y queda como "Sin origen".
    1) ?utm_source=tiktok (o ?src=tiktok) en el link — es el que se pone en TikTok.
-   2) Si no viene en el link: el navegador interno de TikTok o un referrer de tiktok.com.
+   2) Si no viene en el link: el navegador interno de TikTok o Facebook, un referrer de
+      tiktok.com / facebook.com, o el ?fbclid= que Facebook agrega a los links.
    3) Si tampoco: el origen guardado de una visita anterior en este navegador (vuelve
       directo, pero llegó por TikTok la primera vez).
    Se llama `origin` (no `source`: ese ya lo usa cta_click para saber qué botón fue). */
@@ -48,6 +49,7 @@ const ORIGIN = (()=>{
   const q = new URLSearchParams(location.search);
   let o = clean(q.get('utm_source') || q.get('src'));
   if(!o && (/tiktok|musical_ly|bytedance/i.test(navigator.userAgent) || /tiktok\.com/i.test(document.referrer))) o = 'tiktok';
+  if(!o && (/FBAN|FBAV|FB_IAB/.test(navigator.userAgent) || /facebook\.com|fb\.me/i.test(document.referrer) || q.has('fbclid'))) o = 'facebook';
   try {
     if(o) localStorage.setItem(ORIGIN_STORE, o);
     else o = clean(localStorage.getItem(ORIGIN_STORE));

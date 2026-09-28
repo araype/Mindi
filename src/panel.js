@@ -25,7 +25,7 @@ const filters = (()=>{
 })();
 function saveFilters(){ try { localStorage.setItem(FILTER_STORE, JSON.stringify(filters)); } catch {} }
 
-const ORIGIN_LABEL = {all:'', tiktok:' · solo TikTok', none:' · solo sin origen'};
+const ORIGIN_LABEL = {all:'', tiktok:' · solo TikTok', facebook:' · solo Facebook', none:' · solo sin origen'};
 const PERIOD_LABEL = {today:'hoy', '7d':'últimos 7 días', '30d':'últimos 30 días', all:'desde el inicio'};
 // Días en hora de Lima (UTC-5, sin horario de verano): "Hoy" empieza a las 00:00 de Lima.
 function sinceFor(period){

@@ -64,6 +64,7 @@
       <div class="seg" role="radiogroup" aria-label="Origen" id="originSeg">
         <button type="button" role="radio" data-origin="all">Todos</button>
         <button type="button" role="radio" data-origin="tiktok">TikTok</button>
+        <button type="button" role="radio" data-origin="facebook">Facebook</button>
         <button type="button" role="radio" data-origin="none">Sin origen</button>
       </div>
       <label class="switch" for="testToggle">
@@ -71,7 +72,7 @@
         <span class="switch-ui" aria-hidden="true"></span>
         Incluir sesiones de prueba
       </label>
-      <p class="filters-note">"Sin origen": quienes entraron por el link normal, incluida toda la data anterior al lanzamiento en TikTok.</p>
+      <p class="filters-note">"Todos" suma todos los orígenes. "Sin origen": quienes entraron por el link normal, incluida toda la data anterior al lanzamiento en redes.</p>
       <p class="filters-note" id="filtersNote" hidden>Los filtros se activan al correr <code>supabase/009_panel_stats.sql</code>.</p>
     </section>
     <p class="test-banner" id="testBanner" hidden>Estás viendo también las sesiones de prueba del equipo — estos números no son solo de usuarias reales.</p>
