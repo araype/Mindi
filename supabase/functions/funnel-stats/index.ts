@@ -1,7 +1,8 @@
 // Mindi · Edge Function `funnel-stats`
 //
 // Devuelve los datos del panel interno (/panel.html): la función SQL `panel_stats` (con
-// filtros de periodo y de sesiones de prueba), o la vista `funnel` si aún no existe. Ambas
+// filtros de periodo y de sesiones de prueba), o la vista `funnel` si aún no existe; con
+// { view: 'eventos' }, los datos del conversatorio (función `event_stats`). Todas
 // están cerradas para la clave pública (anon), así que el navegador no puede leerlas: esta
 // función las lee con la service_role key, pero SOLO si la petición trae la clave del panel
 // (header `x-admin-key`, igual al secreto ADMIN_KEY). Sin ese secreto configurado, responde
@@ -47,15 +48,25 @@ Deno.serve(async (req) => {
   // Filtros del panel: desde qué fecha (ISO) y si incluye sesiones de prueba.
   let since: string | null = null;
   let includeTest = false;
+  let panelView = 'chat';
   try {
     const body = await req.json();
     if (typeof body.since === 'string' && !Number.isNaN(Date.parse(body.since))) since = new Date(body.since).toISOString();
     includeTest = body.include_test === true;
+    if (body.view === 'eventos') panelView = 'eventos';
   } catch {
     // cuerpo vacío: sin filtros
   }
 
   const generated_at = new Date().toISOString();
+
+  // Pestaña "Conversatorio": función event_stats (supabase/011_event_stats.sql).
+  if (panelView === 'eventos') {
+    const { data, error } = await supabase.rpc('event_stats', { p_since: since, p_include_test: includeTest });
+    if (error) return json({ ok: true, eventos: null, missing: '011_event_stats.sql', generated_at });
+    return json({ ok: true, eventos: data ?? {}, filters: true, generated_at });
+  }
+
   const { data, error } = await supabase.rpc('panel_stats', { p_since: since, p_include_test: includeTest });
   if (!error) return json({ ok: true, funnel: data ?? {}, filters: true, generated_at });
 

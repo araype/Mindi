@@ -6,6 +6,7 @@ const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || '';
 const KEY_STORE = 'mindi_panel_key';
 const TESTER_STORE = 'mindi_tester'; // mismo que src/main.js: marca este navegador como del equipo
 const FILTER_STORE = 'mindi_panel_filters';
+const TAB_STORE = 'mindi_panel_tab';
 
 const $ = (id) => document.getElementById(id);
 const gate = $('gate'), dash = $('dash'), statusEl = $('status'), tooltip = $('tooltip');
@@ -46,6 +47,30 @@ function syncFilterUI(enabled){
   $('testBanner').hidden = !(enabled && filters.includeTest);
 }
 
+/* ---------- Pestañas: el chat y el conversatorio se leen por separado ---------- */
+let tab = (()=>{
+  if(location.hash === '#conversatorio') return 'eventos';
+  try { return localStorage.getItem(TAB_STORE) === 'eventos' ? 'eventos' : 'chat'; } catch { return 'chat'; }
+})();
+const TAB_TITLE = {chat:'Embudo de conversación', eventos:'Conversatorio'};
+function syncTabs(){
+  document.querySelectorAll('.tabs [role="tab"]').forEach((b)=>{
+    const on = b.dataset.tab === tab;
+    b.setAttribute('aria-selected', String(on));
+    b.tabIndex = on ? 0 : -1;
+  });
+  $('tabChat').hidden = tab !== 'chat';
+  $('tabEventos').hidden = tab !== 'eventos';
+  $('pageTitle').textContent = TAB_TITLE[tab];
+}
+function pickTab(t){
+  if(t === tab) return;
+  tab = t;
+  try { localStorage.setItem(TAB_STORE, t); } catch {}
+  history.replaceState(null, '', t === 'eventos' ? '#conversatorio' : location.pathname);
+  syncTabs(); load();
+}
+
 function showStatus(text){ statusEl.textContent = text; statusEl.hidden = !text; }
 
 function showGate(error){
@@ -69,7 +94,7 @@ async function load(){
     const r = await fetch(`${SUPABASE_URL}/functions/v1/funnel-stats`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY, 'x-admin-key': key },
-      body: JSON.stringify({ since: sinceFor(filters.period), include_test: filters.includeTest }),
+      body: JSON.stringify({ since: sinceFor(filters.period), include_test: filters.includeTest, view: tab }),
     });
     if(r.status === 401){ setKey(''); showStatus(''); showGate('Esa clave no coincide con ADMIN_KEY (o ADMIN_KEY aún no está configurada en Supabase).'); return; }
     const res = await r.json().catch(() => null);
@@ -79,8 +104,14 @@ async function load(){
     gate.hidden = true;
     $('headActions').hidden = false;
     showStatus('');
-    syncFilterUI(res.filters !== false);
-    render(res.funnel, res.generated_at, res.filters !== false);
+    syncTabs();
+    if(tab === 'eventos'){
+      syncFilterUI(true);
+      renderEventos(res.eventos, res.generated_at);
+    } else {
+      syncFilterUI(res.filters !== false);
+      render(res.funnel, res.generated_at, res.filters !== false);
+    }
   } catch {
     showStatus('Sin conexión con Supabase. Revisa tu internet y vuelve a intentarlo con "Actualizar".');
     $('headActions').hidden = false;
@@ -101,11 +132,44 @@ const STEPS = [
   ['reportes', 'Obtienen reporte'],
 ];
 
-function render(f, at, filtered){
+function setMeta(at, filtered){
   const time = at ? new Date(at).toLocaleString('es-PE', { dateStyle: 'medium', timeStyle: 'short' }) : '';
   const who = filtered && filters.includeTest ? 'Sesiones reales y de prueba' : 'Sesiones reales — las de prueba no cuentan';
   const when = filtered ? `, ${PERIOD_LABEL[filters.period]}` : '';
   $('meta').textContent = `${who}${when}.${time ? ' Actualizado: ' + time : ''}`;
+}
+
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function renderEventos(e, at){
+  setMeta(at, !!e);
+  $('eventosMissing').hidden = !!e;
+  $('eventosBody').hidden = !e;
+  dash.hidden = false;
+  if(!e) return;
+
+  $('eClics').textContent = fmt(e.clic_en_registrarse);
+  $('eCompletan').textContent = fmt(e.completan_registro);
+  const rate = pct(e.completan_registro, e.clic_en_registrarse);
+  $('eCompletanSub').textContent = rate === null ? '' : `${pctTxt(rate)} de quienes tocaron el botón`;
+  $('eInscritas').textContent = fmt(e.inscritas);
+  $('eInscritasSub').textContent = `${fmt(e.inscritas_total)} en total en la lista`;
+
+  const lista = e.lista || [];
+  $('eLista').innerHTML = lista.map((r) => {
+    const fecha = new Date(r.fecha).toLocaleString('es-PE', { timeZone: 'America/Lima', dateStyle: 'medium', timeStyle: 'short' });
+    return `<tr>
+      <td>${esc(fecha)}</td>
+      <td>${r.nombre ? esc(r.nombre) : '<span class="tile-sub">Sin nombre</span>'}${r.prueba ? '<span class="tag-test">prueba</span>' : ''}</td>
+      <td class="contact">${esc(r.contacto)}</td>
+    </tr>`;
+  }).join('');
+  $('eLista').closest('.table-wrap').hidden = !lista.length;
+  $('eListaEmpty').hidden = !!lista.length;
+}
+
+function render(f, at, filtered){
+  setMeta(at, filtered);
 
   $('tVisitas').textContent = fmt(f.visitas);
   $('tReportes').textContent = f.reportes == null ? '—' : fmt(f.reportes);
@@ -224,6 +288,19 @@ gate.addEventListener('submit', (e) => {
   load();
 });
 $('refreshBtn').addEventListener('click', load);
+
+const tabBtns = [...document.querySelectorAll('.tabs [role="tab"]')];
+tabBtns.forEach((b, i)=>{
+  b.addEventListener('click', ()=> pickTab(b.dataset.tab));
+  b.addEventListener('keydown', (e)=>{
+    const d = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+    if(!d) return;
+    e.preventDefault();
+    const next = tabBtns[(i + d + tabBtns.length) % tabBtns.length];
+    next.focus(); pickTab(next.dataset.tab);
+  });
+});
+syncTabs();
 
 const periodBtns = [...document.querySelectorAll('#periodSeg button')];
 function pickPeriod(p){

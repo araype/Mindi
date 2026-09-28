@@ -178,6 +178,35 @@ h1 {
 .error { margin: 0; font-size: 13.5px; color: var(--action); font-weight: 500; }
 .status { margin: 0; color: var(--ink-soft); }
 
+/* Pestañas: Chat | Conversatorio */
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); }
+.tabs button {
+  font: 500 15px var(--font); color: var(--ink-soft);
+  padding: 10px 16px; margin-bottom: -1px;
+  background: transparent; border: 0; border-bottom: 2px solid transparent; cursor: pointer;
+}
+.tabs button:hover { color: var(--ink); }
+.tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--brand); font-weight: 600; }
+.tabs button:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; border-radius: 6px; }
+.tab-panel { display: grid; gap: 24px; }
+#eventosBody { display: grid; gap: 24px; }
+
+/* Lista de espera */
+.table-wrap { overflow-x: auto; }
+.signups { width: 100%; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; }
+.signups th {
+  text-align: left; font-size: 12px; font-weight: 500; color: var(--ink-subtle);
+  padding: 0 12px 8px 0; border-bottom: 1px solid var(--border);
+}
+.signups td { padding: 10px 12px 10px 0; border-bottom: 1px solid var(--track); vertical-align: top; }
+.signups tr:last-child td { border-bottom: 0; }
+.signups td:first-child { white-space: nowrap; color: var(--ink-soft); }
+.signups .contact { user-select: all; }
+.tag-test {
+  display: inline-block; margin-left: 6px; padding: 1px 8px; font-size: 11.5px; font-weight: 500;
+  background: var(--test-bg); color: var(--test-text); border: 1px solid var(--test-border); border-radius: 999px;
+}
+
 /* Filtros: una sola fila sobre los gráficos */
 .filters { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; }
 .seg {
