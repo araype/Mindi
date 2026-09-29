@@ -138,6 +138,9 @@ const STEPS = [
   ['eligen_metas', 'Eligen metas'],
   ['reportes', 'Obtienen reporte'],
 ];
+/* Embudo estricto (013): cada paso solo cuenta visitas que pasaron por todos los anteriores,
+   así ningún paso supera al previo. Si 013 no se corrió, se usan los conteos sueltos. */
+const STRICT_KEYS = ['embudo_visitas', 'embudo_chat', 'embudo_sintomas', 'embudo_resultado', 'embudo_metas', 'embudo_reporte'];
 
 function setMeta(at, filtered){
   const time = at ? new Date(at).toLocaleString('es-PE', { dateStyle: 'medium', timeStyle: 'short' }) : '';
@@ -224,7 +227,9 @@ function render(f, at, filtered){
   dash.hidden = false;
 }
 
-function renderFunnel(f){
+function renderFunnel(raw){
+  const strict = raw.embudo_visitas != null;
+  const f = strict ? Object.fromEntries(STEPS.map(([k], i) => [k, raw[STRICT_KEYS[i]]])) : raw;
   const steps = STEPS.filter(([k]) => f[k] != null);
   const max = Math.max(1, ...steps.map(([k]) => f[k] || 0));
   // El paso con menor retención (excluye el primero) se marca para leerlo de un vistazo.
