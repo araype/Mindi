@@ -119,7 +119,7 @@ test('etiquetas de área: bajo el corte, sobre el corte e incompleto', () => {
   assert.equal(areaStatus('urogenital', 2, true), 'incomplete');
   assert.equal(areaStatus('urogenital', 0, true), 'incomplete');
   assert.equal(areaStatus('urogenital', 3, true), 'over'); // alcanza el corte aunque haya omitido
-  assert.equal(AREA_TAG.user.under, 'Por ahora no alcanza el punto para consultarlo');
+  assert.equal(AREA_TAG.user.under, 'Sin señal por ahora');
   assert.equal(AREA_TAG.doctor.under, 'Por debajo del punto de corte (guía HNHU)');
 });
 

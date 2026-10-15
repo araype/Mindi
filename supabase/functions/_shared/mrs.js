@@ -66,7 +66,7 @@ export function areaStatus(key, value, skippedIntimate) {
   return 'under';
 }
 export const AREA_TAG = {
-  user:   { over: 'Conviene comentarlo', under: 'Por ahora no alcanza el punto para consultarlo', incomplete: 'Incompleto' },
+  user:   { over: 'Conviene comentarlo', under: 'Sin señal por ahora', incomplete: 'Incompleto' },
   doctor: { over: 'Alcanza el punto de corte (guía HNHU)', under: 'Por debajo del punto de corte (guía HNHU)', incomplete: 'Incompleto: preguntas omitidas' },
 };
 export const SKIPPED_INTIMATE_NOTE = 'Preferiste no responder alguna pregunta íntima, y está bien. Por eso, el puntaje de "Lo íntimo" podría ser más bajo de lo que de verdad sientes. Si quieres, coméntalo directamente en tu consulta médica.';
