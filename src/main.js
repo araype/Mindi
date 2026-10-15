@@ -864,7 +864,7 @@ function areasCard(){
   const s = state.scores;
   const rows = AREAS.map(a=>{
     const v = s[a.key];
-    const pct = Math.max(6, Math.round((v/a.max)*100));
+    const pct = Math.round((v/a.max)*100);
     const status = areaStatus(a.key, v, state.skippedIntimate);
     const notable = status === 'over';
     const desc = AREA_TAG.user[status];
