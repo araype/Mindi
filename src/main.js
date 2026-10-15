@@ -1,4 +1,6 @@
 import './landing.css';
+// Puntaje MRS y cortes de la Guía HNHU: un solo módulo compartido con send-report y los tests.
+import { computeScores as mrsScores, computeLevel as mrsLevel } from '../supabase/functions/_shared/mrs.js';
 
 /* ---------- Medición (hooks listos para conectar a analítica real) ---------- */
 /* ---------- Backend (Supabase vía REST, solo INSERT con la clave pública) ----------
@@ -152,12 +154,7 @@ function requestDownloadOnly(){
   }).catch(()=> track('report_failed', {error:'network', channel:'download'}));
 }
 
-function computeLevel(){
-  const s = state.scores;
-  if(s.total >= 15) return 'C';
-  if(s.total >= 8 || s.somatico >= 8 || s.psicologico >= 6 || s.urogenital >= 3) return 'B';
-  return 'A';
-}
+function computeLevel(){ return mrsLevel(state.scores); }
 
 /* ---------- Contenido clínico: MRS oficial (11 ítems, 3 subescalas) — sin cambios de lógica ---------- */
 /* scaleLabels: frases por nivel (0-4), SOLO para lo que se ve al responder en el chat.
@@ -854,13 +851,7 @@ function askRedFlags(){
   });
 }
 
-function computeScores(){
-  const sum = (ids)=> ids.reduce((acc,id)=> acc + (state.answers[id] || 0), 0);
-  state.scores.somatico    = sum(['p3','p4','p5','p6']);
-  state.scores.psicologico = sum(['p7','p8','p9','p10']);
-  state.scores.urogenital  = sum(['p11','p12','p13']);
-  state.scores.total = state.scores.somatico + state.scores.psicologico + state.scores.urogenital;
-}
+function computeScores(){ Object.assign(state.scores, mrsScores(state.answers)); }
 
 function hasFlag(){ return state.redFlags.length && !state.redFlags.includes('none'); }
 
