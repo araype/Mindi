@@ -69,7 +69,9 @@ export const AREA_TAG = {
   user:   { over: 'Conviene comentarlo', under: 'Sin señal por ahora', incomplete: 'Incompleto' },
   doctor: { over: 'Alcanza el punto de corte (guía HNHU)', under: 'Por debajo del punto de corte (guía HNHU)', incomplete: 'Incompleto: preguntas omitidas' },
 };
-export const SKIPPED_INTIMATE_NOTE = 'Preferiste no responder alguna pregunta íntima, y está bien. Por eso, el puntaje de "Lo íntimo" podría ser más bajo de lo que de verdad sientes. Si quieres, coméntalo directamente en tu consulta médica.';
+export const SKIPPED_INTIMATE_NOTE_DOCTOR = 'La paciente omitió al menos una pregunta íntima (ítems 9 y/o 11 de la MRS). Las omitidas se suman como 0, así que el puntaje urogenital y el total podrían estar subestimados.';
+export const CUTS_SOURCE = 'Puntos de corte: Guía de Práctica Clínica para Diagnóstico y Tratamiento del Climaterio, Hospital Nacional Hipólito Unanue (RD N° 211-2024-DG/HNHU), Figura 6.';
+export const SKIPPED_INTIMATE_NOTE ='Preferiste no responder alguna pregunta íntima, y está bien. Por eso, el puntaje de "Lo íntimo" podría ser más bajo de lo que de verdad sientes. Si quieres, coméntalo directamente en tu consulta médica.';
 
 /** Categoría del puntaje total según Heinemann et al. (2004). Es un dato descriptivo de
  *  intensidad, aparte de los cortes de la guía: no decide el nivel A/B/C. */
