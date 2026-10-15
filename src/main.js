@@ -1,6 +1,9 @@
 import './landing.css';
 // Puntaje MRS y cortes de la Guía HNHU: un solo módulo compartido con send-report y los tests.
-import { computeScores as mrsScores, computeLevel as mrsLevel } from '../supabase/functions/_shared/mrs.js';
+import {
+  computeScores as mrsScores, computeLevel as mrsLevel, levelMessage, CUTS,
+  AREAS, areaStatus, AREA_TAG, SKIPPED_INTIMATE_NOTE,
+} from '../supabase/functions/_shared/mrs.js';
 
 /* ---------- Medición (hooks listos para conectar a analítica real) ---------- */
 /* ---------- Backend (Supabase vía REST, solo INSERT con la clave pública) ----------
@@ -384,9 +387,9 @@ function revealCardWithPause(introMsg, html, kind, isLast = false, continueText 
 }
 
 /* Secuencia de cards de resultado compartida entre el flujo normal y el de banderas rojas */
-async function showResultsCardSequence(level){
-  const m = LEVEL_COPY[level];
-  await revealCardWithPause(null,                                         levelCard(m, level), m.kind,  false, 'Ver mis resultados por área');
+async function showResultsCardSequence(){
+  const msg = levelMessage(state.scores);
+  await revealCardWithPause(null,                                         levelCard(msg), BAND_KIND[msg.band], false, 'Ver mis resultados por área');
   await revealCardWithPause('Veamos cómo se distribuye eso por áreas:',   areasCard(),         '',      false, '¿Y qué hago con esto?');
   await revealCardWithPause('Estas son algunas preguntas que puedes hacerle a tu médico(a):', consultCard(), '', false, 'Muy útil, ¿algo más?');
   await revealCardWithPause('Estas son algunas recomendaciones de autocuidado según tus resultados:', selfCareCard(), 'calm', true);
@@ -856,18 +859,15 @@ function computeScores(){ Object.assign(state.scores, mrsScores(state.answers));
 function hasFlag(){ return state.redFlags.length && !state.redFlags.includes('none'); }
 
 /* ---------- Lo que se detectó: contenido de cada "tema" desplegable ---------- */
-const AREAS = [
-  {key:'somatico',    label:'Cuerpo',           max:16, cut:8},
-  {key:'psicologico', label:'Ánimo y energía',  max:16, cut:6},
-  {key:'urogenital',  label:'Lo íntimo',        max:12, cut:3},
-];
+/* AREAS (etiqueta, máximo y corte de cada subescala) viene del módulo compartido. */
 function areasCard(){
   const s = state.scores;
   const rows = AREAS.map(a=>{
     const v = s[a.key];
     const pct = Math.max(6, Math.round((v/a.max)*100));
-    const notable = v >= a.cut;
-    const desc = a.key==='urogenital' && state.skippedIntimate && v===0 ? 'Sin responder' : (notable ? 'Conviene comentarlo' : 'En un nivel leve');
+    const status = areaStatus(a.key, v, state.skippedIntimate);
+    const notable = status === 'over';
+    const desc = AREA_TAG.user[status];
     return `<div class="area">
       <div class="area-top">
         <span class="area-name"><strong>${a.label}</strong></span>
@@ -882,7 +882,7 @@ function areasCard(){
     </div>`;
   }).join('');
   let html = `<h3>Lo que noto por áreas</h3><p class="card-note">Evaluación gráfica de conjunto según la Escala MRS (Menopause Rating Scale), no una calificación.</p>${rows}`;
-  if(s.psicologico >= 6){
+  if(s.psicologico >= CUTS.psicologico){
     html += `<div class="area-note">
       <div class="area-note-header">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
@@ -893,22 +893,22 @@ function areasCard(){
     </div>`;
   }
   if(state.skippedIntimate){
-    html += `<p style="margin-top:12px;font-size:13px;color:var(--ink-soft);">Preferiste no responder alguna pregunta íntima, y está bien. Si quieres, coméntalo directamente en tu consulta médica.</p>`;
+    html += `<p style="margin-top:12px;font-size:13px;color:var(--ink-soft);">${SKIPPED_INTIMATE_NOTE}</p>`;
   }
   return html;
 }
 
 function areasBody(){ return areasCard(); }
 
-function levelCard(m, level){
-  const badgeMap = {
-    A: '<span class="result-level-badge level-a">Nivel leve · Escala MRS</span>',
-    B: '<span class="result-level-badge level-b">Nivel moderado · Escala MRS</span>',
-    C: '<span class="result-level-badge level-c">Nivel alto · Escala MRS</span>',
-  };
-  return `<div class="result-badge-row">${badgeMap[level] || ''}</div>` +
-    `<h3>${m.title}</h3>` +
-    `<p>${m.text}</p>`;
+/* Badge, título y texto describen la acción que sugiere la guía, no la intensidad
+   (los cortes HNHU son umbrales de tratamiento). Ver levelMessage en el módulo compartido. */
+const BAND_CLASS = {A0:'level-a', A1:'level-a', B:'level-b', C:'level-c'};
+const BAND_KIND = {A0:'calm', A1:'calm', B:'notice', C:'notice'};
+const levelText = (msg)=> msg.paragraphs.join('<br><br>');
+function levelCard(msg){
+  return `<div class="result-badge-row"><span class="result-level-badge ${BAND_CLASS[msg.band]}">${msg.badge}</span></div>` +
+    `<h3>${msg.title}</h3>` +
+    `<p>${levelText(msg)}</p>`;
 }
 
 function stageCard(){
@@ -981,22 +981,13 @@ function consultBody(){
   return html;
 }
 
-const LEVEL_COPY = {
-  A:{title:'Tus síntomas están en un nivel leve',
-     text:'Es normal experimentar algunos cambios en esta etapa. A este nivel, cuidar algunos hábitos básicos suele ser suficiente — revisa las recomendaciones para ideas concretas.', kind:'calm'},
-  B:{title:'Sería útil que converses esto con tu ginecólogo(a)',
-     text:'Tus síntomas alcanzan un nivel en el que conviene evaluar contigo si un tratamiento (hormonal o no) tiene sentido para tu caso.<br><br>Puede que ningún síntoma se sienta insoportable por separado, pero tener varios presentes a la vez, incluso en un nivel moderado, suma una carga real. Por eso lo que noto toma en cuenta el conjunto, no solo el síntoma más fuerte.', kind:'notice'},
-  C:{title:'Lo que sientes es real y tiene tratamiento',
-     text:'Tu nivel de síntomas es alto según la escala clínica utilizada. En este rango, el tratamiento suele ser muy recomendable.<br><br>Puede que ningún síntoma se sienta insoportable por separado, pero tener varios presentes a la vez suma una carga real. Por eso lo que noto toma en cuenta el conjunto, no solo el síntoma más fuerte.', kind:'notice'},
-};
 
 /* Respaldo en acordeón por si se requiere en otras vistas */
 function resultTopicsCard(){
-  const level = computeLevel();
-  const m = LEVEL_COPY[level];
+  const msg = levelMessage(state.scores);
   const stageBody = `<p>${stageNote()}</p><span class="cite">${PERU_AGE_NOTE} Fuente: Guía HNHU (RD N° 211-2024-DG/HNHU), secciones 5.4 y 6.2.1.</span>`;
   const topics = [
-    [m.title, `<p>${m.text}</p>`],
+    [msg.title, `<p>${levelText(msg)}</p>`],
     ['Sobre tu etapa', stageBody],
     ['¿Qué preguntarle a mi médico?', consultBody()],
     ['Ver mis resultados por área', areasBody()],
@@ -1017,7 +1008,7 @@ function showResultsTopics(){
   const level = computeLevel();
 
   botSay([`Gracias${nombre}. Esto es lo que noto en base a lo que me contaste:`]).then(async ()=>{
-    await showResultsCardSequence(level);
+    await showResultsCardSequence();
     track('result',{level});
     continueToGoals();
   });
@@ -1046,7 +1037,7 @@ function showSafetyMessage(){
     await botSay(['De todas formas, esto es lo que notamos en el resto de tus respuestas:']);
 
     const level = computeLevel();
-    await showResultsCardSequence(level);
+    await showResultsCardSequence();
     continueToGoals();
   });
 }
