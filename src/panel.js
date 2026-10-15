@@ -210,10 +210,16 @@ function render(f, at, filtered){
   ]);
 
   const noSessions = filtered ? null : 'Corre supabase/009_panel_stats.sql para ver este desglose.';
-  renderSplit($('splitLevel'), 'Nivel de resultado', 'De quienes terminaron el chat (Escala MRS).', [
-    ['Leve', f.nivel_a, 'var(--ord-1)'],
-    ['Moderado', f.nivel_b, 'var(--ord-2)'],
-    ['Alto', f.nivel_c, 'var(--ord-3)'],
+  // Mismos nombres que ve la usuaria (acción según la guía HNHU, no intensidad). A se divide
+  // por el total ya guardado (014); si 014 no se corrió, A se muestra sin dividir.
+  const splitA = f.nivel_a0 != null;
+  renderSplit($('splitLevel'), 'Nivel de resultado', 'De quienes terminaron el chat. Puntos de corte de la Guía HNHU (Escala MRS).', [
+    ...(splitA
+      ? [['Sin molestias importantes (A, total 0-4)', f.nivel_a0, 'var(--ord-1)'],
+         ['Síntomas leves (A, total 5-7)', f.nivel_a1, 'var(--ord-2)']]
+      : [['Sin molestias importantes o leves (A)', f.nivel_a, 'var(--ord-1)']]),
+    ['Conviene evaluarlo con su médico (B)', f.nivel_b, 'var(--ord-3)'],
+    ['El tratamiento suele ser muy recomendable (C)', f.nivel_c, 'var(--ord-4)'],
     ['Señal de alerta', f.nivel_alerta, 'var(--critical)'],
   ], noSessions);
 
