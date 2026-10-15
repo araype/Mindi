@@ -1685,6 +1685,7 @@ a { color: inherit; }
 }
 
 .area-name {
+  flex: none;
   font-weight: 500;
   color: var(--ink);
 }
@@ -1693,10 +1694,13 @@ a { color: inherit; }
   font-size: 11.5px;
   font-weight: 500;
   padding: 2.5px 9px;
-  border-radius: var(--r-full);
   background: rgba(56, 112, 43, 0.1);
   color: #2D5A22;
-  white-space: nowrap;
+  /* Puede pasar a dos líneas: "Por ahora no alcanza el punto para consultarlo" no entra
+     junto al nombre del área en un celular angosto. */
+  border-radius: 10px;
+  line-height: 1.35;
+  text-align: right;
 }
 
 .area-tag.hi {

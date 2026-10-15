@@ -24,6 +24,11 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
 import { PDFDocument, StandardFonts, rgb } from 'https://esm.sh/pdf-lib@1.17.1';
 import { encodeBase64 } from 'https://deno.land/std@0.224.0/encoding/base64.ts';
+// Puntaje MRS, cortes de la Guía HNHU y textos del resultado: el mismo módulo que usa el chat.
+import {
+  levelMessage, AREAS as MRS_AREAS, areaStatus, AREA_TAG, CUTS, CUTS_SOURCE,
+  heinemannCategory, HEINEMANN_SOURCE, SKIPPED_INTIMATE_NOTE, SKIPPED_INTIMATE_NOTE_DOCTOR,
+} from '../_shared/mrs.js';
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') ?? '';
 const RESEND_FROM = Deno.env.get('RESEND_FROM') ?? 'Mindi <onboarding@resend.dev>';
@@ -51,36 +56,41 @@ const SYMPTOM_LABELS: Record<string, string> = {
   p11: 'Deseo o vida sexual', p12: 'Molestias al orinar', p13: 'Sequedad o molestia íntima',
 };
 
-const AREAS = [
-  { key: 'score_somatico', label: 'Cuerpo', max: 16, cut: 8 },
-  { key: 'score_psicologico', label: 'Ánimo y energía', max: 16, cut: 6 },
-  { key: 'score_urogenital', label: 'Lo íntimo', max: 12, cut: 3 },
-] as const;
+/* Áreas con su corte y textos del nivel: vienen del módulo compartido (_shared/mrs.js).
+   Las áreas se leen de sessions como score_<clave>. */
+const AREAS = MRS_AREAS.map((a) => ({ ...a, key: `score_${a.key}` }));
 
-const LEVEL_COPY: Record<string, { title: string; text: string }> = {
-  A: {
-    title: 'Tus síntomas están en un nivel leve',
-    text: 'Es normal experimentar algunos cambios en esta etapa. A este nivel, cuidar algunos hábitos básicos suele ser suficiente — más abajo van algunas ideas concretas.',
-  },
-  B: {
-    title: 'Sería útil que converses esto con tu ginecólogo(a)',
-    text: 'Tus síntomas alcanzan un nivel en el que conviene evaluar contigo si un tratamiento (hormonal o no) tiene sentido para tu caso. Puede que ningún síntoma se sienta insoportable por separado, pero tener varios presentes a la vez, incluso en un nivel moderado, suma una carga real.',
-  },
-  C: {
-    title: 'Lo que sientes es real y tiene tratamiento',
-    text: 'Tu nivel de síntomas es alto según la escala clínica utilizada. En este rango, el tratamiento suele ser muy recomendable. Puede que ningún síntoma se sienta insoportable por separado, pero tener varios presentes a la vez suma una carga real.',
-  },
-};
+/* Puntajes guardados en sessions → forma del módulo compartido. El nivel y los textos se
+   calculan siempre desde aquí, haya o no bandera roja (session.level === 'alert' solo dice
+   que además marcó una; el aviso se ANTEPONE al reporte, no lo reemplaza). */
+function sessionScores(session: Record<string, any>) {
+  return {
+    somatico: session.score_somatico ?? 0,
+    psicologico: session.score_psicologico ?? 0,
+    urogenital: session.score_urogenital ?? 0,
+    total: session.score_total ?? 0,
+  };
+}
+const skippedIntimate = (session: Record<string, any>) => session.skipped_intimate === true;
+const AREA_COLOR = { over: '#A4502F', under: '#33421F', incomplete: '#5F5F57' } as const;
+const AREA_BAR = { over: '#A4502F', under: '#A3B58D', incomplete: '#C9C6BA' } as const;
 
-/* Mismo cálculo que src/main.js (computeLevel) — puramente a partir de los puntajes ya
-   guardados, así que funciona igual sin importar si session.level es 'alert' (eso solo
-   dice que además marcó una bandera roja; el nivel A/B/C de sus síntomas sigue existiendo
-   y el reporte completo debe mostrarse igual — la bandera roja se ANTEPONE, no reemplaza). */
-function computeLevel(session: Record<string, any>): 'A' | 'B' | 'C' {
-  const total = session.score_total ?? 0;
-  if (total >= 15) return 'C';
-  if (total >= 8 || (session.score_somatico ?? 0) >= 8 || (session.score_psicologico ?? 0) >= 6 || (session.score_urogenital ?? 0) >= 3) return 'B';
-  return 'A';
+/* Bloque para el médico: puntaje total, cada subescala con su máximo y su relación con el
+   corte de la guía, la categoría de Heinemann del total (dato descriptivo aparte) y, si
+   omitió preguntas íntimas, la advertencia de posible subestimación. */
+function doctorRows(session: Record<string, any>) {
+  const s = sessionScores(session);
+  const skipped = skippedIntimate(session);
+  return {
+    total: `${s.total} / 44`,
+    areas: MRS_AREAS.map((a) => ({
+      label: `${a.label} (${{ somatico: 'somático', psicologico: 'psicológico', urogenital: 'urogenital' }[a.key as 'somatico']})`,
+      value: `${s[a.key as 'somatico']} / ${a.max} · corte ${a.cut}`,
+      tag: AREA_TAG.doctor[areaStatus(a.key, s[a.key as 'somatico'], skipped) as 'over'],
+    })),
+    heinemann: heinemannCategory(s.total),
+    skipped,
+  };
 }
 
 function esc(s: unknown) {
@@ -201,6 +211,11 @@ function consultFragment(pts: string[]) {
   return html;
 }
 
+/** Badge del nivel (mismo texto que en el chat). */
+function badgeHtml(text: string) {
+  return `<span style="display:inline-block;background:#F3EDE4;color:#6E3A4E;border:1px solid #E9D9C7;border-radius:999px;padding:3px 10px;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;">${text}</span>`;
+}
+
 /** Fragmento HTML con estilos en línea (para que se vea bien tanto en el correo como en la página del enlace). */
 function buildFragment(session: Record<string, any>, lead: Record<string, any>) {
   const name = lead.name ? esc(lead.name) : '';
@@ -213,35 +228,51 @@ function buildFragment(session: Record<string, any>, lead: Record<string, any>) 
   let opening: string;
   if (isAlert) {
     const emergency = (session.red_flags || []).includes('rf2');
-    const lvl = LEVEL_COPY[computeLevel(session)];
+    const lvl = levelMessage(sessionScores(session));
     opening = `
       <h1 style="font-family:Georgia,serif;font-size:24px;margin:0 0 12px;">Un paso de cuidado</h1>
       <p>${greeting} Marcaste algo que conviene revisar con tu médico(a).</p>
       ${emergency ? `<div style="background:#FAE9E4;border:1px solid #D58B7E;color:#6E2519;padding:14px 16px;border-radius:12px;font-weight:600;margin:16px 0;">Si en este momento tienes dolor de pecho intenso o te falta el aire de repente, no esperes: busca atención médica ya.</div>` : ''}
       <p>Para el resto de señales que marcaste, agenda una cita ginecológica lo antes posible.</p>
       <p style="color:#5F5F57;font-size:13px;">Esto no reemplaza la valoración de un profesional de salud.</p>
-      <h2 style="font-family:Georgia,serif;font-size:18px;margin:24px 0 4px;">${lvl.title}</h2>
+      ${badgeHtml(lvl.badge)}
+      <h2 style="font-family:Georgia,serif;font-size:18px;margin:8px 0 4px;">${lvl.title}</h2>
       <p>De todas formas, esto es lo que notamos en el resto de tus respuestas.</p>
-      <p>${lvl.text}</p>`;
+      ${lvl.paragraphs.map((t: string) => `<p>${t}</p>`).join('')}`;
   } else {
-    const lvl = LEVEL_COPY[session.level] || LEVEL_COPY.A;
+    const lvl = levelMessage(sessionScores(session));
     opening = `
-      <h1 style="font-family:Georgia,serif;font-size:24px;margin:0 0 12px;">${lvl.title}</h1>
+      ${badgeHtml(lvl.badge)}
+      <h1 style="font-family:Georgia,serif;font-size:24px;margin:8px 0 12px;">${lvl.title}</h1>
       <p>${greeting} Esto es lo que noté en lo que me contaste.</p>
-      <p>${lvl.text}</p>`;
+      ${lvl.paragraphs.map((t: string) => `<p>${t}</p>`).join('')}`;
   }
 
+  const skipped = skippedIntimate(session);
   const areasHtml = AREAS.map((a) => {
     const v = session[a.key] ?? 0;
-    const notable = v >= a.cut;
+    const status = areaStatus(a.key.replace('score_', ''), v, skipped) as 'over' | 'under' | 'incomplete';
     const pct = Math.max(4, Math.round((v / a.max) * 100));
     const label = `<span style="font-weight:600;font-size:15px;">${a.label}</span>`;
-    const tag = `<span style="color:${notable ? '#A4502F' : '#33421F'};font-weight:600;font-size:14px;">${notable ? 'Conviene comentarlo' : 'En un nivel leve'}</span>`;
+    const tag = `<span style="color:${AREA_COLOR[status]};font-weight:600;font-size:14px;">${AREA_TAG.user[status]}</span>`;
     return `<div style="margin:14px 0;">
       ${row2col(label, tag)}
-      ${meterBar(pct, notable ? '#A4502F' : '#A3B58D')}
+      ${meterBar(pct, AREA_BAR[status])}
     </div>`;
-  }).join('');
+  }).join('') + (skipped ? `<p style="color:#5F5F57;font-size:13px;margin:4px 0 0;">${SKIPPED_INTIMATE_NOTE}</p>` : '');
+
+  const doc = doctorRows(session);
+  const docRow = (l: string, r: string) => `<div style="padding:5px 0;border-bottom:1px solid #EEEEE3;">${row2col(`<span style="font-size:14px;">${l}</span>`, `<span style="font-size:14px;color:#33332F;">${r}</span>`)}</div>`;
+  const doctorHtml = `
+    <div style="border:1px solid #DDDDD1;border-radius:12px;padding:14px 16px;margin-top:20px;">
+      <h2 style="font-family:Georgia,serif;font-size:17px;margin:0 0 4px;">Para tu médico(a): puntaje MRS</h2>
+      <p style="color:#5F5F57;font-size:12px;margin:0 0 8px;">Menopause Rating Scale, 11 ítems de 0 a 4.</p>
+      ${docRow('<b>Puntaje total</b>', `<b>${doc.total}</b>`)}
+      ${doc.areas.map((a) => docRow(a.label, `${a.value}<br><span style="font-size:12px;color:#5F5F57;">${a.tag}</span>`)).join('')}
+      ${docRow('Categoría del total según Heinemann', doc.heinemann)}
+      ${doc.skipped ? `<p style="background:#F6E9C9;border:1px solid #DCB671;color:#6B4308;padding:10px 12px;border-radius:10px;font-size:13px;margin:10px 0 0;">${SKIPPED_INTIMATE_NOTE_DOCTOR}</p>` : ''}
+      <p style="color:#5F5F57;font-size:11px;margin:10px 0 0;">${CUTS_SOURCE}<br>Categoría de intensidad: ${HEINEMANN_SOURCE}</p>
+    </div>`;
 
   const pts = contextPoints(session);
 
@@ -264,7 +295,8 @@ function buildFragment(session: Record<string, any>, lead: Record<string, any>) 
     ${areasHtml}
     <h2 style="font-family:Georgia,serif;font-size:18px;margin:24px 0 8px;">Tus 11 respuestas</h2>
     ${itemRows}
-    ${session.score_psicologico >= 6 ? `<p style="background:#EDF1E6;border:1px solid #A3B58D;padding:12px 14px;border-radius:12px;margin-top:16px;">${PSICOLOGICO_NOTE}<br><span style="font-size:11px;color:#5F5F57;">${PSICOLOGICO_SOURCE}</span></p>` : ''}
+    ${doctorHtml}
+    ${session.score_psicologico >= CUTS.psicologico ? `<p style="background:#EDF1E6;border:1px solid #A3B58D;padding:12px 14px;border-radius:12px;margin-top:16px;">${PSICOLOGICO_NOTE}<br><span style="font-size:11px;color:#5F5F57;">${PSICOLOGICO_SOURCE}</span></p>` : ''}
     ${selfCareFragment(session)}
     ${consultFragment(pts)}
     <p style="color:#5F5F57;font-size:13px;margin-top:16px;">Esto es solo orientación informativa. Solo un profesional de salud puede evaluarte con exámenes clínicos.</p>
@@ -293,7 +325,7 @@ function wrapForEmail(fragment: string, hasPdf: boolean) {
 /* ---------- PDF adjunto (pdf-lib: se dibuja a mano, sin navegador ni servicio externo) ----------
    Deno Deploy no permite correr Chrome/Puppeteer, así que no se puede "convertir" el HTML.
    Este PDF es más simple que el correo (texto + rectángulos, sin la tipografía de marca),
-   pero usa el mismo contenido (selfCareItems, contextPoints, LEVEL_COPY, etc.) para que
+   pero usa el mismo contenido (selfCareItems, contextPoints, levelMessage, etc.) para que
    nunca diga algo distinto al correo o a la página del enlace. */
 const PAGE_W = 595.28, PAGE_H = 841.89; // A4
 const MARGIN = 50;
@@ -398,10 +430,11 @@ async function buildPdf(session: Record<string, any>, lead: Record<string, any>)
   }
 
   {
-    const lvl = isAlert ? LEVEL_COPY[computeLevel(session)] : (LEVEL_COPY[session.level] || LEVEL_COPY.A);
+    const lvl = levelMessage(sessionScores(session));
+    para(lvl.badge.toUpperCase(), { size: 8, f: bold, color: PDF_COLOR.inkSoft, gap: 0 });
     heading(lvl.title, 16);
     para(isAlert ? 'De todas formas, esto es lo que notamos en el resto de tus respuestas.' : `${greeting} Esto es lo que noté en lo que me contaste.`);
-    para(lvl.text);
+    for (const t of lvl.paragraphs) para(t);
 
     heading('Sobre tu etapa');
     para(stageNote(session), { gap: 2 });
@@ -409,12 +442,13 @@ async function buildPdf(session: Record<string, any>, lead: Record<string, any>)
 
     heading('Lo que noto por áreas');
     para('Es una mirada de conjunto, no una calificación.', { size: 8.5, color: PDF_COLOR.inkSoft, gap: 8 });
+    const skipped = skippedIntimate(session);
     for (const a of AREAS) {
       const v = session[a.key] ?? 0;
-      const notable = v >= a.cut;
+      const status = areaStatus(a.key.replace('score_', ''), v, skipped) as 'over' | 'under' | 'incomplete';
       const pct = Math.max(0.04, v / a.max);
-      const tagColor = notable ? PDF_COLOR.action : PDF_COLOR.calm;
-      const tagText = notable ? 'Conviene comentarlo' : 'En un nivel leve';
+      const tagColor = status === 'over' ? PDF_COLOR.action : status === 'under' ? PDF_COLOR.calm : PDF_COLOR.inkSoft;
+      const tagText = AREA_TAG.user[status];
       ensure(28);
       page.drawText(a.label, { x: MARGIN, y: y - 10.5, size: 10.5, font: bold, color: PDF_COLOR.ink });
       const tw = bold.widthOfTextAtSize(tagText, 9.5);
@@ -424,6 +458,7 @@ async function buildPdf(session: Record<string, any>, lead: Record<string, any>)
       page.drawRectangle({ x: MARGIN, y: y - 7, width: CONTENT_W * pct, height: 7, color: tagColor });
       y -= 19;
     }
+    if (skipped) para(SKIPPED_INTIMATE_NOTE, { size: 8.5, color: PDF_COLOR.inkSoft, gap: 8 });
 
     heading('Tus 11 respuestas');
     const answers = session.answers || {};
@@ -440,7 +475,35 @@ async function buildPdf(session: Record<string, any>, lead: Record<string, any>)
       y -= 8;
     }
 
-    if (session.score_psicologico >= 6) {
+    // Bloque para el médico: puntaje MRS, subescalas con su corte y categoría de Heinemann.
+    {
+      const doc = doctorRows(session);
+      ensure(doc.skipped ? 230 : 200); // el bloque va completo en una página, no partido
+      heading('Para tu médico(a): puntaje MRS');
+      para('Menopause Rating Scale, 11 ítems de 0 a 4.', { size: 8.5, color: PDF_COLOR.inkSoft, gap: 6 });
+      const docRow = (l: string, r: string, sub?: string, strong = false) => {
+        ensure(sub ? 28 : 16);
+        page.drawText(l, { x: MARGIN, y: y - 9.5, size: 9.5, font: strong ? bold : font, color: PDF_COLOR.ink });
+        const rw = (strong ? bold : font).widthOfTextAtSize(r, 9.5);
+        page.drawText(r, { x: PAGE_W - MARGIN - rw, y: y - 9.5, size: 9.5, font: strong ? bold : font, color: PDF_COLOR.ink });
+        y -= 12;
+        if (sub) {
+          const sw = font.widthOfTextAtSize(sub, 8);
+          page.drawText(sub, { x: PAGE_W - MARGIN - sw, y: y - 8, size: 8, font, color: PDF_COLOR.inkSoft });
+          y -= 11;
+        }
+        page.drawLine({ start: { x: MARGIN, y }, end: { x: PAGE_W - MARGIN, y }, thickness: 0.5, color: PDF_COLOR.border });
+        y -= 8;
+      };
+      docRow('Puntaje total', doc.total, undefined, true);
+      for (const a of doc.areas) docRow(a.label, a.value, a.tag);
+      docRow('Categoría del total según Heinemann', doc.heinemann);
+      if (doc.skipped) para(SKIPPED_INTIMATE_NOTE_DOCTOR, { size: 9, f: bold, color: PDF_COLOR.ink, gap: 4 });
+      para(CUTS_SOURCE, { size: 7.5, color: PDF_COLOR.inkSoft, gap: 1 });
+      para(`Categoría de intensidad: ${HEINEMANN_SOURCE}`, { size: 7.5, color: PDF_COLOR.inkSoft, gap: 10 });
+    }
+
+    if (session.score_psicologico >= CUTS.psicologico) {
       para(PSICOLOGICO_NOTE, { gap: 2 });
       para(PSICOLOGICO_SOURCE, { size: 8, color: PDF_COLOR.inkSoft, gap: 10 });
     }

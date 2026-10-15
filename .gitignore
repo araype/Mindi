@@ -10,3 +10,6 @@ uploads/
 supabase/.temp/
 
 .vercel
+
+# Capturas de revisión (se guardan fuera del repo)
+docs/capturas-etiquetas-nivel/
