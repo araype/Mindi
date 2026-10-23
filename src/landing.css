@@ -2340,3 +2340,36 @@ body.no-scroll { overflow: hidden; }
 
 /* Botones dentro de una tarjeta del chat (p. ej. WhatsApp en las salidas del filtro). */
 .card .card-actions { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* Glosario: ícono ⓘ junto a la pregunta y su explicación debajo. */
+.bubble .info-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  margin: -6px -6px -6px 2px;
+  padding: 0;
+  vertical-align: middle;
+  border: 0;
+  border-radius: var(--r-full);
+  background: transparent;
+  color: var(--brand-secondary);
+  cursor: pointer;
+}
+.bubble .info-btn svg { width: 19px; height: 19px; }
+.bubble .info-btn:hover, .bubble .info-btn[aria-expanded="true"] { background: var(--sand-100); }
+.bubble .info-btn:focus-visible { outline: 2px solid var(--brand-secondary); outline-offset: 1px; }
+.bubble .info-panel {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: var(--r-s);
+  background: var(--sand-100);
+  font-weight: 400;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+.bubble .info-panel p { margin: 0; }
+.bubble .info-panel p + p { margin-top: 6px; }
+.bubble .info-panel strong { color: var(--ink); font-weight: 500; }

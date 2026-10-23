@@ -8,6 +8,7 @@ import { selfCareItems, SELF_CARE_SOURCE } from '../supabase/functions/_shared/a
 import { whyNotes, WHY_TITLE } from '../supabase/functions/_shared/notas.js';
 import { stageFilter, STAGE_EXIT } from './etapa.js';
 import { whatsappUrl, WHATSAPP_TEXT } from './whatsapp.js';
+import { glossaryFor } from './glosario.js';
 
 /* ---------- Medición (hooks listos para conectar a analítica real) ---------- */
 /* ---------- Backend (Supabase vía REST, solo INSERT con la clave pública) ----------
@@ -226,6 +227,7 @@ const RED_FLAGS = [
 const NONE_TEXT = RED_FLAGS.find(f=>f.id==='none').text;
 
 const ICON_CHECK = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+const ICON_INFO  = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/><path d="M12 11v5.5"/><path d="M12 7.6h.01"/></svg>';
 const ICON_SEND  = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h15M13 6l6 6-6 6"/></svg>';
 
 /* ---------- Estado ---------- */
@@ -294,20 +296,53 @@ if(vv){
   syncViewport();
 }
 
-/* more: [{q, a, id}] — explicaciones que se abren al tocarlas ("¿Qué significa esto?",
-   "¿Qué es el aura?"), para que el texto extra no aparezca entre pregunta y pregunta. */
-function addBubble(text, who, cls, subText, more){
+/* more: [{q, a, id}] — explicaciones que se abren al tocarlas ("¿Qué significa esto?"),
+   para que el texto extra no aparezca entre pregunta y pregunta.
+   info: {id, items:[{term, def}]} — glosario (src/glosario.js): un ícono ⓘ junto a la pregunta,
+   nunca dentro de un botón de respuesta, que abre la explicación de esos términos. */
+let infoSeq = 0;
+function addBubble(text, who, cls, subText, more, info){
   const row = document.createElement('div');
   row.className = 'row ' + who;
   const b = document.createElement('div');
   b.className = 'bubble' + (cls ? ' '+cls : '');
   b.textContent = text;
+  let infoPanel = null;
+  if(info && info.items && info.items.length){
+    const terms = info.items.map(i=>i.term).join(', ');
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'info-btn';
+    btn.setAttribute('aria-expanded', 'false');
+    btn.setAttribute('aria-label', `Qué significa: ${terms}`);
+    btn.innerHTML = ICON_INFO;
+    infoPanel = document.createElement('div');
+    infoPanel.className = 'info-panel';
+    infoPanel.id = 'info' + (++infoSeq);
+    infoPanel.hidden = true;
+    btn.setAttribute('aria-controls', infoPanel.id);
+    info.items.forEach(({term, def})=>{
+      const p = document.createElement('p');
+      const t = document.createElement('strong');
+      t.textContent = term + ': ';
+      p.append(t, def);
+      infoPanel.appendChild(p);
+    });
+    btn.onclick = ()=>{
+      const open = infoPanel.hidden;
+      infoPanel.hidden = !open;
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      if(open){ track('help_open', {q:info.id}); scrollBottom(); }
+    };
+    b.appendChild(btn);
+  }
   if(subText){
     const sp = document.createElement('span');
     sp.className = 'sub';
     sp.textContent = subText;
     b.appendChild(sp);
   }
+  if(infoPanel) b.appendChild(infoPanel);
   (more || []).forEach(({q, a, id})=>{
     const d = document.createElement('details');
     d.className = 'more';
@@ -402,7 +437,7 @@ function botSay(messages){
       setTimeout(()=>{
         hideTyping();
         const m = messages[i];
-        if(typeof m === 'string') addBubble(m, 'bot'); else addBubble(m.text, 'bot', m.cls, m.sub, m.more);
+        if(typeof m === 'string') addBubble(m, 'bot'); else addBubble(m.text, 'bot', m.cls, m.sub, m.more, m.info);
         i++;
         setTimeout(next, reduceMotion ? 0 : 450);
       }, TYPING_MS);
@@ -703,9 +738,7 @@ function askAge(){
 }
 
 function askCycle(){
-  botSay([{text:'En los últimos 12 meses, ¿cómo ha estado tu periodo?', cls:'question', more:[
-    {id:'p2', q:'¿Qué es una histerectomía?', a:'Es la cirugía en la que se retira el útero. Después de ella ya no hay regla.'},
-  ]}]).then(()=>{
+  botSay([{text:'En los últimos 12 meses, ¿cómo ha estado tu periodo?', cls:'question', info:{id:'p2', items:glossaryFor('p2')}}]).then(()=>{
     renderChips([
       {label:'Sigue regular'},
       {label:'Es irregular (varía o se retrasa)'},
@@ -843,9 +876,7 @@ function askSmoking(){
   });
 }
 function askObesity(){
-  botSay([{text:'¿Un médico te ha dicho alguna vez que tienes obesidad (IMC entre 30 y 40)?', cls:'question', more:[
-    {id:'ctx_imc', q:'¿Qué es el IMC?', a:'El índice de masa corporal relaciona tu peso con tu talla: peso en kilos dividido entre la talla en metros al cuadrado. Entre 30 y 40 se considera obesidad.'},
-  ]}]).then(()=>{
+  botSay([{text:'¿Un médico te ha dicho alguna vez que tienes obesidad (IMC entre 30 y 40)?', cls:'question', info:{id:'ctx_imc', items:glossaryFor('ctx_imc')}}]).then(()=>{
     renderChips([{label:'Sí'},{label:'No'},{label:'No estoy segura'}], (v)=>{ state.obesity = v; track('answer',{q:'ctx_obesidad'}); askFamilyHistory(); });
   });
 }
@@ -856,9 +887,7 @@ function askFamilyHistory(){
 }
 const MIGRAINE_AURA = 'Sí, con aura (destellos, luces u otros síntomas antes del dolor)';
 function askMigraine(){
-  botSay([{text:'¿Sufres de migrañas?', cls:'question', more:[
-    {id:'ctx_aura', q:'¿Qué es el aura?', a:'Son señales que aparecen antes del dolor de cabeza y duran unos minutos: destellos, luces o líneas en zigzag, o un hormigueo en la cara o la mano.'},
-  ]}]).then(()=>{
+  botSay([{text:'¿Sufres de migrañas?', cls:'question', info:{id:'ctx_aura', items:glossaryFor('ctx_aura')}}]).then(()=>{
     renderChips([{label:'No'},{label:'Sí, sin aura'},{label:MIGRAINE_AURA}], (v)=>{ state.migraine = v; track('answer',{q:'ctx_migrana'}); askCurrentTreatment(); });
   });
 }
