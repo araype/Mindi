@@ -14,3 +14,4 @@ supabase/.temp/
 # Capturas de revisión (se guardan fuera del repo)
 docs/capturas-etiquetas-nivel/
 docs/capturas-experimento-1/
+docs/capturas-bloque-*/
