@@ -166,3 +166,20 @@ export const DOCTOR_RECOMMENDATION = {
 export function doctorRecommendation(level) {
   return DOCTOR_RECOMMENDATION[level] || DOCTOR_RECOMMENDATION.A;
 }
+
+/** Aviso de emergencia (dolor de pecho o falta de aire): mismo texto en el chat, el correo y el PDF.
+ *  Usa la misma indicación que el agente de Mindi (Mindi_agents, MENSAJE_EMERGENCIA): 106 (SAMU). */
+export const EMERGENCY_NOW = 'Si en este momento tienes dolor de pecho intenso o te falta el aire de repente, no esperes: acude a emergencias o llama al 106 (SAMU).';
+
+/** Lo que el chat le pasará al agente de Mindi como state.resultado_mrs (Mindi_agents, lectura_mrs).
+ *  Solo puntajes y si marcó una señal de alerta: sin respuestas una por una ni datos de contacto. */
+export function agentMrsResult(scores, hasAlert) {
+  const s = scores || {};
+  return {
+    total: s.total || 0,
+    somatico: s.somatico || 0,
+    psicologico: s.psicologico || 0,
+    urogenital: s.urogenital || 0,
+    senal_alerta: !!hasAlert,
+  };
+}

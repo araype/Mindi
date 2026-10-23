@@ -27,7 +27,7 @@ import { encodeBase64 } from 'https://deno.land/std@0.224.0/encoding/base64.ts';
 import {
   levelMessage, AREAS as MRS_AREAS, areaStatus, AREA_TAG, CUTS, CUTS_SOURCE,
   heinemannCategory, HEINEMANN_SOURCE, SKIPPED_INTIMATE_NOTE, SKIPPED_INTIMATE_NOTE_DOCTOR,
-  doctorRecommendation,
+  doctorRecommendation, EMERGENCY_NOW,
 } from '../_shared/mrs.js';
 // Autocuidado: la misma lista que el chat (allí se muestran 2; aquí, todas).
 import { selfCareItems as sharedSelfCareItems, SELF_CARE_SOURCE } from '../_shared/autocuidado.js';
@@ -217,7 +217,7 @@ function buildFragment(session: Record<string, any>, lead: Record<string, any>) 
     opening = `
       <h1 style="font-family:Georgia,serif;font-size:24px;margin:0 0 12px;">Un paso de cuidado</h1>
       <p>${greeting} Marcaste algo que conviene revisar con tu médico(a).</p>
-      ${emergency ? `<div style="background:#FAE9E4;border:1px solid #D58B7E;color:#6E2519;padding:14px 16px;border-radius:12px;font-weight:600;margin:16px 0;">Si en este momento tienes dolor de pecho intenso o te falta el aire de repente, no esperes: busca atención médica ya.</div>` : ''}
+      ${emergency ? `<div style="background:#FAE9E4;border:1px solid #D58B7E;color:#6E2519;padding:14px 16px;border-radius:12px;font-weight:600;margin:16px 0;">${EMERGENCY_NOW}</div>` : ''}
       <p>Para el resto de señales que marcaste, agenda una cita ginecológica lo antes posible.</p>
       <p style="color:#5F5F57;font-size:13px;">Esto no reemplaza la valoración de un profesional de salud.</p>
       ${badgeHtml(lvl.badge)}
@@ -410,7 +410,7 @@ async function buildPdf(session: Record<string, any>, lead: Record<string, any>)
     heading('Un paso de cuidado', 16);
     para(`${greeting} Marcaste algo que conviene revisar con tu médico(a).`);
     if (emergency) {
-      para('Si en este momento tienes dolor de pecho intenso o te falta el aire de repente, no esperes: busca atención médica ya.', { f: bold, color: PDF_COLOR.action });
+      para(EMERGENCY_NOW, { f: bold, color: PDF_COLOR.action });
     }
     para('Para el resto de señales que marcaste, agenda una cita ginecológica lo antes posible.');
     para('Esto no reemplaza la valoración de un profesional de salud.', { size: 8.5, color: PDF_COLOR.inkSoft });
