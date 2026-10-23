@@ -253,7 +253,7 @@ const state = {
   answers:{}, redFlags:[],
   age:null, cycle:null, name:null, contact:null,
   smoking:null, obesity:null, familyBreastCa:null, migraine:null, currentTreatment:null,
-  priceInterest:null, satisfaction:null, goals:null,
+  satisfaction:null, goals:null,
   scores:{somatico:0, psicologico:0, urogenital:0, total:0},
   skippedIntimate:false,
 };
@@ -266,7 +266,7 @@ let composer = null;
 const progressFill = document.getElementById('progressFill');
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const TYPING_MS = reduceMotion ? 0 : 850; // antes 550 — conversación más pausada, menos apurada
-const TOTAL_STEPS = 27;
+const TOTAL_STEPS = 26;
 let step = 0;
 let started = false;
 /* Se pone en true cuando la usuaria toca "Salir" del modo pantalla completa. Sin esto,
@@ -1069,24 +1069,7 @@ function askGoals(){
       const labels = selected.map(id => GOAL_OPTIONS[+id.slice(1)]);
       state.goals = labels;
       track('goals', {selected:labels});
-      askPriceValidation();
-    });
-  });
-}
-
-function askPriceValidation(){
-  setSection('Precio');
-  botSay(['Una última pregunta, si me lo permites.']).then(()=>{
-    addCard(`<h3>¿Un acompañamiento así te sería útil?</h3>¿Estarías dispuesta a acceder a un plan personalizado con acceso a especialistas para alcanzar tus objetivos de salud y recuperar el equilibrio por S/30 al mes? Tu respuesta nos ayuda a decidir si vale la pena construirlo.`, 'notice');
-    renderChips([{label:'Sí, lo probaría'},{label:'Tal vez, depende'},{label:'No lo probaría'}], (v)=>{
-      state.priceInterest = v;
-      track('price_validation',{answer:v, price:30});
-      const replies = {
-        'Sí, lo probaría':'Qué bueno saberlo. Si nos dejas tus datos, te avisaremos cuando esté listo.',
-        'Tal vez, depende':'Gracias por la honestidad. Si nos dejas tus datos, te avisaremos cuando esté listo, sin compromiso.',
-        'No lo probaría':'Gracias por decírmelo; de verdad ayuda a construir algo que tenga sentido para ti.',
-      };
-      botSay([replies[v]]).then(()=> askName());
+      askName();
     });
   });
 }
@@ -1113,7 +1096,7 @@ function askContact(){
       skipLabel:'Prefiero no dejar mis datos',
       validate:validContact,
       errorText:'Revisa el correo o el número (mínimo 9 dígitos), o elige no dejar tus datos.',
-      hint:'Solo lo usamos para enviarte tu reporte y avisarte del acompañamiento. Tus respuestas se guardan sin tu nombre, separadas de tu contacto.',
+      hint:'Solo lo usamos para enviarte tu reporte. Tus respuestas se guardan sin tu nombre, separadas de tu contacto.',
     }, (val)=>{
       state.contact = val;
       track('lead', {captured: !!val});
@@ -1128,7 +1111,7 @@ function askContact(){
 }
 
 /* Mide cómo se sintió la conversación en sí (distinto de si pagaría) — se guarda como
-   evento, igual que price_validation, sin necesidad de tocar el esquema de Supabase.
+   evento, sin necesidad de tocar el esquema de Supabase.
    Excepción deliberada a "sin emojis" del sistema de diseño (ver renderFaceScale). */
 function askSatisfaction(){
   setSection('¿Qué tal estuvo?');
