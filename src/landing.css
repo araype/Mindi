@@ -284,7 +284,9 @@ a { color: inherit; }
 
 .hero .wrap {
   display: grid;
-  grid-template-columns: 1fr;
+  /* minmax(0, …): sin esto la columna no baja del ancho mínimo de la maqueta del teléfono
+     (sus pestañas), y a 360 px la página quedaba en 379 px, con scroll horizontal. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 40px;
   align-items: center;
 }
