@@ -772,7 +772,7 @@ async function start(){
   setProgress(1);
   // La bienvenida y el consentimiento ya se vieron en la tarjeta de inicio (index.html):
   // aquí solo queda el aviso de emergencias, en una línea, y la primera pregunta.
-  await botSay(['Si es una emergencia, llama al 106.']);
+  await botSay(['Si es urgente, llama al 106.']);
   askAge();
 }
 
@@ -918,7 +918,7 @@ function finishMrs(){
    (sin el valor), igual que las 11 de la escala, para ver en qué pregunta se abandona. */
 function askSmoking(){
   setSection('Contexto para tu reporte');
-  botSay(['Ahora, unas preguntas de contexto.', {text:'¿Fumas actualmente?', cls:'question', more:[
+  botSay(['Unas preguntas de contexto.', {text:'¿Fumas actualmente?', cls:'question', more:[
     {id:'ctx_fuma', q:'¿Por qué te pregunto esto?', a:'No suma puntos. Algunos hábitos y antecedentes cambian qué tratamiento suele preferirse, y así tu reporte lo incluye.'},
   ]}]).then(()=>{
     renderChips([{label:'No fumo'},{label:'Fumo ocasionalmente'},{label:'Fumo a diario'},{label:'Fumaba antes, ya no'}],
@@ -1315,7 +1315,7 @@ function askSatisfaction(){
     renderFaceScale((score, label)=>{
       state.satisfaction = label;
       track('satisfaction', {answer:label, score});
-      const reply = score >= 3 ? 'Qué bueno, gracias por contarme.'
+      const reply = score >= 3 ? 'Qué bueno, gracias.'
         : score === 2 ? 'Gracias, lo tomo en cuenta.'
         : 'Gracias, de verdad ayuda a mejorar.';
       botSay([reply, 'Fue un gusto. Cuídate mucho.']).then(()=> channelInvite('final')).then(()=> afterGuided(true));
