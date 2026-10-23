@@ -4,7 +4,7 @@ import {
   computeScores as mrsScores, computeLevel as mrsLevel, levelMessage, CUTS,
   AREAS, areaStatus, AREA_TAG, SKIPPED_INTIMATE_NOTE, doctorRecommendation,
 } from '../supabase/functions/_shared/mrs.js';
-import { selfCareItems, topSelfCare, SELF_CARE_SOURCE } from '../supabase/functions/_shared/autocuidado.js';
+import { selfCareItems, SELF_CARE_SOURCE } from '../supabase/functions/_shared/autocuidado.js';
 import { stageFilter, STAGE_EXIT } from './etapa.js';
 
 /* ---------- Medición (hooks listos para conectar a analítica real) ---------- */
@@ -372,10 +372,11 @@ async function showResultsCardSequence(){
   await revealCardWithPause(null,                                         levelCard(msg), BAND_KIND[msg.band], false, 'Ver mis resultados por área');
   await revealCardWithPause('Así se ve por áreas:',                        areasCard(),         '',      false, '¿Y qué hago con esto?');
   await revealCardWithPause('Preguntas para tu médico(a):',                consultCard(),       '',      false, 'Muy útil, ¿algo más?');
-  // Consejos: un solo mensaje, máximo 2, del área más afectada. El resto queda en el reporte.
-  await revealCard(selfCareCard(), 'calm', 400);
-  addCard('<p class="topics-disclaimer">Esto es solo orientación informativa según la Guía HNHU (RD N° 211-2024-DG/HNHU). Solo un profesional de salud puede evaluarte con exámenes clínicos en consulta presencial.</p>', '');
+  // Las recomendaciones de autocuidado y el aviso "solo orientación" ya no van aquí: están en
+  // "Tu reporte" (ver reportFullHtml), al final del chat, igual que en el PDF y el correo.
 }
+
+const DISCLAIMER = 'Esto es solo orientación informativa según la Guía HNHU (RD N° 211-2024-DG/HNHU). Solo un profesional de salud puede evaluarte con exámenes clínicos en consulta presencial.';
 
 /* messages: string | {text, cls} */
 function botSay(messages){
@@ -949,13 +950,8 @@ function consultCard(){
   return `<h3>¿Qué preguntarle a tu médico(a)?</h3>` + consultBody();
 }
 
-/* Chat: máximo 2 consejos, uno por línea (topSelfCare). Reporte: la lista completa
-   (selfCareBody). Los dos salen de supabase/functions/_shared/autocuidado.js, igual que send-report. */
-function selfCareCard(){
-  const tips = topSelfCare(state.answers, state.scores).map(t=>`<li>${t}</li>`).join('');
-  return `<h3>Dos ideas para empezar</h3><ul class="card-list tips">${tips}</ul>` +
-    `<p class="card-note">El resto de recomendaciones está en tu reporte.</p>`;
-}
+/* Recomendaciones de autocuidado del reporte (lista completa, desde
+   supabase/functions/_shared/autocuidado.js, igual que send-report). */
 function selfCareBody(){
   const rows = selfCareItems(state.answers).map(([t,d])=>`<li><strong>${t}:</strong> ${d}</li>`).join('');
   return `<p class="card-note">No reemplazan un tratamiento si tu médico(a) lo indica — son medidas seguras para cualquier momento de esta etapa.</p>` +
@@ -1119,6 +1115,7 @@ function reportFullHtml(){
     `<section><h3>Recomendaciones de autocuidado</h3>${selfCareBody()}</section>` +
     `<section><h3>Para tu consulta</h3>${consultBody()}</section>` +
     `<section><h3>Tus 11 respuestas</h3>${reportAnswersList()}</section>` +
+    `<p class="topics-disclaimer">${DISCLAIMER}</p>` +
     `</div>`;
 }
 
