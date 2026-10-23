@@ -90,7 +90,7 @@ function track(event, props){
 
 /* WhatsApp del equipo: complementa al test. Cada clic registra whatsapp_click {origen}
    (landing, resultado o filtro), sin el texto ni el número de la usuaria. */
-const WHATSAPP_NUMBER = import.meta.env.NEXT_PUBLIC_WHATSAPP_NUMBER || '';
+const WHATSAPP_NUMBER = import.meta.env.VITE_WHATSAPP_NUMBER || '';
 function whatsappButton(origen, label = 'Escríbele al equipo de Mindi'){
   const url = whatsappUrl(WHATSAPP_NUMBER, WHATSAPP_TEXT[origen]);
   return url ? `<a class="btn btn-sm btn-ghost wa-btn" href="${url}" target="_blank" rel="noopener" data-wa-origen="${origen}">${label}</a>` : '';

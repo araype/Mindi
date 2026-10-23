@@ -1,4 +1,4 @@
-// Mindi · Enlaces a WhatsApp del equipo (wa.me). El número viene de NEXT_PUBLIC_WHATSAPP_NUMBER;
+// Mindi · Enlaces a WhatsApp del equipo (wa.me). El número viene de VITE_WHATSAPP_NUMBER;
 // si está vacío, no se muestra ningún botón. WhatsApp complementa al test: no se compara con él.
 
 /* Textos que la usuaria ya ve escritos al abrir WhatsApp, según desde dónde lo abre. */

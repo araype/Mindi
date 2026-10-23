@@ -6,7 +6,7 @@ import './legal.css';
    - [data-agent-chat]: solo con el chat encendido (en el HTML empieza oculto, con `hidden`)
    - [data-no-agent-chat]: solo con el chat apagado
    Con la variable apagada o sin definir, las páginas no mencionan el chat. */
-const AGENT_CHAT_ENABLED = import.meta.env.NEXT_PUBLIC_AGENT_CHAT_ENABLED === 'true';
+const AGENT_CHAT_ENABLED = import.meta.env.VITE_AGENT_CHAT_ENABLED === 'true';
 
 document.querySelectorAll('[data-agent-chat]').forEach((el) => { el.hidden = !AGENT_CHAT_ENABLED; });
 document.querySelectorAll('[data-no-agent-chat]').forEach((el) => { el.hidden = AGENT_CHAT_ENABLED; });
