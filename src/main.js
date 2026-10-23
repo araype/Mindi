@@ -5,7 +5,10 @@ import {
   AREAS, areaStatus, AREA_TAG, SKIPPED_INTIMATE_NOTE, doctorRecommendation, EMERGENCY_NOW,
 } from '../supabase/functions/_shared/mrs.js';
 import { selfCareItems, SELF_CARE_SOURCE } from '../supabase/functions/_shared/autocuidado.js';
+import { whyNotes, WHY_TITLE } from '../supabase/functions/_shared/notas.js';
 import { stageFilter, STAGE_EXIT } from './etapa.js';
+import { whatsappUrl, WHATSAPP_TEXT } from './whatsapp.js';
+import { glossaryFor } from './glosario.js';
 
 /* ---------- Medición (hooks listos para conectar a analítica real) ---------- */
 /* ---------- Backend (Supabase vía REST, solo INSERT con la clave pública) ----------
@@ -84,6 +87,18 @@ function track(event, props){
   if(ORIGIN) base.origin = ORIGIN;
   sb('events', {session_id:SESSION_ID, name:event, props:Object.assign(base, props||{})});
 }
+
+/* WhatsApp del equipo: complementa al test. Cada clic registra whatsapp_click {origen}
+   (landing, resultado o filtro), sin el texto ni el número de la usuaria. */
+const WHATSAPP_NUMBER = import.meta.env.VITE_WHATSAPP_NUMBER || '';
+function whatsappButton(origen, label = 'Escríbele al equipo de Mindi'){
+  const url = whatsappUrl(WHATSAPP_NUMBER, WHATSAPP_TEXT[origen]);
+  return url ? `<a class="btn btn-sm btn-ghost wa-btn" href="${url}" target="_blank" rel="noopener" data-wa-origen="${origen}">${label}</a>` : '';
+}
+document.addEventListener('click', (e)=>{
+  const a = e.target.closest && e.target.closest('[data-wa-origen]');
+  if(a) track('whatsapp_click', {origen:a.dataset.waOrigen});
+});
 
 function saveSession(level){
   const s = state.scores;
@@ -212,6 +227,7 @@ const RED_FLAGS = [
 const NONE_TEXT = RED_FLAGS.find(f=>f.id==='none').text;
 
 const ICON_CHECK = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+const ICON_INFO  = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/><path d="M12 11v5.5"/><path d="M12 7.6h.01"/></svg>';
 const ICON_SEND  = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h15M13 6l6 6-6 6"/></svg>';
 
 /* ---------- Estado ---------- */
@@ -280,20 +296,53 @@ if(vv){
   syncViewport();
 }
 
-/* more: [{q, a, id}] — explicaciones que se abren al tocarlas ("¿Qué significa esto?",
-   "¿Qué es el aura?"), para que el texto extra no aparezca entre pregunta y pregunta. */
-function addBubble(text, who, cls, subText, more){
+/* more: [{q, a, id}] — explicaciones que se abren al tocarlas ("¿Qué significa esto?"),
+   para que el texto extra no aparezca entre pregunta y pregunta.
+   info: {id, items:[{term, def}]} — glosario (src/glosario.js): un ícono ⓘ junto a la pregunta,
+   nunca dentro de un botón de respuesta, que abre la explicación de esos términos. */
+let infoSeq = 0;
+function addBubble(text, who, cls, subText, more, info){
   const row = document.createElement('div');
   row.className = 'row ' + who;
   const b = document.createElement('div');
   b.className = 'bubble' + (cls ? ' '+cls : '');
   b.textContent = text;
+  let infoPanel = null;
+  if(info && info.items && info.items.length){
+    const terms = info.items.map(i=>i.term).join(', ');
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'info-btn';
+    btn.setAttribute('aria-expanded', 'false');
+    btn.setAttribute('aria-label', `Qué significa: ${terms}`);
+    btn.innerHTML = ICON_INFO;
+    infoPanel = document.createElement('div');
+    infoPanel.className = 'info-panel';
+    infoPanel.id = 'info' + (++infoSeq);
+    infoPanel.hidden = true;
+    btn.setAttribute('aria-controls', infoPanel.id);
+    info.items.forEach(({term, def})=>{
+      const p = document.createElement('p');
+      const t = document.createElement('strong');
+      t.textContent = term + ': ';
+      p.append(t, def);
+      infoPanel.appendChild(p);
+    });
+    btn.onclick = ()=>{
+      const open = infoPanel.hidden;
+      infoPanel.hidden = !open;
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      if(open){ track('help_open', {q:info.id}); scrollBottom(); }
+    };
+    b.appendChild(btn);
+  }
   if(subText){
     const sp = document.createElement('span');
     sp.className = 'sub';
     sp.textContent = subText;
     b.appendChild(sp);
   }
+  if(infoPanel) b.appendChild(infoPanel);
   (more || []).forEach(({q, a, id})=>{
     const d = document.createElement('details');
     d.className = 'more';
@@ -388,7 +437,7 @@ function botSay(messages){
       setTimeout(()=>{
         hideTyping();
         const m = messages[i];
-        if(typeof m === 'string') addBubble(m, 'bot'); else addBubble(m.text, 'bot', m.cls, m.sub, m.more);
+        if(typeof m === 'string') addBubble(m, 'bot'); else addBubble(m.text, 'bot', m.cls, m.sub, m.more, m.info);
         i++;
         setTimeout(next, reduceMotion ? 0 : 450);
       }, TYPING_MS);
@@ -689,9 +738,7 @@ function askAge(){
 }
 
 function askCycle(){
-  botSay([{text:'En los últimos 12 meses, ¿cómo ha estado tu periodo?', cls:'question', more:[
-    {id:'p2', q:'¿Qué es una histerectomía?', a:'Es la cirugía en la que se retira el útero. Después de ella ya no hay regla.'},
-  ]}]).then(()=>{
+  botSay([{text:'En los últimos 12 meses, ¿cómo ha estado tu periodo?', cls:'question', info:{id:'p2', items:glossaryFor('p2')}}]).then(()=>{
     renderChips([
       {label:'Sigue regular'},
       {label:'Es irregular (varía o se retrasa)'},
@@ -746,7 +793,9 @@ const STAGE_EXIT_CARD = {
 function showStageExit(segment){
   setSection('Sobre tu etapa');
   const c = STAGE_EXIT_CARD[segment];
-  revealCard(`<h3>${c.title}</h3><p>${c.body}</p>`, c.kind).then(()=> askInterest(segment));
+  const wa = whatsappButton('filtro');
+  revealCard(`<h3>${c.title}</h3><p>${c.body}</p>` + (wa ? `<div class="card-actions">${wa}</div>` : ''), c.kind)
+    .then(()=> askInterest(segment));
 }
 
 /* Lista de interés de quienes salen por el filtro: solo correo + segmento (tabla
@@ -827,9 +876,7 @@ function askSmoking(){
   });
 }
 function askObesity(){
-  botSay([{text:'¿Un médico te ha dicho alguna vez que tienes obesidad (IMC entre 30 y 40)?', cls:'question', more:[
-    {id:'ctx_imc', q:'¿Qué es el IMC?', a:'El índice de masa corporal relaciona tu peso con tu talla: peso en kilos dividido entre la talla en metros al cuadrado. Entre 30 y 40 se considera obesidad.'},
-  ]}]).then(()=>{
+  botSay([{text:'¿Un médico te ha dicho alguna vez que tienes obesidad (IMC entre 30 y 40)?', cls:'question', info:{id:'ctx_imc', items:glossaryFor('ctx_imc')}}]).then(()=>{
     renderChips([{label:'Sí'},{label:'No'},{label:'No estoy segura'}], (v)=>{ state.obesity = v; track('answer',{q:'ctx_obesidad'}); askFamilyHistory(); });
   });
 }
@@ -840,9 +887,7 @@ function askFamilyHistory(){
 }
 const MIGRAINE_AURA = 'Sí, con aura (destellos, luces u otros síntomas antes del dolor)';
 function askMigraine(){
-  botSay([{text:'¿Sufres de migrañas?', cls:'question', more:[
-    {id:'ctx_aura', q:'¿Qué es el aura?', a:'Son señales que aparecen antes del dolor de cabeza y duran unos minutos: destellos, luces o líneas en zigzag, o un hormigueo en la cara o la mano.'},
-  ]}]).then(()=>{
+  botSay([{text:'¿Sufres de migrañas?', cls:'question', info:{id:'ctx_aura', items:glossaryFor('ctx_aura')}}]).then(()=>{
     renderChips([{label:'No'},{label:'Sí, sin aura'},{label:MIGRAINE_AURA}], (v)=>{ state.migraine = v; track('answer',{q:'ctx_migrana'}); askCurrentTreatment(); });
   });
 }
@@ -866,9 +911,7 @@ function askCurrentTreatment(){
 
 function askRedFlags(){
   setSection('Por tu seguridad');
-  botSay(['Por último, algo de seguridad.', {text:'¿Tienes alguno de estos antecedentes? Marca todo lo que aplique.', cls:'question', more:[
-    {id:'rf_terminos', q:'¿Qué significan algunos términos?', a:'ACV: un derrame o infarto cerebral. Hormono-dependiente: un cáncer que crece con las hormonas, como algunos de mama o de endometrio.'},
-  ]}]).then(()=>{
+  botSay(['Por último, algo de seguridad.', {text:'¿Tienes alguno de estos antecedentes? Marca todo lo que aplique.', cls:'question', info:{id:'rf_terminos', items:glossaryFor('rf_terminos')}}]).then(()=>{
     renderMultiSelect(RED_FLAGS, (selected)=>{
       state.redFlags = selected;
       computeScores();
@@ -1104,6 +1147,14 @@ function reportAnswersList(){
   }).join('');
   return `<ul class="report-answers">${rows}</ul>`;
 }
+/* "Por qué puede pasarte": solo los síntomas en 2 o más (supabase/functions/_shared/notas.js,
+   el mismo texto que el PDF y el correo). Sin síntomas en 2 o más, la sección no aparece. */
+function whySection(){
+  const notes = whyNotes(state.answers);
+  if(!notes.length) return '';
+  const rows = notes.map(n=>`<li><strong>${n.label}:</strong> ${n.text}</li>`).join('');
+  return `<section><h3>${WHY_TITLE}</h3><ul class="card-list">${rows}</ul></section>`;
+}
 function reportFullHtml(){
   const msg = levelMessage(state.scores);
   const alertNote = hasFlag()
@@ -1112,6 +1163,7 @@ function reportFullHtml(){
     `<section>${alertNote}${levelCard(msg)}</section>` +
     `<section><h3>Sobre tu etapa</h3><p>${stageNote()}</p><span class="cite">${PERU_AGE_NOTE} Fuente: Guía HNHU (RD N° 211-2024-DG/HNHU), secciones 5.4 y 6.2.1.</span></section>` +
     `<section>${areasCard()}</section>` +
+    whySection() +
     `<section><h3>Recomendaciones de autocuidado</h3>${selfCareBody()}</section>` +
     `<section><h3>Para tu consulta</h3>${consultBody()}</section>` +
     `<section><h3>Tus 11 respuestas</h3>${reportAnswersList()}</section>` +

@@ -7,6 +7,8 @@ const KEY_STORE = 'mindi_panel_key';
 const TESTER_STORE = 'mindi_tester'; // mismo que src/main.js: marca este navegador como del equipo
 const FILTER_STORE = 'mindi_panel_filters';
 const TAB_STORE = 'mindi_panel_tab';
+// Bloque "Interés en el plan a S/30": oculto mientras la pregunta de precio no esté en el chat.
+const SHOW_PRICE = false;
 
 const $ = (id) => document.getElementById(id);
 const gate = $('gate'), dash = $('dash'), statusEl = $('status'), tooltip = $('tooltip');
@@ -197,7 +199,11 @@ function render(f, at, filtered){
     ['Descarga PDF', f.reporte_descarga, 'var(--cat-3)'],
   ], f.reportes == null ? 'Corre supabase/008_funnel_reportes.sql para ver este desglose.' : null);
 
-  renderSplit($('splitPrice'), 'Interés en el plan a S/30', 'Respuestas a la pregunta de precio.', [
+  // La pregunta de precio ya no está en el chat (la oferta irá en la landing, más adelante):
+  // el bloque se oculta para no contar ese paso. Los datos anteriores siguen en la base.
+  const priceEl = $('splitPrice');
+  priceEl.hidden = !SHOW_PRICE;
+  if(SHOW_PRICE) renderSplit(priceEl, 'Interés en el plan a S/30', 'Respuestas a la pregunta de precio.', [
     ['Sí, lo probaría', f.precio_si, 'var(--div-pos)'],
     ['Tal vez, depende', f.precio_tal_vez, 'var(--div-mid)'],
     ['No lo probaría', f.precio_no, 'var(--div-neg)'],
