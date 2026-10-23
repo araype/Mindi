@@ -1615,6 +1615,8 @@ a { color: inherit; }
 }
 .chat-start h3 { font-size: 20px; margin-bottom: 8px; font-weight: 500; }
 .chat-start p { color: var(--ink-soft); margin-bottom: 18px; font-size: 14px; }
+.chat-start .consent-text { font-size: 12.5px; line-height: 1.5; text-align: left; margin-bottom: 16px; }
+.chat-start .consent-text a, .consent-inline a { color: var(--brand-secondary); text-decoration: underline; text-underline-offset: 2px; }
 
 /* ==================================================================
    Resultados Clínicos del Chat: Tarjetas Individuales y Gráficos

@@ -688,12 +688,10 @@ async function start(){
   setSection('Bienvenida');
   syncFocus();
   setProgress(1);
-  await botSay([
-    'Hola, soy Mindi.',
-    'Vamos a repasar juntas cómo te has sentido últimamente, con una escala que también usan los ginecólogos. Toma unos 3 minutos.',
-  ]);
-  addCard('<h3>Antes de empezar</h3>Tú decides qué compartir conmigo, y siempre quiero que entiendas cómo usamos tu información. Esto no reemplaza una consulta médica: si en algún momento necesitas ayuda urgente, no esperes al resultado y acude a un servicio de urgencias.', 'calm');
-  renderChips([{label:'Entiendo, empecemos', primary:true}], ()=> askAge());
+  // La bienvenida y el consentimiento ya se vieron en la tarjeta de inicio (index.html):
+  // aquí solo queda el aviso de emergencias, en una línea, y la primera pregunta.
+  await botSay(['Si es una emergencia, llama al 106.']);
+  askAge();
 }
 
 function askAge(){
@@ -1151,8 +1149,10 @@ function openChat(source){
   // (a diferencia de un simple resize) — si antes tocó "Salir", esto sí puede reactivar
   // la pantalla completa en mobile.
   focusDismissed = false;
-  start();
-  syncFocus(); // por si el chat ya estaba iniciado antes (start() no hace nada en ese caso)
+  // Sin aceptar los términos no se empieza: si el chat no arrancó, solo se lleva a la usuaria
+  // a la tarjeta de inicio, donde está el botón "Acepto y empiezo".
+  if(!started){ document.getElementById('startBtn')?.focus({preventScroll:true}); return; }
+  syncFocus();
 }
 document.getElementById('heroCta').addEventListener('click', ()=>{ track('cta_click',{source:'hero'}); openChat('hero'); });
 document.querySelectorAll('[data-open-chat]').forEach(el=>{
@@ -1221,7 +1221,11 @@ document.getElementById('exitBtn').addEventListener('click', ()=>{
   setFocus(false);
   document.getElementById('conversar').scrollIntoView({block:'start'});
 });
-document.getElementById('startBtn').addEventListener('click', ()=>{ track('cta_click',{source:'chat'}); start(); });
+document.getElementById('startBtn').addEventListener('click', ()=>{
+  track('cta_click',{source:'chat'});
+  if(!started) track('consent_accept',{version:CONSENT_VERSION});
+  start();
+});
 
 /* ==================================================================
    NUEVAS INTERACCIONES — Hero Simulator, Síntomas, FAQ, Mobile
