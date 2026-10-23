@@ -911,9 +911,7 @@ function askCurrentTreatment(){
 
 function askRedFlags(){
   setSection('Por tu seguridad');
-  botSay(['Por último, algo de seguridad.', {text:'¿Tienes alguno de estos antecedentes? Marca todo lo que aplique.', cls:'question', more:[
-    {id:'rf_terminos', q:'¿Qué significan algunos términos?', a:'ACV: un derrame o infarto cerebral. Hormono-dependiente: un cáncer que crece con las hormonas, como algunos de mama o de endometrio.'},
-  ]}]).then(()=>{
+  botSay(['Por último, algo de seguridad.', {text:'¿Tienes alguno de estos antecedentes? Marca todo lo que aplique.', cls:'question', info:{id:'rf_terminos', items:glossaryFor('rf_terminos')}}]).then(()=>{
     renderMultiSelect(RED_FLAGS, (selected)=>{
       state.redFlags = selected;
       computeScores();

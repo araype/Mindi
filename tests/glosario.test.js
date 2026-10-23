@@ -3,15 +3,16 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { GLOSSARY, glossaryFor } from '../src/glosario.js';
 
-test('están los cinco términos acordados', () => {
+test('están los términos acordados', () => {
   assert.deepEqual(Object.values(GLOSSARY).map((g) => g.term),
-    ['Histerectomía', 'Perimenopausia', 'Postmenopausia', 'IMC', 'Aura']);
+    ['Histerectomía', 'Perimenopausia', 'Postmenopausia', 'IMC', 'Aura', 'ACV', 'Hormono-dependiente']);
 });
 
 test('cada pregunta trae sus términos', () => {
   assert.deepEqual(glossaryFor('p2').map((g) => g.term), ['Histerectomía', 'Perimenopausia', 'Postmenopausia']);
   assert.deepEqual(glossaryFor('ctx_imc').map((g) => g.term), ['IMC']);
   assert.deepEqual(glossaryFor('ctx_aura').map((g) => g.term), ['Aura']);
+  assert.deepEqual(glossaryFor('rf_terminos').map((g) => g.term), ['ACV', 'Hormono-dependiente']);
   assert.deepEqual(glossaryFor('p3'), []);
 });
 

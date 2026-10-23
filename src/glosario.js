@@ -9,6 +9,9 @@ export const GLOSSARY = {
   postmenopausia: { term: 'Postmenopausia', def: 'Es la etapa que empieza cuando ya pasaron 12 meses seguidos sin regla.' },
   imc: { term: 'IMC', def: 'El índice de masa corporal relaciona tu peso con tu talla: peso en kilos dividido entre la talla en metros al cuadrado. Entre 30 y 40 se considera obesidad.' },
   aura: { term: 'Aura', def: 'Son señales que aparecen antes del dolor de cabeza y duran unos minutos: destellos, luces o líneas en zigzag, o un hormigueo en la cara o la mano.' },
+  // Términos de la pregunta de señales de alerta (solo se explican; la lógica de banderas no cambia).
+  acv: { term: 'ACV', def: 'Un derrame o infarto cerebral.' },
+  hormonodependiente: { term: 'Hormono-dependiente', def: 'Un cáncer que crece con las hormonas, como algunos de mama o de endometrio.' },
 };
 
 /** Términos que explica cada pregunta (id de la pregunta → claves del glosario). */
@@ -16,6 +19,7 @@ export const GLOSSARY_BY_QUESTION = {
   p2: ['histerectomia', 'perimenopausia', 'postmenopausia'],
   ctx_imc: ['imc'],
   ctx_aura: ['aura'],
+  rf_terminos: ['acv', 'hormonodependiente'],
 };
 
 /** id de la pregunta → [{ term, def }] en el orden definido. */
