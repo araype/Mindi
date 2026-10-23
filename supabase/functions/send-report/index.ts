@@ -2,13 +2,12 @@
 //
 // Arma el reporte de UNA sesión ya guardada en Supabase (tablas `sessions` + `leads`)
 // y lo entrega:
-//   - por correo, vía Resend, si el contacto tiene forma de email
-//   - si no (número de WhatsApp), guarda un enlace privado de solo lectura
-//     (tabla `reports`, acceso por token) para que la landing lo muestre con un
-//     botón "Abrir en WhatsApp"
-//   - o, con { download_only: true } en el body, arma solo el PDF y devuelve un enlace
-//     firmado para descargarlo — para quien prefiere no dejar ningún dato de contacto.
-//     No toca las tablas `leads` ni `reports`.
+//   - con { download_only: true } en el body, arma el PDF y devuelve un enlace firmado para
+//     descargarlo. Es lo que ve toda usuaria al terminar, deje o no su correo. El PDF queda en
+//     Storage (download/<session_id>.pdf). No toca las tablas `leads` ni `reports`.
+//   - sin download_only, envía una copia por correo, vía Resend, al contacto guardado en `leads`
+//     (solo si dejó su correo). Ya no se envía por WhatsApp: los enlaces que ya se enviaron por
+//     ese canal (tabla `reports`, channel 'link') siguen abriendo en reporte.html.
 //
 // El navegador nunca ve la service_role key ni la de Resend: esta función corre
 // en el servidor de Supabase, no en el cliente.
@@ -28,7 +27,10 @@ import { encodeBase64 } from 'https://deno.land/std@0.224.0/encoding/base64.ts';
 import {
   levelMessage, AREAS as MRS_AREAS, areaStatus, AREA_TAG, CUTS, CUTS_SOURCE,
   heinemannCategory, HEINEMANN_SOURCE, SKIPPED_INTIMATE_NOTE, SKIPPED_INTIMATE_NOTE_DOCTOR,
+  doctorRecommendation,
 } from '../_shared/mrs.js';
+// Autocuidado: la misma lista que el chat (allí se muestran 2; aquí, todas).
+import { selfCareItems as sharedSelfCareItems, SELF_CARE_SOURCE } from '../_shared/autocuidado.js';
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') ?? '';
 const RESEND_FROM = Deno.env.get('RESEND_FROM') ?? 'Mindi <onboarding@resend.dev>';
@@ -100,31 +102,9 @@ function esc(s: unknown) {
 /* ---------- Contenido compartido entre el HTML (correo/enlace) y el PDF ----------
    Un solo lugar para cada texto: así el correo, la página del enlace y el PDF adjunto
    nunca dicen cosas distintas. Mantener sincronizado con src/main.js. */
-/* Específicas: solo si alguno de sus ítems MRS se respondió con 2-4 (en orden P3→P13).
-   Universales: siempre, al final. P11 no tiene recomendación propia a propósito. */
-const SELF_CARE_SPECIFIC: { ids: string[]; t: string; d: string }[] = [
-  { ids: ['p3'], t: 'Para los bochornos', d: 'ropa en capas de fibras naturales, evitar bebidas muy calientes, café, alcohol y comidas muy condimentadas cuando puedas, y respirar lento y profundo en el momento del calor.' },
-  { ids: ['p4'], t: 'Para las palpitaciones', d: 'evita la cafeína y el alcohol en exceso — pueden intensificar la sensación. Si son muy frecuentes, coméntalo con tu médico(a).' },
-  { ids: ['p5'], t: 'Para las molestias musculares', d: 'estiramientos suaves y calor local pueden ayudar con la rigidez — el ejercicio regular también protege las articulaciones a largo plazo.' },
-  { ids: ['p6'], t: 'Para dormir mejor', d: 'horarios fijos para acostarte, y un ambiente fresco y ventilado.' },
-  { ids: ['p7', 'p8', 'p9'], t: 'Para el ánimo y la irritabilidad', d: 'el ejercicio regular ayuda especialmente aquí — libera endorfinas que estabilizan el ánimo y reducen la irritabilidad.' },
-  { ids: ['p10'], t: 'Para el cansancio', d: 'mantener horarios regulares de sueño y actividad física moderada ayuda a recuperar energía — el sedentarismo tiende a empeorarlo.' },
-  { ids: ['p12'], t: 'Para las molestias al orinar', d: 'los ejercicios de Kegel (fortalecer el piso pélvico) pueden ayudar con la urgencia y los escapes — puedes empezar por tu cuenta, sin receta.' },
-  { ids: ['p13'], t: 'Para la sequedad íntima', d: 'lubricantes o humectantes de base acuosa y pH neutro, sin receta.' },
-];
-const SELF_CARE_UNIVERSAL: [string, string][] = [
-  ['Para la alimentación', 'un patrón mediterráneo: legumbres, frutas, verduras, pescado y aceite de oliva.'],
-  ['Para el cuerpo en general', 'unos 150 minutos a la semana de actividad moderada (caminar rápido, nadar, bailar) — ayuda con el sueño, el ánimo y los huesos a la vez.'],
-  ['Para los huesos', '1,200 mg de calcio al día (dieta o suplementos) y al menos 800 UI de vitamina D — coméntalo con tu médico(a) antes de tomar suplementos.'],
-];
 function selfCareItems(session: Record<string, any>): [string, string][] {
-  const answers = session.answers || {};
-  const specific = SELF_CARE_SPECIFIC
-    .filter((s) => s.ids.some((id) => answers[id] != null && answers[id] >= 2))
-    .map((s) => [s.t, s.d] as [string, string]);
-  return [...specific, ...SELF_CARE_UNIVERSAL];
+  return sharedSelfCareItems(session.answers || {});
 }
-const SELF_CARE_SOURCE = 'Guía de Práctica Clínica para Diagnóstico y Tratamiento del Climaterio, Hospital Nacional Hipólito Unanue (RD N° 211-2024-DG/HNHU), sección 6.4.1 · dato inicial: Ayala-Peralta, 2020.';
 
 const CONSULT_GENERIC = [
   '¿Qué opciones de tratamiento, hormonales y no hormonales, tendrían sentido para mi caso?',
@@ -189,7 +169,7 @@ function meterBar(pct: number, color: string) {
 }
 
 /* Autocuidado seguro para cualquier nivel (A/B/C) — no reemplaza tratamiento.
-   Mismo contenido que src/main.js (selfCareCard) — mantener sincronizado. */
+   La lista viene de _shared/autocuidado.js, igual que en el chat. */
 function selfCareFragment(session: Record<string, any>) {
   const rows = selfCareItems(session).map(([t, d]) => `<li style="margin:6px 0;"><b>${t}:</b> ${d}</li>`).join('');
   return `<h2 style="font-family:Georgia,serif;font-size:18px;margin:24px 0 4px;">Algunas cosas que pueden ayudarte</h2>
@@ -209,6 +189,11 @@ function consultFragment(pts: string[]) {
       `<p style="color:#5F5F57;font-size:12px;margin-top:8px;">${CONSULT_SOURCE}</p>`;
   }
   return html;
+}
+
+/** Recomendación de ir al médico (_shared/mrs.js), justo después del título: mismo texto que el chat. */
+function doctorRecoHtml(level: string) {
+  return `<div style="background:#FFF6EE;border-left:4px solid #D33D17;border-radius:8px;padding:12px 14px;margin:4px 0 14px;font-weight:600;color:#1B1B19;">${esc(doctorRecommendation(level))}</div>`;
 }
 
 /** Badge del nivel (mismo texto que en el chat). */
@@ -237,6 +222,7 @@ function buildFragment(session: Record<string, any>, lead: Record<string, any>) 
       <p style="color:#5F5F57;font-size:13px;">Esto no reemplaza la valoración de un profesional de salud.</p>
       ${badgeHtml(lvl.badge)}
       <h2 style="font-family:Georgia,serif;font-size:18px;margin:8px 0 4px;">${lvl.title}</h2>
+      ${doctorRecoHtml(session.level)}
       <p>De todas formas, esto es lo que notamos en el resto de tus respuestas.</p>
       ${lvl.paragraphs.map((t: string) => `<p>${t}</p>`).join('')}`;
   } else {
@@ -244,6 +230,7 @@ function buildFragment(session: Record<string, any>, lead: Record<string, any>) 
     opening = `
       ${badgeHtml(lvl.badge)}
       <h1 style="font-family:Georgia,serif;font-size:24px;margin:8px 0 12px;">${lvl.title}</h1>
+      ${doctorRecoHtml(session.level)}
       <p>${greeting} Esto es lo que noté en lo que me contaste.</p>
       ${lvl.paragraphs.map((t: string) => `<p>${t}</p>`).join('')}`;
   }
@@ -252,7 +239,7 @@ function buildFragment(session: Record<string, any>, lead: Record<string, any>) 
   const areasHtml = AREAS.map((a) => {
     const v = session[a.key] ?? 0;
     const status = areaStatus(a.key.replace('score_', ''), v, skipped) as 'over' | 'under' | 'incomplete';
-    const pct = Math.max(4, Math.round((v / a.max) * 100));
+    const pct = Math.round((v / a.max) * 100);
     const label = `<span style="font-weight:600;font-size:15px;">${a.label}</span>`;
     const tag = `<span style="color:${AREA_COLOR[status]};font-weight:600;font-size:14px;">${AREA_TAG.user[status]}</span>`;
     return `<div style="margin:14px 0;">
@@ -433,6 +420,8 @@ async function buildPdf(session: Record<string, any>, lead: Record<string, any>)
     const lvl = levelMessage(sessionScores(session));
     para(lvl.badge.toUpperCase(), { size: 8, f: bold, color: PDF_COLOR.inkSoft, gap: 0 });
     heading(lvl.title, 16);
+    // Recomendación de ir al médico: lo primero después del título, como en el chat y el correo.
+    para(doctorRecommendation(session.level), { f: bold, color: PDF_COLOR.action, gap: 8 });
     para(isAlert ? 'De todas formas, esto es lo que notamos en el resto de tus respuestas.' : `${greeting} Esto es lo que noté en lo que me contaste.`);
     for (const t of lvl.paragraphs) para(t);
 
@@ -446,7 +435,7 @@ async function buildPdf(session: Record<string, any>, lead: Record<string, any>)
     for (const a of AREAS) {
       const v = session[a.key] ?? 0;
       const status = areaStatus(a.key.replace('score_', ''), v, skipped) as 'over' | 'under' | 'incomplete';
-      const pct = Math.max(0.04, v / a.max);
+      const pct = v / a.max;
       const tagColor = status === 'over' ? PDF_COLOR.action : status === 'under' ? PDF_COLOR.calm : PDF_COLOR.inkSoft;
       const tagText = AREA_TAG.user[status];
       ensure(28);
@@ -601,9 +590,12 @@ Deno.serve(async (req) => {
     return json({ ok: true, already_sent: true, channel: existing.channel });
   }
 
-  const fragment = buildFragment(session, lead);
+  // El reporte ya no se envía por WhatsApp: el contacto tiene que ser un correo. Los enlaces
+  // de WhatsApp que ya se enviaron siguen abriendo (ver `existing` arriba y reporte.html).
   const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(lead.contact);
-  const channel = isEmail ? 'email' : 'link';
+  if (!isEmail) return json({ error: 'El reporte solo se envía por correo' }, 400);
+  const fragment = buildFragment(session, lead);
+  const channel = 'email';
 
   const { data: report, error: rErr } = await supabase
     .from('reports')
@@ -612,8 +604,7 @@ Deno.serve(async (req) => {
     .single();
   if (rErr) return json({ error: rErr.message }, 500);
 
-  // El PDF es un extra en ambos canales: si por lo que sea falla al armarse o subirse,
-  // seguimos igual (correo sin adjunto / enlace de WhatsApp sin el PDF).
+  // El PDF es un extra: si por lo que sea falla al armarse, el correo sale igual, sin adjunto.
   let pdfBytes: Uint8Array | undefined;
   try {
     pdfBytes = await buildPdf(session, lead);
@@ -621,36 +612,23 @@ Deno.serve(async (req) => {
     console.error('No se pudo generar el PDF:', e);
   }
 
-  if (isEmail) {
-    if (!RESEND_API_KEY) return json({ error: 'RESEND_API_KEY no configurada' }, 500);
-    const attachments = pdfBytes ? [{ filename: 'reporte-mindi.pdf', content: encodeBase64(pdfBytes) }] : undefined;
+  if (!RESEND_API_KEY) return json({ error: 'RESEND_API_KEY no configurada' }, 500);
+  const attachments = pdfBytes ? [{ filename: 'reporte-mindi.pdf', content: encodeBase64(pdfBytes) }] : undefined;
 
-    const r = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        from: RESEND_FROM, to: lead.contact, subject: 'Tu reporte de Mindi',
-        html: wrapForEmail(fragment, !!attachments),
-        ...(attachments ? { attachments } : {}),
-      }),
-    });
-    if (!r.ok) {
-      const errText = await r.text();
-      await supabase.from('reports').update({ status: 'failed', error: errText.slice(0, 500) }).eq('id', report.id);
-      return json({ error: 'No se pudo enviar el correo' }, 502);
-    }
-    await supabase.from('reports').update({ status: 'sent', sent_at: new Date().toISOString() }).eq('id', report.id);
-    return json({ ok: true, channel: 'email' });
+  const r = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      from: RESEND_FROM, to: lead.contact, subject: 'Tu reporte de Mindi',
+      html: wrapForEmail(fragment, !!attachments),
+      ...(attachments ? { attachments } : {}),
+    }),
+  });
+  if (!r.ok) {
+    const errText = await r.text();
+    await supabase.from('reports').update({ status: 'failed', error: errText.slice(0, 500) }).eq('id', report.id);
+    return json({ error: 'No se pudo enviar el correo' }, 502);
   }
-
-  // Canal WhatsApp: subir el PDF al bucket privado (si se generó) antes de armar la respuesta.
-  if (pdfBytes) {
-    const { error: upErr } = await supabase.storage.from('reports').upload(`${report.token}.pdf`, pdfBytes, {
-      contentType: 'application/pdf', upsert: true,
-    });
-    if (upErr) console.error('No se pudo subir el PDF a Storage:', upErr.message);
-  }
-
   await supabase.from('reports').update({ status: 'sent', sent_at: new Date().toISOString() }).eq('id', report.id);
-  return json(await linkPayload(report.token));
+  return json({ ok: true, channel: 'email' });
 });

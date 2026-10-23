@@ -150,3 +150,19 @@ export function computeLevel(scores) {
     || (s.urogenital || 0) >= CUTS.urogenital) return 'B';
   return 'A';
 }
+
+/** Recomendación de ir al médico, lo primero que se ve después del título del resultado
+ *  (chat, correo y PDF). TEXTOS PENDIENTES DE VALIDAR con una especialista: se editan solo aquí.
+ *  'alert' (marcó una señal de alerta) repite la indicación del aviso de seguridad, para que
+ *  el bloque no diga "en tu próximo control" justo después de "agenda una cita pronto". */
+export const DOCTOR_RECOMMENDATION = {
+  A: 'Puedes comentarlo en tu próximo control ginecológico.',
+  B: 'Te recomendamos agendar una consulta con tu ginecóloga u obstetra en las próximas semanas. Lleva tu reporte.',
+  C: 'Te recomendamos consultar pronto con un especialista. Lleva tu reporte.',
+  alert: 'Por las señales que marcaste, agenda una cita ginecológica lo antes posible. Lleva tu reporte.',
+};
+
+/** level: 'A' | 'B' | 'C' | 'alert' (el guardado en sessions) → texto de la recomendación. */
+export function doctorRecommendation(level) {
+  return DOCTOR_RECOMMENDATION[level] || DOCTOR_RECOMMENDATION.A;
+}

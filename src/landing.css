@@ -1427,6 +1427,80 @@ a { color: inherit; }
   font-size: 13px;
 }
 
+/* Desplegables dentro de una pregunta: ejemplo ("¿Qué significa esto?") y glosario. */
+.bubble details.more { margin-top: 6px; font-weight: 400; }
+.bubble details.more summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 32px;
+  cursor: pointer;
+  list-style: none;
+  font-size: 13px;
+  color: var(--brand-secondary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.bubble details.more summary::-webkit-details-marker { display: none; }
+.bubble details.more summary::after { content: '+'; font-weight: 500; text-decoration: none; }
+.bubble details.more[open] summary::after { content: '–'; }
+.bubble .more-body {
+  display: block;
+  padding-bottom: 2px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+
+/* Avisos y formularios dentro del chat */
+.composer-inline .hint { margin: 8px 2px 0; font-size: 12.5px; line-height: 1.45; color: var(--ink-soft); }
+.composer-inline .hint.err { color: var(--alert-text); font-weight: 500; }
+.email-offer .opt {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 10px 2px 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.email-offer .opt input { width: 18px; height: 18px; margin: 1px 0 0; flex: none; accent-color: var(--brand-secondary); }
+.email-offer .chips { margin-top: 12px; }
+
+/* Recomendación de ir al médico: lo primero después del título del resultado. */
+.card .doctor-reco {
+  margin: 4px 0 12px;
+  padding: 10px 12px;
+  border-left: 4px solid var(--action-primary);
+  border-radius: 8px;
+  background: var(--white);
+  color: var(--ink);
+  font-weight: 500;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+/* Consejos del chat: uno por línea. */
+.card-list.tips { gap: 4px; color: var(--calm-text); }
+
+/* Reporte dentro del chat */
+.card .report-actions { margin: 10px 0 4px; display: flex; flex-wrap: wrap; gap: 8px; }
+.card .report-actions a[aria-disabled="true"] { opacity: 0.6; pointer-events: none; }
+.card .report-inapp { margin: 8px 0 0; font-size: 12.5px; line-height: 1.45; color: var(--report-text); }
+.report-full { margin-top: 14px; color: var(--ink); }
+.report-full section {
+  margin-top: 10px;
+  padding: 12px 14px;
+  background: var(--white);
+  border-radius: var(--r-s);
+}
+.report-full h3 { color: var(--ink); }
+.report-answers { list-style: none; margin: 4px 0 0 !important; gap: 2px !important; }
+.report-answers li { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0 !important; border-bottom: 1px solid var(--sand-200); }
+.report-answers li:last-child { border-bottom: 0; }
+.report-answers li span:last-child { color: var(--ink-soft); text-align: right; }
+
 @keyframes pop {
   from { opacity: 0; transform: translateY(12px) scale(0.98); }
   to   { opacity: 1; transform: none; }
@@ -1615,6 +1689,8 @@ a { color: inherit; }
 }
 .chat-start h3 { font-size: 20px; margin-bottom: 8px; font-weight: 500; }
 .chat-start p { color: var(--ink-soft); margin-bottom: 18px; font-size: 14px; }
+.chat-start .consent-text { font-size: 12.5px; line-height: 1.5; text-align: left; margin-bottom: 16px; }
+.chat-start .consent-text a, .consent-inline a { color: var(--brand-secondary); text-decoration: underline; text-underline-offset: 2px; }
 
 /* ==================================================================
    Resultados Clínicos del Chat: Tarjetas Individuales y Gráficos
