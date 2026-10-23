@@ -2373,3 +2373,8 @@ body.no-scroll { overflow: hidden; }
 .bubble .info-panel p { margin: 0; }
 .bubble .info-panel p + p { margin-top: 6px; }
 .bubble .info-panel strong { color: var(--ink); font-weight: 500; }
+
+/* Botones ocultos hasta que haya un enlace (p. ej. "Tengo una duda" sin número configurado). */
+.btn[hidden] { display: none; }
+/* Enlaces dentro de una tarjeta del chat (canal de tips). */
+.card p a { color: inherit; font-weight: 500; text-decoration: underline; text-underline-offset: 2px; }

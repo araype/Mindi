@@ -32,3 +32,14 @@ test('las variables usan el prefijo VITE_, como el resto del proyecto en Vercel'
     assert.doesNotMatch(await read(f), /NEXT_PUBLIC_/, f);
   }
 });
+
+test('canal de tips: solo enlaces de whatsapp.com/channel; vacío u otro dominio no se muestra', async () => {
+  const { channelUrl } = await import('../src/whatsapp.js');
+  const ok = 'https://whatsapp.com/channel/0029VbDoxy6I1rchcFrvEC0B';
+  assert.equal(channelUrl(ok), ok);
+  assert.equal(channelUrl(` ${ok} `), ok);
+  assert.equal(channelUrl(''), null);
+  assert.equal(channelUrl(undefined), null);
+  assert.equal(channelUrl('https://ejemplo.com/channel/abc'), null);
+  assert.equal(channelUrl('javascript:alert(1)'), null);
+});
