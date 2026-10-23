@@ -46,13 +46,17 @@ export function selfCareItems(answers) {
   return [...specific, ...SELF_CARE_UNIVERSAL].map((s) => [s.t, s.d]);
 }
 
-/** Área más afectada: la de mayor puntaje en proporción a su corte (empate: cuerpo, ánimo, íntimo).
- *  null si todas están en 0. */
+/** Área más afectada, con la MISMA regla que el agente de Mindi (Mindi_agents, lectura_mrs):
+ *  entre las áreas que alcanzan su corte, la de mayor puntaje en proporción a su máximo
+ *  (la urogenital tiene menos ítems). Empate: cuerpo, ánimo, íntimo. null si ninguna alcanza el corte. */
+const MAX = { somatico: 16, psicologico: 16, urogenital: 12 };
 export function mostAffectedArea(scores) {
   let best = null;
   for (const key of Object.keys(SUBSCALES)) {
-    const ratio = (scores?.[key] || 0) / CUTS[key];
-    if (ratio > 0 && (!best || ratio > best.ratio)) best = { key, ratio };
+    const v = scores?.[key] || 0;
+    if (v < CUTS[key]) continue;
+    const ratio = v / MAX[key];
+    if (!best || ratio > best.ratio) best = { key, ratio };
   }
   return best && best.key;
 }

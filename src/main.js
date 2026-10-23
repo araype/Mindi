@@ -2,7 +2,7 @@ import './landing.css';
 // Puntaje MRS y cortes de la Guía HNHU: un solo módulo compartido con send-report y los tests.
 import {
   computeScores as mrsScores, computeLevel as mrsLevel, levelMessage, CUTS,
-  AREAS, areaStatus, AREA_TAG, SKIPPED_INTIMATE_NOTE, doctorRecommendation,
+  AREAS, areaStatus, AREA_TAG, SKIPPED_INTIMATE_NOTE, doctorRecommendation, EMERGENCY_NOW,
 } from '../supabase/functions/_shared/mrs.js';
 import { selfCareItems, SELF_CARE_SOURCE } from '../supabase/functions/_shared/autocuidado.js';
 import { stageFilter, STAGE_EXIT } from './etapa.js';
@@ -1025,7 +1025,7 @@ function showSafetyMessage(){
     if(hasEmergency){
       await revealCard(
         '<h3>No estás sola en esto</h3>Marcaste algo que conviene revisar cuanto antes.' +
-        '<div class="emergency">Si en este momento tienes dolor de pecho intenso o te falta el aire de repente, no esperes: busca atención médica ya.</div>' +
+        `<div class="emergency">${EMERGENCY_NOW}</div>` +
         'Para el resto de señales que marcaste, agenda una cita ginecológica lo antes posible.' +
         '<br><br>Esto no reemplaza la valoración de un profesional de salud.', 'notice');
     } else {
