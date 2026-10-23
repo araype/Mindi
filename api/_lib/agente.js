@@ -57,7 +57,7 @@ export function extractReply(events) {
 }
 
 /** Llama al agente. fetchImpl permite probarlo sin red. Lanza Error('agent_unavailable') si falla. */
-export async function callAgent({ agentUrl, action, session, resultado, text }, fetchImpl = fetch, timeoutMs = 45000, retryDelayMs = 1000) {
+export async function callAgent({ agentUrl, action, session, resultado, text }, fetchImpl = fetch, timeoutMs = 25000, retryDelayMs = 1000) {
   const base = String(agentUrl || '').replace(/\/$/, '');
   if (!base) throw new Error('agent_not_configured');
   const ctrl = new AbortController();

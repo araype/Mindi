@@ -114,6 +114,22 @@ borra solo:
 Hay que programar una limpieza (por ejemplo, una tarea programada en Supabase) antes de octubre
 de 2028, cuando se cumplen 2 años de los primeros datos, para cumplir la política.
 
+### Pendientes del chat con el agente de IA (bloque 5)
+
+- **Cloud Run es público.** El agente (`mindi-agent`, us-central1) acepta llamadas de cualquiera
+  que tenga su URL, sin pasar por la web, y cada una gasta crédito de OpenAI. Pasarlo a privado
+  (solo una cuenta de servicio con `roles/run.invoker`) y que `api/agent.js` llame con esa
+  credencial.
+- **Clics de WhatsApp desde el chat del agente.** Se registran como `whatsapp_click {origen:
+  "agente"}` (el botón solo aparece si el agente falla o no responde a tiempo), pero la tarjeta
+  "Clics en WhatsApp" del panel todavía no los cuenta: falta un SQL que agregue
+  `whatsapp_agente` a `panel_stats` (como 016).
+- **El agente no usa el resultado ante preguntas generales.** Con `resultado_mrs` en la sesión,
+  a "¿Qué me recomiendas hacer?" responde como si no hubiera test (en B: "no has compartido
+  detalles"; con señal de alerta: "si ya hiciste el test…"), aunque su lectura trae el nivel y la
+  recomendación que vio la usuaria. Revisarlo en Mindi_agents (instrucción del coordinador y un
+  caso nuevo en el banco de evals).
+
 ## Index
 
 - `styles.css` — root stylesheet, imports everything below

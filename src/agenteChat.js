@@ -1,6 +1,7 @@
 // Mindi · Chat con el agente de IA (bloque 5). Solo existe si VITE_AGENT_CHAT_ENABLED = 'true'.
 //
 // Dos puertas: después del resultado del test (con resultado_mrs) y desde la landing (sin test).
+// Todas las consultas van al agente: WhatsApp aparece solo si el agente falla o no responde a tiempo.
 // Habla solo con /api/agent (servidor); nunca con Cloud Run directo. No guarda la conversación:
 // se mide con eventos sin texto (agent_open, agent_consent, agent_message {area}, agent_error,
 // test_invite_click).
@@ -12,6 +13,8 @@ const GREETING = {
   landing: 'Cuéntame tu duda sobre la perimenopausia o la menopausia.',
 };
 const ERROR_TEXT = 'Ahora no puedo responder. Intenta de nuevo en unos minutos, o escríbele al equipo de Mindi.';
+/* Si el agente no responde en este tiempo, se trata como falla: aparece el botón de WhatsApp. */
+export const REPLY_TIMEOUT_MS = 30000;
 const LIMIT_TEXT = 'Llegaste al límite de esta conversación. Si tienes más dudas, escríbele al equipo de Mindi.';
 export const MAX_MESSAGES = 30;
 
@@ -51,7 +54,6 @@ export function createAgentChat({ track, newId, whatsappLink, onStartTest }) {
           <input type="text" maxlength="1000" placeholder="Escribe tu pregunta" aria-label="Escribe tu pregunta" autocomplete="off">
           <button class="sendBtn" type="submit" aria-label="Enviar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h15M13 6l6 6-6 6"/></svg></button>
         </form>
-        <p class="agent-foot">¿Prefieres hablar con una persona? ${whatsappLink('agente', 'Escríbele al equipo de Mindi')}</p>
       </div>`;
     document.body.appendChild(el);
     log = el.querySelector('.agent-log');
@@ -93,10 +95,19 @@ export function createAgentChat({ track, newId, whatsappLink, onStartTest }) {
   }
 
   async function api(body) {
-    const r = await fetch('/api/agent', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-    const data = await r.json().catch(() => ({}));
-    if (!r.ok) { const err = new Error(data.error || 'agent_unavailable'); err.status = r.status; throw err; }
-    return data;
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), REPLY_TIMEOUT_MS);
+    try {
+      const r = await fetch('/api/agent', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: ctrl.signal });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) { const err = new Error(data.error || 'agent_unavailable'); err.status = r.status; throw err; }
+      return data;
+    } catch (e) {
+      if (ctrl.signal.aborted) { const err = new Error('timeout'); err.status = 408; throw err; } // no respondió a tiempo
+      throw e;
+    } finally {
+      clearTimeout(timer);
+    }
   }
   async function ensureSession(fresh) {
     if (started && !fresh) return;

@@ -2437,7 +2437,6 @@ body.no-scroll { overflow: hidden; }
 .agent-log .bubble .chips { margin-top: 10px; }
 .agent-log .agent-notice { background: var(--notice-bg); border-color: var(--notice-border); color: var(--notice-text); }
 .agent-log .wa-btn { margin-top: 10px; }
-.agent-input { padding: 10px 16px 6px; background: var(--white); border-top: 1px solid var(--border); }
+.agent-input { padding: 10px 16px 12px; background: var(--white); border-top: 1px solid var(--border); }
 .agent-input[hidden] { display: none; }
-.agent-foot { margin: 0; padding: 4px 16px 12px; background: var(--white); font-size: 12.5px; line-height: 1.5; text-align: center; color: var(--ink-soft); }
 .agent-wa-link { color: var(--brand-secondary); text-decoration: underline; text-underline-offset: 2px; }
