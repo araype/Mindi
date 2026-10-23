@@ -7,7 +7,7 @@ import {
 import { selfCareItems, SELF_CARE_SOURCE } from '../supabase/functions/_shared/autocuidado.js';
 import { whyNotes, WHY_TITLE } from '../supabase/functions/_shared/notas.js';
 import { stageFilter, STAGE_EXIT } from './etapa.js';
-import { whatsappUrl, WHATSAPP_TEXT } from './whatsapp.js';
+import { whatsappUrl, WHATSAPP_TEXT, channelUrl } from './whatsapp.js';
 import { glossaryFor } from './glosario.js';
 
 /* ---------- Medición (hooks listos para conectar a analítica real) ---------- */
@@ -98,7 +98,27 @@ function whatsappButton(origen, label = 'Escríbele al equipo de Mindi'){
 document.addEventListener('click', (e)=>{
   const a = e.target.closest && e.target.closest('[data-wa-origen]');
   if(a) track('whatsapp_click', {origen:a.dataset.waOrigen});
+  const c = e.target.closest && e.target.closest('[data-channel]');
+  if(c) track('channel_click', {desde:c.dataset.channel});
 });
+
+/* Landing: "Tengo una duda" junto al botón del test, solo si hay número configurado. */
+const heroWa = document.getElementById('heroWa');
+if(heroWa){
+  const url = whatsappUrl(WHATSAPP_NUMBER, WHATSAPP_TEXT.landing);
+  if(url){ heroWa.href = url; heroWa.hidden = false; }
+}
+
+/* Invitación al canal de tips al final del flujo (VITE_WHATSAPP_CHANNEL_URL). Sin enlace válido,
+   no se muestra. Los clics se registran como channel_click {desde}, aparte de whatsapp_click. */
+const CHANNEL_URL = channelUrl(import.meta.env.VITE_WHATSAPP_CHANNEL_URL);
+function channelInvite(desde){
+  if(!CHANNEL_URL) return Promise.resolve();
+  return revealCard(
+    `<p>¿Quieres seguir aprendiendo sobre esta etapa? Síguenos en ` +
+    `<a href="${CHANNEL_URL}" target="_blank" rel="noopener" data-channel="${desde}">nuestro canal de WhatsApp</a> ` +
+    `para recibir tips de bienestar cada semana.</p>`, 'calm', 400);
+}
 
 function saveSession(level){
   const s = state.scores;
@@ -814,10 +834,10 @@ function askInterest(segment){
       if(val){
         sb('interest_signups', {contact:val, segment, consent:true, consent_text_version:CONSENT_VERSION, is_test:TEST_MODE});
         track('interest_signup', {segment});
-        botSay(['Listo, te avisaremos. Cuídate.']);
+        botSay(['Listo, te avisaremos. Cuídate.']).then(()=> channelInvite('filtro'));
       } else {
         track('interest_skip', {segment});
-        botSay(['Está bien. Cuídate mucho.']);
+        botSay(['Está bien. Cuídate mucho.']).then(()=> channelInvite('filtro'));
       }
     });
   });
@@ -1179,7 +1199,7 @@ function showReport(){
     ? `<p class="report-inapp">Si la descarga no abre aquí, abre esta página en tu navegador (menú ··· › Abrir en el navegador) o recíbelo en tu correo.</p>` : '';
   revealCard(
     `<h3>Tu reporte</h3><p class="card-note">Todo lo que vimos, para llevarlo a tu consulta.</p>` +
-    `<div class="report-actions"><a class="btn btn-sm" id="${id}" aria-disabled="true">Preparando tu PDF…</a></div>` +
+    `<div class="report-actions"><a class="btn btn-sm" id="${id}" aria-disabled="true">Preparando tu PDF…</a>${whatsappButton('resultado', 'Tengo una duda sobre mi resultado')}</div>` +
     inApp + reportFullHtml(), 'report'
   ).then(()=>{
     track('report_shown', {in_app: IN_APP_BROWSER});
@@ -1212,7 +1232,7 @@ function askEmailCopy(){
       `<div class="inputRow"><input type="email" name="email" placeholder="correo@ejemplo.com" autocomplete="email" aria-label="Tu correo">` +
       `<button type="submit" class="sendBtn" aria-label="Enviarme una copia">${ICON_SEND}</button></div>` +
       `<p class="hint">Usaremos tu correo solo para enviarte una copia de tu reporte.</p>` +
-      `<label class="opt"><input type="checkbox" name="news"><span>(Opcional) Avísenme por correo cuando lancen el acompañamiento de Mindi.</span></label>` +
+      `<label class="opt"><input type="checkbox" name="news"><span>(Opcional) También quiero que Mindi me avise por correo cuando lance su acompañamiento.</span></label>` +
       `<label class="opt"><input type="checkbox" name="research"><span>(Opcional) Acepto que mis respuestas, sin mi nombre ni mi contacto, se usen para mejorar Mindi y para estudios sobre la menopausia.</span></label>` +
       `<div class="chips suggestRow"><button type="button" class="chip quiet" data-skip>No, gracias</button></div>`;
     composer.appendChild(form);
@@ -1267,7 +1287,7 @@ function askSatisfaction(){
       const reply = score >= 3 ? 'Qué bueno, gracias por contarme.'
         : score === 2 ? 'Gracias, lo tomo en cuenta.'
         : 'Gracias, de verdad ayuda a mejorar.';
-      botSay([reply, 'Fue un gusto. Cuídate mucho.']);
+      botSay([reply, 'Fue un gusto. Cuídate mucho.']).then(()=> channelInvite('final'));
     });
   });
 }

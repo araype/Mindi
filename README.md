@@ -100,6 +100,20 @@ No source component library was attached, so this is a standard set sized to wha
 - A defined escalation policy — when Mindi should point a user to a real healthcare professional.
 - Preferred icon library (Lucide/Phosphor/custom) to replace the hand-built substitute set.
 
+### Pendiente: limpieza automática a los 2 años (antes de octubre de 2028)
+
+La política de privacidad publicada promete conservar las respuestas del test y el reporte en
+PDF por 2 años (y el nombre y el correo también 2 años; los datos de uso, 1 año). Hoy nada los
+borra solo:
+
+- `sessions` y `leads`: filas con más de 2 años.
+- Storage, bucket `reports`: los PDF de `download/<session_id>.pdf` (se guardan aunque la usuaria
+  no deje su correo) y los de los enlaces antiguos de WhatsApp.
+- `events`: filas con más de 1 año.
+
+Hay que programar una limpieza (por ejemplo, una tarea programada en Supabase) antes de octubre
+de 2028, cuando se cumplen 2 años de los primeros datos, para cumplir la política.
+
 ## Index
 
 - `styles.css` — root stylesheet, imports everything below

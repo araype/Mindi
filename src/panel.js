@@ -209,6 +209,13 @@ function render(f, at, filtered){
     ['No lo probaría', f.precio_no, 'var(--div-neg)'],
   ]);
 
+  // WhatsApp complementa al test: solo el total de clics por origen, sin compararlo con el test.
+  renderSplit($('splitWhatsapp'), 'Clics en WhatsApp', 'Cuántas veces tocaron el botón, según desde dónde (clics, no personas).', [
+    ['Landing ("Tengo una duda")', f.whatsapp_landing, 'var(--cat-1)'],
+    ['Resultado del test', f.whatsapp_resultado, 'var(--cat-2)'],
+    ['Salida del filtro de etapa', f.whatsapp_filtro, 'var(--cat-3)'],
+  ], f.whatsapp_landing == null ? 'Corre supabase/016_whatsapp_clicks.sql para ver estos clics.' : null);
+
   renderSplit($('splitSat'), 'Satisfacción', 'Qué tan útil les pareció la conversación.', [
     ['Alta', f.satisfaccion_alta, 'var(--div-pos)'],
     ['Neutra', f.satisfaccion_neutra, 'var(--div-mid)'],

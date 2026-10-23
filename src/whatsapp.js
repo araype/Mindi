@@ -14,3 +14,10 @@ export function whatsappUrl(number, text) {
   if (!digits) return null;
   return `https://wa.me/${digits}?text=${encodeURIComponent(text)}`;
 }
+
+/** Canal de tips (VITE_WHATSAPP_CHANNEL_URL): solo un enlace https de whatsapp.com/channel/.
+ *  Cualquier otro valor (vacío, otro dominio) → null, y la invitación no se muestra. */
+export function channelUrl(url) {
+  const u = String(url || '').trim();
+  return /^https:\/\/(www\.)?whatsapp\.com\/channel\/[A-Za-z0-9]+$/.test(u) ? u : null;
+}
