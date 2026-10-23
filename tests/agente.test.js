@@ -34,7 +34,7 @@ test('respuesta del agente: el último texto y el área que respondió', () => {
     { author: 'mindi', content: { parts: [{ functionCall: { name: 'transfer_to_agent' } }] } },
     { author: 'hormonal', content: { parts: [{ text: 'Los bochornos ' }, { text: 'son frecuentes.' }] } },
   ];
-  assert.deepEqual(extractReply(events), { text: 'Los bochornos son frecuentes.', area: 'hormonal' });
+  assert.deepEqual(extractReply(events), { text: 'Los bochornos son frecuentes.', area: 'hormonal', offerTest: false });
   assert.equal(extractReply([]), null);
   assert.equal(extractReply({}), null);
 });
@@ -85,7 +85,7 @@ test('la ruta rechaza lo que no debe llegar al agente', async () => {
 });
 
 test('el texto del agente se muestra sin HTML propio: solo párrafos, viñetas y negrita', async () => {
-  const { agentHtml } = await import('../src/agenteChat.js');
+  const { agentHtml } = await import('../src/agente.js');
   assert.equal(agentHtml('Hola **Ana**.\n\nOtra idea'), '<p>Hola <strong>Ana</strong>.</p><p>Otra idea</p>');
   assert.equal(agentHtml('- uno\n- dos'), '<ul><li>uno</li><li>dos</li></ul>');
   assert.equal(agentHtml('<img src=x onerror=alert(1)>'), '<p>&lt;img src=x onerror=alert(1)&gt;</p>');
@@ -100,4 +100,41 @@ test('si el agente falla al despertar (5xx), se reintenta una sola vez', async (
   const g = fakeFetch(() => json(400, {}));
   await assert.rejects(callAgent({ agentUrl: 'https://a.test', action: 'message', session: SESSION, text: 'hola' }, g, 45000, 0), /agent_unavailable/);
   assert.equal(g.calls.length, 1); // ante 4xx no se reintenta
+});
+
+test('el agente ofrece el test: se detecta la herramienta ofrecer_test', async () => {
+  const { OFFER_TEST_TOOL } = await import('../api/_lib/agente.js');
+  const events = [
+    { author: 'mindi', content: { parts: [{ functionCall: { name: OFFER_TEST_TOOL, args: {} } }] } },
+    { author: 'mindi', content: { parts: [{ functionResponse: { name: OFFER_TEST_TOOL, response: {} } }] } },
+    { author: 'mindi', content: { parts: [{ text: 'Para orientarte mejor, puedes hacer el test.' }] } },
+  ];
+  assert.equal(extractReply(events).offerTest, true);
+  assert.equal(extractReply(events.slice(0, 2)).offerTest, true); // solo la herramienta, sin texto
+});
+
+test('cliente del chat: crea la sesión con el resultado, y una nueva si el resultado cambia', async () => {
+  const { createAgentClient } = await import('../src/agente.js');
+  const calls = [];
+  const fetchImpl = async (url, init) => {
+    const b = JSON.parse(init.body); calls.push(b);
+    return { ok: true, status: 200, json: async () => (b.action === 'message' ? { text: 'ok', area: 'coordinador', offerTest: false } : { ok: true }) };
+  };
+  let n = 0;
+  const c = createAgentClient({ newId: () => `00000000-0000-4000-8000-00000000000${++n}`, fetchImpl });
+  await c.ask('hola');
+  await c.ask('otra');
+  const r = { total: 9, somatico: 4, psicologico: 3, urogenital: 2, senal_alerta: false };
+  c.setResult(r);
+  await c.ask('¿y mi resultado?');
+  assert.deepEqual(calls.map((x) => x.action), ['start', 'message', 'message', 'start', 'message']);
+  assert.equal(calls[0].resultado_mrs, undefined);
+  assert.deepEqual(calls[3].resultado_mrs, r);
+});
+
+test('cliente del chat: si el agente no responde a tiempo, falla con 408', async () => {
+  const { createAgentClient } = await import('../src/agente.js');
+  const fetchImpl = (url, init) => new Promise((res, rej) => init.signal.addEventListener('abort', () => rej(new Error('abort'))));
+  const c = createAgentClient({ newId: () => SESSION, fetchImpl, timeoutMs: 20 });
+  await assert.rejects(c.ask('hola'), (e) => e.status === 408);
 });

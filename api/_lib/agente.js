@@ -9,6 +9,9 @@
 // (Carpeta _lib: Vercel no la publica como ruta.)
 
 export const APP_NAME = 'mindi_agent';
+/* Herramienta con la que el agente ofrece hacer el test: la web muestra "Hacer mi test aquí".
+   Nombre provisional hasta que el agente la despliegue: se cambia solo aquí. */
+export const OFFER_TEST_TOOL = 'ofrecer_test';
 export const MAX_TEXT = 1000;
 
 /* Áreas del agente (author de cada respuesta) → nombre corto para la analítica. */
@@ -44,16 +47,18 @@ export function cleanText(t) {
   return s && s.length <= MAX_TEXT ? s : null;
 }
 
-/** Eventos de /run → { text, area } de la última respuesta con texto del agente. */
+/** Eventos de /run → { text, area, offerTest }: la última respuesta con texto del agente, y si en
+ *  este turno llamó a la herramienta que ofrece el test. null si no hay ni texto ni oferta. */
 export function extractReply(events) {
   if (!Array.isArray(events)) return null;
+  const partsOf = (e) => (e && e.content && e.content.parts) || [];
+  const offerTest = events.some((e) => partsOf(e).some((p) => p.functionCall && p.functionCall.name === OFFER_TEST_TOOL));
   for (let i = events.length - 1; i >= 0; i--) {
     const e = events[i] || {};
-    const parts = (e.content && e.content.parts) || [];
-    const text = parts.filter((p) => typeof p.text === 'string' && !p.thought).map((p) => p.text).join('').trim();
-    if (text && e.author && e.author !== 'user') return { text, area: AREA_BY_AUTHOR[e.author] || 'otro' };
+    const text = partsOf(e).filter((p) => typeof p.text === 'string' && !p.thought).map((p) => p.text).join('').trim();
+    if (text && e.author && e.author !== 'user') return { text, area: AREA_BY_AUTHOR[e.author] || 'otro', offerTest };
   }
-  return null;
+  return offerTest ? { text: '', area: 'coordinador', offerTest } : null;
 }
 
 /** Llama al agente. fetchImpl permite probarlo sin red. Lanza Error('agent_unavailable') si falla. */

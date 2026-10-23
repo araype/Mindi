@@ -8,7 +8,7 @@ import { selfCareItems, SELF_CARE_SOURCE } from '../supabase/functions/_shared/a
 import { whyNotes, WHY_TITLE } from '../supabase/functions/_shared/notas.js';
 import { stageFilter, STAGE_EXIT } from './etapa.js';
 import { whatsappUrl, WHATSAPP_TEXT, channelUrl } from './whatsapp.js';
-import { createAgentChat } from './agenteChat.js';
+import { createAgentClient, agentHtml, AI_NOTICE, GREETING, ERROR_TEXT, LIMIT_TEXT } from './agente.js';
 import { glossaryFor } from './glosario.js';
 
 /* ---------- Medición (hooks listos para conectar a analítica real) ---------- */
@@ -79,7 +79,12 @@ function sb(table, row){
 }
 
 window.dataLayer = window.dataLayer || [];
+/* Si el test se empezó desde una pregunta al agente, sus eventos llevan origen: 'agente'
+   (los del agente y los que ya traen su propio origen, como whatsapp_click, no se tocan). */
+const AGENT_EVENTS = new Set(['agent_open','agent_consent','agent_message','agent_error','test_offer_click']);
+let testFromAgent = false;
 function track(event, props){
+  if(testFromAgent && !AGENT_EVENTS.has(event) && !(props && props.origen)) props = Object.assign({}, props, {origen:'agente'});
   const payload = Object.assign({event:'mindi_'+event, ts:Date.now()}, props||{});
   window.dataLayer.push(payload);
   if(window.console) console.debug('[mindi]', payload);
@@ -106,23 +111,20 @@ document.addEventListener('click', (e)=>{
 /* Chat con el agente de IA (bloque 5): solo con VITE_AGENT_CHAT_ENABLED = 'true'. Apagado, el
    sitio queda igual que antes y ningún botón lleva al agente. */
 const AGENT_ENABLED = import.meta.env.VITE_AGENT_CHAT_ENABLED === 'true';
-function whatsappLink(origen, label, cls = 'agent-wa-link'){
-  const url = whatsappUrl(WHATSAPP_NUMBER, WHATSAPP_TEXT[origen]);
-  return url ? `<a class="${cls}" href="${url}" target="_blank" rel="noopener" data-wa-origen="${origen}">${label}</a>` : '';
-}
-const agentChat = AGENT_ENABLED ? createAgentChat({
-  track, newId, whatsappLink,
-  onStartTest: ()=> openChat('agente'),
-}) : null;
+const agentClient = AGENT_ENABLED ? createAgentClient({newId}) : null;
 
 /* Landing: la segunda opción junto al botón del test. Con el agente encendido es "Hazle una
-   pregunta a Mindi" (el WhatsApp del equipo queda dentro de ese chat); apagado, "Tengo una duda"
-   abre WhatsApp, solo si hay número configurado. */
+   pregunta a Mindi", que abre el mismo chat en modo libre; apagado, "Tengo una duda" abre
+   WhatsApp, solo si hay número configurado. */
 const heroWa = document.getElementById('heroWa');
 const heroAgent = document.getElementById('heroAgent');
 if(AGENT_ENABLED && heroAgent){
   heroAgent.hidden = false;
-  heroAgent.addEventListener('click', ()=> agentChat.open({from:'landing'}));
+  heroAgent.addEventListener('click', ()=>{
+    track('cta_click', {source:'hero_agente'});
+    openChat('agente');
+    if(!started && !freeActive){ openChatShell(); enterFreeMode({from:'landing'}); }
+  });
 } else if(heroWa){
   const url = whatsappUrl(WHATSAPP_NUMBER, WHATSAPP_TEXT.landing);
   if(url){ heroWa.href = url; heroWa.hidden = false; }
@@ -289,7 +291,8 @@ const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').match
 const TYPING_MS = reduceMotion ? 0 : 850; // antes 550 — conversación más pausada, menos apurada
 const TOTAL_STEPS = 26;
 let step = 0;
-let started = false;
+let started = false;   // el test (modo guiado) ya empezó
+let freeActive = false; // el chat está en modo libre (preguntas al agente)
 /* Se pone en true cuando la usuaria toca "Salir" del modo pantalla completa. Sin esto,
    cualquier "resize" lo reactivaba solo — y en el navegador de un celular el alto de la
    ventana cambia todo el tiempo (la barra de direcciones se oculta/aparece al hacer scroll),
@@ -307,7 +310,7 @@ function setFocus(on){
    mobile) — ahora, mientras se conversa, tapa el resto de la landing en cualquier tamaño,
    para que el chat tenga todo el espacio. Se mantiene apagado solo si la usuaria lo cerró
    a propósito con "Salir" (ver focusDismissed). */
-function syncFocus(){ if(started && !focusDismissed) setFocus(true); }
+function syncFocus(){ if((started || freeActive) && !focusDismissed) setFocus(true); }
 function setProgress(n){ progressFill.style.width = Math.min(100, Math.round((n/TOTAL_STEPS)*100)) + '%'; }
 function advance(){ step++; setProgress(step); }
 function scrollBottom(){ requestAnimationFrame(()=>{ chat.scrollTop = chat.scrollHeight; }); }
@@ -749,15 +752,23 @@ function renderTextInput(placeholder, opts, onSubmit){
 }
 
 /* ---------- Flujo ---------- */
-async function start(){
-  if(started) return;
-  started = true;
-  track('chat_start');
+/* El texto del consentimiento vive una sola vez, en la tarjeta de inicio (index.html). Se guarda
+   aquí para mostrarlo igual si el test se empieza desde una pregunta al agente. */
+const CONSENT_HTML = document.querySelector('#chatStart .consent-text')?.innerHTML || '';
+function openChatShell(){
   const s = document.getElementById('chatStart'); if(s) s.remove();
   document.querySelector('.chat-shell').classList.remove('idle');
   chatMeta.hidden = false;
-  setSection('Bienvenida');
   syncFocus();
+}
+
+async function start(){
+  if(started) return;
+  started = true;
+  freeActive = false; // modo guiado: el campo de texto no se muestra hasta terminar
+  track('chat_start');
+  openChatShell();
+  setSection('Bienvenida');
   setProgress(1);
   // La bienvenida y el consentimiento ya se vieron en la tarjeta de inicio (index.html):
   // aquí solo queda el aviso de emergencias, en una línea, y la primera pregunta.
@@ -853,10 +864,10 @@ function askInterest(segment){
       if(val){
         sb('interest_signups', {contact:val, segment, consent:true, consent_text_version:CONSENT_VERSION, is_test:TEST_MODE});
         track('interest_signup', {segment});
-        botSay(['Listo, te avisaremos. Cuídate.']).then(()=> channelInvite('filtro'));
+        botSay(['Listo, te avisaremos. Cuídate.']).then(()=> channelInvite('filtro')).then(()=> afterGuided(false));
       } else {
         track('interest_skip', {segment});
-        botSay(['Está bien. Cuídate mucho.']).then(()=> channelInvite('filtro'));
+        botSay(['Está bien. Cuídate mucho.']).then(()=> channelInvite('filtro')).then(()=> afterGuided(false));
       }
     });
   });
@@ -1219,16 +1230,9 @@ function showReport(){
   revealCard(
     `<h3>Tu reporte</h3><p class="card-note">Todo lo que vimos, para llevarlo a tu consulta.</p>` +
     `<div class="report-actions"><a class="btn btn-sm" id="${id}" aria-disabled="true">Preparando tu PDF…</a>` +
-    (AGENT_ENABLED ? `<button type="button" class="btn btn-sm btn-secondary-brand" data-ask-agent>Pregúntale a Mindi sobre tu resultado</button>` : '') +
-    // Con el agente encendido, WhatsApp queda dentro de su chat ("Escríbele al equipo de Mindi").
-    `${AGENT_ENABLED ? '' : whatsappButton('resultado', 'Tengo una duda sobre mi resultado')}</div>` +
+    `${whatsappButton('resultado', 'Tengo una duda sobre mi resultado')}</div>` +
     inApp + reportFullHtml(), 'report'
   ).then(()=>{
-    const ask = chat.querySelector('[data-ask-agent]:not([data-wired])');
-    if(ask){
-      ask.dataset.wired = '1';
-      ask.addEventListener('click', ()=> agentChat.open({from:'resultado', resultado: agentMrsResult(state.scores, hasFlag())}));
-    }
     track('report_shown', {in_app: IN_APP_BROWSER});
     requestDownloadOnly().then(url=>{
       const btn = document.getElementById(id);
@@ -1314,7 +1318,7 @@ function askSatisfaction(){
       const reply = score >= 3 ? 'Qué bueno, gracias por contarme.'
         : score === 2 ? 'Gracias, lo tomo en cuenta.'
         : 'Gracias, de verdad ayuda a mejorar.';
-      botSay([reply, 'Fue un gusto. Cuídate mucho.']).then(()=> channelInvite('final'));
+      botSay([reply, 'Fue un gusto. Cuídate mucho.']).then(()=> channelInvite('final')).then(()=> afterGuided(true));
     });
   });
 }
@@ -1334,6 +1338,111 @@ if(symptomsEl){
   syncSymptomsFade();
 }
 
+/* ---------- Modo libre: preguntas al agente de IA (bloque 5) ----------
+   Una sola conversación con dos modos. Guiado: el test de siempre, con botones (start() y las
+   mismas funciones de arriba, sin copias). Libre: el campo "Escribe tu pregunta", en el mismo
+   lugar donde van los botones, así que nunca se ven los dos a la vez. Solo con AGENT_ENABLED. */
+let agentConsented = false; // el aviso de IA se acepta una vez por visita
+let freeSource = 'landing'; // 'landing' (sin test) o 'resultado' (con resultado_mrs)
+
+/* Al terminar el modo guiado (test completo o salida del filtro), la conversación sigue libre. */
+function afterGuided(withResult){
+  if(!AGENT_ENABLED) return;
+  enterFreeMode(withResult ? {from:'resultado', resultado: agentMrsResult(state.scores, hasFlag())} : {from:'landing'});
+}
+
+function enterFreeMode({from, resultado}){
+  freeActive = true;
+  freeSource = from;
+  syncFocus();
+  setSection('Preguntas a Mindi');
+  agentClient.setResult(resultado || null);
+  track('agent_open', {source:from});
+  if(agentConsented) return greetFree();
+  revealCard(`<p>${AI_NOTICE}</p>`, 'notice').then(()=>{
+    renderChips([{label:'Entendido', primary:true}], ()=>{
+      agentConsented = true;
+      track('agent_consent', {source:freeSource});
+      greetFree();
+    });
+  });
+}
+function greetFree(){ botSay([GREETING[freeSource]]).then(()=> renderQuestionInput(false)); }
+
+/* Campo de pregunta. offerTest: el agente llamó a la herramienta que ofrece el test → botón
+   "Hacer mi test aquí" (solo si el test no se hizo todavía en esta visita). */
+function renderQuestionInput(offerTest){
+  clearComposer();
+  if(offerTest && !started){
+    const wrap = document.createElement('div');
+    wrap.className = 'chips';
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'chip primary';
+    btn.textContent = 'Hacer mi test aquí';
+    btn.onclick = startTestFromAgent;
+    wrap.appendChild(btn);
+    composer.appendChild(wrap);
+  }
+  const form = document.createElement('form');
+  form.className = 'inputRow free-input';
+  form.innerHTML = `<input type="text" maxlength="1000" placeholder="Escribe tu pregunta" aria-label="Escribe tu pregunta" autocomplete="off">` +
+    `<button type="submit" class="sendBtn" aria-label="Enviar">${ICON_SEND}</button>`;
+  const input = form.querySelector('input');
+  form.onsubmit = (e)=>{ e.preventDefault(); const t = input.value.trim(); if(t) askAgent(t); };
+  composer.appendChild(form);
+  scrollBottom();
+  if(!isTouch) input.focus({preventScroll:true});
+}
+
+function addAgentBubble(text){
+  const row = document.createElement('div');
+  row.className = 'row bot';
+  row.innerHTML = `<div class="bubble agent-reply">${agentHtml(text)}</div>`;
+  chat.appendChild(row);
+  scrollBottom();
+}
+
+/* Si el agente falla o no responde a tiempo: mensaje y WhatsApp en la conversación; el test y el
+   reporte siguen disponibles, y se puede volver a preguntar. */
+function agentFallback(text){
+  addCard(`<p>${text}</p>` + (whatsappButton('agente') ? `<div class="card-actions">${whatsappButton('agente')}</div>` : ''), '');
+}
+
+async function askAgent(text){
+  addBubble(text.slice(0, 1000), 'user');
+  clearComposer();
+  if(agentClient.limitReached){ agentFallback(LIMIT_TEXT); return renderQuestionInput(false); }
+  showTyping();
+  try{
+    const reply = await agentClient.ask(text.slice(0, 1000));
+    hideTyping();
+    if(reply.text) addAgentBubble(reply.text);
+    track('agent_message', {source:freeSource, area:reply.area || 'otro'});
+    renderQuestionInput(!!reply.offerTest);
+  }catch(e){
+    hideTyping();
+    track('agent_error', {source:freeSource, code:e.status || 0});
+    agentFallback(ERROR_TEXT);
+    renderQuestionInput(false);
+  }
+}
+
+/* "Hacer mi test aquí": el chat pasa a modo guiado y corre el test normal desde el consentimiento.
+   Es el mismo start() que el botón "Acepto y empiezo" de la tarjeta de inicio. */
+function startTestFromAgent(){
+  track('test_offer_click', {source:freeSource});
+  testFromAgent = true;
+  freeActive = false;
+  clearComposer();
+  revealCard(`<p class="consent-inline">${CONSENT_HTML}</p>`, '').then(()=>{
+    renderChips([{label:'Acepto y empiezo', primary:true}], ()=>{
+      track('consent_accept', {version:CONSENT_VERSION});
+      start();
+    });
+  });
+}
+
 /* ---------- Entrada ---------- */
 function openChat(source){
   document.getElementById('conversar').scrollIntoView({behavior: reduceMotion ? 'auto' : 'smooth', block:'start'});
@@ -1343,7 +1452,7 @@ function openChat(source){
   focusDismissed = false;
   // Sin aceptar los términos no se empieza: si el chat no arrancó, solo se lleva a la usuaria
   // a la tarjeta de inicio, donde está el botón "Acepto y empiezo".
-  if(!started){ document.getElementById('startBtn')?.focus({preventScroll:true}); return; }
+  if(!started && !freeActive){ document.getElementById('startBtn')?.focus({preventScroll:true}); return; }
   syncFocus();
 }
 document.getElementById('heroCta').addEventListener('click', ()=>{ track('cta_click',{source:'hero'}); openChat('hero'); });
