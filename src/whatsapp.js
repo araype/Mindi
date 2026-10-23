@@ -6,6 +6,7 @@ export const WHATSAPP_TEXT = {
   landing: 'Hola Mindi, tengo una consulta sobre la menopausia',
   resultado: 'Hola Mindi, hice el test y tengo una duda sobre mi resultado',
   filtro: 'Hola Mindi, tengo una consulta sobre la menopausia',
+  agente: 'Hola Mindi, tengo una consulta sobre la menopausia',
 };
 
 /** number: con o sin espacios, "+" o guiones (p. ej. "51927671423"). → URL de wa.me, o null sin número. */

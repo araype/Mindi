@@ -2,12 +2,13 @@ import './landing.css';
 // Puntaje MRS y cortes de la Guía HNHU: un solo módulo compartido con send-report y los tests.
 import {
   computeScores as mrsScores, computeLevel as mrsLevel, levelMessage, CUTS,
-  AREAS, areaStatus, AREA_TAG, SKIPPED_INTIMATE_NOTE, doctorRecommendation, EMERGENCY_NOW,
+  AREAS, areaStatus, AREA_TAG, SKIPPED_INTIMATE_NOTE, doctorRecommendation, EMERGENCY_NOW, agentMrsResult,
 } from '../supabase/functions/_shared/mrs.js';
 import { selfCareItems, SELF_CARE_SOURCE } from '../supabase/functions/_shared/autocuidado.js';
 import { whyNotes, WHY_TITLE } from '../supabase/functions/_shared/notas.js';
 import { stageFilter, STAGE_EXIT } from './etapa.js';
 import { whatsappUrl, WHATSAPP_TEXT, channelUrl } from './whatsapp.js';
+import { createAgentChat } from './agenteChat.js';
 import { glossaryFor } from './glosario.js';
 
 /* ---------- Medición (hooks listos para conectar a analítica real) ---------- */
@@ -102,9 +103,27 @@ document.addEventListener('click', (e)=>{
   if(c) track('channel_click', {desde:c.dataset.channel});
 });
 
-/* Landing: "Tengo una duda" junto al botón del test, solo si hay número configurado. */
+/* Chat con el agente de IA (bloque 5): solo con VITE_AGENT_CHAT_ENABLED = 'true'. Apagado, el
+   sitio queda igual que antes y ningún botón lleva al agente. */
+const AGENT_ENABLED = import.meta.env.VITE_AGENT_CHAT_ENABLED === 'true';
+function whatsappLink(origen, label, cls = 'agent-wa-link'){
+  const url = whatsappUrl(WHATSAPP_NUMBER, WHATSAPP_TEXT[origen]);
+  return url ? `<a class="${cls}" href="${url}" target="_blank" rel="noopener" data-wa-origen="${origen}">${label}</a>` : '';
+}
+const agentChat = AGENT_ENABLED ? createAgentChat({
+  track, newId, whatsappLink,
+  onStartTest: ()=> openChat('agente'),
+}) : null;
+
+/* Landing: la segunda opción junto al botón del test. Con el agente encendido es "Hazle una
+   pregunta a Mindi" (el WhatsApp del equipo queda dentro de ese chat); apagado, "Tengo una duda"
+   abre WhatsApp, solo si hay número configurado. */
 const heroWa = document.getElementById('heroWa');
-if(heroWa){
+const heroAgent = document.getElementById('heroAgent');
+if(AGENT_ENABLED && heroAgent){
+  heroAgent.hidden = false;
+  heroAgent.addEventListener('click', ()=> agentChat.open({from:'landing'}));
+} else if(heroWa){
   const url = whatsappUrl(WHATSAPP_NUMBER, WHATSAPP_TEXT.landing);
   if(url){ heroWa.href = url; heroWa.hidden = false; }
 }
@@ -1199,9 +1218,17 @@ function showReport(){
     ? `<p class="report-inapp">Si la descarga no abre aquí, abre esta página en tu navegador (menú ··· › Abrir en el navegador) o recíbelo en tu correo.</p>` : '';
   revealCard(
     `<h3>Tu reporte</h3><p class="card-note">Todo lo que vimos, para llevarlo a tu consulta.</p>` +
-    `<div class="report-actions"><a class="btn btn-sm" id="${id}" aria-disabled="true">Preparando tu PDF…</a>${whatsappButton('resultado', 'Tengo una duda sobre mi resultado')}</div>` +
+    `<div class="report-actions"><a class="btn btn-sm" id="${id}" aria-disabled="true">Preparando tu PDF…</a>` +
+    (AGENT_ENABLED ? `<button type="button" class="btn btn-sm btn-secondary-brand" data-ask-agent>Pregúntale a Mindi sobre tu resultado</button>` : '') +
+    // Con el agente encendido, WhatsApp queda dentro de su chat ("Escríbele al equipo de Mindi").
+    `${AGENT_ENABLED ? '' : whatsappButton('resultado', 'Tengo una duda sobre mi resultado')}</div>` +
     inApp + reportFullHtml(), 'report'
   ).then(()=>{
+    const ask = chat.querySelector('[data-ask-agent]:not([data-wired])');
+    if(ask){
+      ask.dataset.wired = '1';
+      ask.addEventListener('click', ()=> agentChat.open({from:'resultado', resultado: agentMrsResult(state.scores, hasFlag())}));
+    }
     track('report_shown', {in_app: IN_APP_BROWSER});
     requestDownloadOnly().then(url=>{
       const btn = document.getElementById(id);
