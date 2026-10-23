@@ -169,7 +169,8 @@ export function doctorRecommendation(level) {
 
 /** Aviso de emergencia (dolor de pecho o falta de aire): mismo texto en el chat, el correo y el PDF.
  *  Usa la misma indicación que el agente de Mindi (Mindi_agents, MENSAJE_EMERGENCIA): 106 (SAMU). */
-export const EMERGENCY_NOW = 'Si en este momento tienes dolor de pecho intenso o te falta el aire de repente, no esperes: acude a emergencias o llama al 106 (SAMU).';
+export const EMERGENCY_ACTION = 'acude a emergencias o llama al 106 (SAMU)';
+export const EMERGENCY_NOW = `Si en este momento tienes dolor de pecho intenso o te falta el aire de repente, no esperes: ${EMERGENCY_ACTION}.`;
 
 /** Lo que el chat le pasará al agente de Mindi como state.resultado_mrs (Mindi_agents, lectura_mrs).
  *  Solo puntajes y si marcó una señal de alerta: sin respuestas una por una ni datos de contacto. */

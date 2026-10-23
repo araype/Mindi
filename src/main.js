@@ -5,6 +5,7 @@ import {
   AREAS, areaStatus, AREA_TAG, SKIPPED_INTIMATE_NOTE, doctorRecommendation, EMERGENCY_NOW,
 } from '../supabase/functions/_shared/mrs.js';
 import { selfCareItems, SELF_CARE_SOURCE } from '../supabase/functions/_shared/autocuidado.js';
+import { whyNotes, WHY_TITLE } from '../supabase/functions/_shared/notas.js';
 import { stageFilter, STAGE_EXIT } from './etapa.js';
 import { whatsappUrl, WHATSAPP_TEXT } from './whatsapp.js';
 
@@ -1119,6 +1120,14 @@ function reportAnswersList(){
   }).join('');
   return `<ul class="report-answers">${rows}</ul>`;
 }
+/* "Por qué puede pasarte": solo los síntomas en 2 o más (supabase/functions/_shared/notas.js,
+   el mismo texto que el PDF y el correo). Sin síntomas en 2 o más, la sección no aparece. */
+function whySection(){
+  const notes = whyNotes(state.answers);
+  if(!notes.length) return '';
+  const rows = notes.map(n=>`<li><strong>${n.label}:</strong> ${n.text}</li>`).join('');
+  return `<section><h3>${WHY_TITLE}</h3><ul class="card-list">${rows}</ul></section>`;
+}
 function reportFullHtml(){
   const msg = levelMessage(state.scores);
   const alertNote = hasFlag()
@@ -1127,6 +1136,7 @@ function reportFullHtml(){
     `<section>${alertNote}${levelCard(msg)}</section>` +
     `<section><h3>Sobre tu etapa</h3><p>${stageNote()}</p><span class="cite">${PERU_AGE_NOTE} Fuente: Guía HNHU (RD N° 211-2024-DG/HNHU), secciones 5.4 y 6.2.1.</span></section>` +
     `<section>${areasCard()}</section>` +
+    whySection() +
     `<section><h3>Recomendaciones de autocuidado</h3>${selfCareBody()}</section>` +
     `<section><h3>Para tu consulta</h3>${consultBody()}</section>` +
     `<section><h3>Tus 11 respuestas</h3>${reportAnswersList()}</section>` +

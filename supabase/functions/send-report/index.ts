@@ -31,6 +31,8 @@ import {
 } from '../_shared/mrs.js';
 // Autocuidado: la misma lista que el chat (allí se muestran 2; aquí, todas).
 import { selfCareItems as sharedSelfCareItems, SELF_CARE_SOURCE } from '../_shared/autocuidado.js';
+// "Por qué puede pasarte": las mismas notas por síntoma que el reporte del chat.
+import { whyNotes, WHY_TITLE } from '../_shared/notas.js';
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') ?? '';
 const RESEND_FROM = Deno.env.get('RESEND_FROM') ?? 'Mindi <onboarding@resend.dev>';
@@ -196,6 +198,15 @@ function doctorRecoHtml(level: string) {
   return `<div style="background:#FFF6EE;border-left:4px solid #D33D17;border-radius:8px;padding:12px 14px;margin:4px 0 14px;font-weight:600;color:#1B1B19;">${esc(doctorRecommendation(level))}</div>`;
 }
 
+/** "Por qué puede pasarte": solo los síntomas en 2 o más (_shared/notas.js). Vacío si no hay ninguno. */
+function whyFragment(session: Record<string, any>) {
+  const notes = whyNotes(session.answers || {});
+  if (!notes.length) return '';
+  const rows = notes.map((n: any) => `<li style="margin:6px 0;"><b>${n.label}:</b> ${n.text}</li>`).join('');
+  return `<h2 style="font-family:Georgia,serif;font-size:18px;margin:24px 0 4px;">${WHY_TITLE}</h2>
+    <ul style="padding-left:20px;margin:0;">${rows}</ul>`;
+}
+
 /** Badge del nivel (mismo texto que en el chat). */
 function badgeHtml(text: string) {
   return `<span style="display:inline-block;background:#F3EDE4;color:#6E3A4E;border:1px solid #E9D9C7;border-radius:999px;padding:3px 10px;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;">${text}</span>`;
@@ -280,6 +291,7 @@ function buildFragment(session: Record<string, any>, lead: Record<string, any>) 
     <h2 style="font-family:Georgia,serif;font-size:18px;margin:24px 0 4px;">Lo que noto por áreas</h2>
     <p style="color:#5F5F57;font-size:13px;margin:0 0 8px;">Es una mirada de conjunto, no una calificación.</p>
     ${areasHtml}
+    ${whyFragment(session)}
     <h2 style="font-family:Georgia,serif;font-size:18px;margin:24px 0 8px;">Tus 11 respuestas</h2>
     ${itemRows}
     ${doctorHtml}
@@ -448,6 +460,12 @@ async function buildPdf(session: Record<string, any>, lead: Record<string, any>)
       y -= 19;
     }
     if (skipped) para(SKIPPED_INTIMATE_NOTE, { size: 8.5, color: PDF_COLOR.inkSoft, gap: 8 });
+
+    const why = whyNotes(session.answers || {});
+    if (why.length) {
+      heading(WHY_TITLE);
+      for (const n of why) bulletBlock(n.label, n.text);
+    }
 
     heading('Tus 11 respuestas');
     const answers = session.answers || {};
