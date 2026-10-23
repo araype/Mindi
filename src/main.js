@@ -6,6 +6,7 @@ import {
 } from '../supabase/functions/_shared/mrs.js';
 import { selfCareItems, SELF_CARE_SOURCE } from '../supabase/functions/_shared/autocuidado.js';
 import { stageFilter, STAGE_EXIT } from './etapa.js';
+import { whatsappUrl, WHATSAPP_TEXT } from './whatsapp.js';
 
 /* ---------- Medición (hooks listos para conectar a analítica real) ---------- */
 /* ---------- Backend (Supabase vía REST, solo INSERT con la clave pública) ----------
@@ -84,6 +85,18 @@ function track(event, props){
   if(ORIGIN) base.origin = ORIGIN;
   sb('events', {session_id:SESSION_ID, name:event, props:Object.assign(base, props||{})});
 }
+
+/* WhatsApp del equipo: complementa al test. Cada clic registra whatsapp_click {origen}
+   (landing, resultado o filtro), sin el texto ni el número de la usuaria. */
+const WHATSAPP_NUMBER = import.meta.env.NEXT_PUBLIC_WHATSAPP_NUMBER || '';
+function whatsappButton(origen, label = 'Escríbele al equipo de Mindi'){
+  const url = whatsappUrl(WHATSAPP_NUMBER, WHATSAPP_TEXT[origen]);
+  return url ? `<a class="btn btn-sm btn-ghost wa-btn" href="${url}" target="_blank" rel="noopener" data-wa-origen="${origen}">${label}</a>` : '';
+}
+document.addEventListener('click', (e)=>{
+  const a = e.target.closest && e.target.closest('[data-wa-origen]');
+  if(a) track('whatsapp_click', {origen:a.dataset.waOrigen});
+});
 
 function saveSession(level){
   const s = state.scores;
@@ -746,7 +759,9 @@ const STAGE_EXIT_CARD = {
 function showStageExit(segment){
   setSection('Sobre tu etapa');
   const c = STAGE_EXIT_CARD[segment];
-  revealCard(`<h3>${c.title}</h3><p>${c.body}</p>`, c.kind).then(()=> askInterest(segment));
+  const wa = whatsappButton('filtro');
+  revealCard(`<h3>${c.title}</h3><p>${c.body}</p>` + (wa ? `<div class="card-actions">${wa}</div>` : ''), c.kind)
+    .then(()=> askInterest(segment));
 }
 
 /* Lista de interés de quienes salen por el filtro: solo correo + segmento (tabla

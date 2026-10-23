@@ -2337,3 +2337,6 @@ body.no-scroll { overflow: hidden; }
 
 /* Enlaces dentro de las respuestas de preguntas frecuentes (p. ej. a la Política de privacidad). */
 .faq-answer a { color: var(--brand-secondary); text-decoration: underline; text-underline-offset: 2px; }
+
+/* Botones dentro de una tarjeta del chat (p. ej. WhatsApp en las salidas del filtro). */
+.card .card-actions { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 8px; }
