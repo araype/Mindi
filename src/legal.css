@@ -1,0 +1,28 @@
+/* Términos y Política de privacidad: texto largo, legible en 360 px. Usa los tokens de landing.css. */
+.legal {
+  max-width: 44rem;
+  padding-top: 32px;
+  padding-bottom: 48px;
+}
+.legal h1 { font-size: 26px; font-weight: 500; line-height: 1.25; margin: 0 0 6px; }
+.legal .updated { color: var(--ink-subtle); font-size: 13px; margin: 0 0 24px; }
+.legal .lead { font-size: 16px; color: var(--ink); }
+.legal h2 { font-size: 18px; font-weight: 500; margin: 32px 0 8px; }
+.legal p, .legal li { font-size: 15px; color: var(--ink-soft); }
+.legal strong { color: var(--ink); font-weight: 500; }
+.legal ul { padding-left: 20px; }
+.legal li { margin: 4px 0; }
+.legal a { color: var(--brand-secondary); text-decoration: underline; text-underline-offset: 2px; }
+
+/* Las tablas se desplazan dentro de su caja, nunca la página. */
+.legal .table-scroll { overflow-x: auto; margin: 12px 0; border: 1px solid var(--border); border-radius: var(--r-s); }
+.legal table { border-collapse: collapse; width: 100%; min-width: 520px; font-size: 14px; }
+.legal th, .legal td { text-align: left; vertical-align: top; padding: 10px 12px; border-bottom: 1px solid var(--border); color: var(--ink-soft); }
+.legal th { background: var(--sand-100); color: var(--ink); font-weight: 500; }
+.legal tr:last-child td { border-bottom: 0; }
+
+/* Datos que faltan completar antes de publicar. */
+.legal .todo { background: var(--notice-bg); color: var(--notice-text); border-radius: 4px; padding: 0 4px; }
+
+.legal-foot { border-top: 1px solid var(--border); padding-top: 16px; padding-bottom: 32px; font-size: 13px; color: var(--ink-subtle); }
+.legal-foot a { color: var(--brand-secondary); }
