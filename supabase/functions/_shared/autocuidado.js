@@ -27,13 +27,12 @@ export const SELF_CARE_SPECIFIC = [
   { ids: ['p13'], t: 'Para la sequedad íntima', d: 'lubricantes o humectantes de base acuosa y pH neutro, sin receta.',
     short: 'Sequedad: lubricante de base acuosa, sin receta.' },
 ];
-/* Orden: la que más ayuda en general va primero (es la que completa el chat si faltan consejos).
-   El reporte las muestra en este mismo orden. */
+/* Mismo orden que el reporte ya publicado. Si en el chat faltan consejos, se completa en este orden. */
 export const SELF_CARE_UNIVERSAL = [
-  { t: 'Para el cuerpo en general', d: 'unos 150 minutos a la semana de actividad moderada (caminar rápido, nadar, bailar) — ayuda con el sueño, el ánimo y los huesos a la vez.',
-    short: 'Muévete: 150 minutos a la semana, a paso moderado.' },
   { t: 'Para la alimentación', d: 'un patrón mediterráneo: legumbres, frutas, verduras, pescado y aceite de oliva.',
     short: 'Comida: legumbres, frutas, verduras y pescado.' },
+  { t: 'Para el cuerpo en general', d: 'unos 150 minutos a la semana de actividad moderada (caminar rápido, nadar, bailar) — ayuda con el sueño, el ánimo y los huesos a la vez.',
+    short: 'Muévete: 150 minutos a la semana, a paso moderado.' },
   { t: 'Para los huesos', d: '1,200 mg de calcio al día (dieta o suplementos) y al menos 800 UI de vitamina D — coméntalo con tu médico(a) antes de tomar suplementos.',
     short: 'Huesos: calcio y vitamina D; consulta antes de suplementos.' },
 ];
