@@ -2,8 +2,10 @@ import './landing.css';
 // Puntaje MRS y cortes de la Guía HNHU: un solo módulo compartido con send-report y los tests.
 import {
   computeScores as mrsScores, computeLevel as mrsLevel, levelMessage, CUTS,
-  AREAS, areaStatus, AREA_TAG, SKIPPED_INTIMATE_NOTE,
+  AREAS, areaStatus, AREA_TAG, SKIPPED_INTIMATE_NOTE, doctorRecommendation,
 } from '../supabase/functions/_shared/mrs.js';
+import { selfCareItems, topSelfCare, SELF_CARE_SOURCE } from '../supabase/functions/_shared/autocuidado.js';
+import { stageFilter, STAGE_EXIT } from './etapa.js';
 
 /* ---------- Medición (hooks listos para conectar a analítica real) ---------- */
 /* ---------- Backend (Supabase vía REST, solo INSERT con la clave pública) ----------
@@ -96,14 +98,21 @@ function saveSession(level){
     is_test:TEST_MODE,
   });
 }
-function saveLead(){
+function saveLead(news){
   if(!state.contact) return Promise.resolve();
-  // Espera a que la sesión exista (clave foránea) antes de guardar el contacto.
+  const lead = {session_id:SESSION_ID, name:state.name || null, contact:state.contact, consent:true, consent_text_version:CONSENT_VERSION, is_test:TEST_MODE};
+  // Espera a que la sesión exista (clave foránea) antes de guardar el contacto. Si la columna
+  // opt_news aún no existe (015 sin correr), se reintenta sin ella: nunca se pierde el correo.
   return (state.sessionSaved || Promise.resolve()).then(()=>
-    sb('leads', {session_id:SESSION_ID, name:state.name || null, contact:state.contact, consent:true, consent_text_version:CONSENT_VERSION, is_test:TEST_MODE}));
+    sb('leads', {...lead, opt_news:!!news}).then(ok => ok || sb('leads', lead)));
+}
+/* Casilla de investigación: una fila sin nombre ni contacto (research_consents, SQL 015). */
+function saveResearchConsent(){
+  return (state.sessionSaved || Promise.resolve()).then(()=>
+    sb('research_consents', {session_id:SESSION_ID, consent_text_version:CONSENT_VERSION, is_test:TEST_MODE}));
 }
 
-/* Pide a la Edge Function `send-report` que arme y envíe el reporte de esta sesión.
+/* Pide a la Edge Function `send-report` que envíe una copia del reporte por correo.
    Se llama solo después de que la sesión y el lead ya quedaron guardados en Supabase,
    porque la función los lee de ahí (nunca recibe respuestas ni contacto por este canal). */
 function requestReport(){
@@ -113,48 +122,26 @@ function requestReport(){
     headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY},
     body:JSON.stringify({session_id:SESSION_ID}),
   }).then(r=>r.json()).then(res=>{
-    if(res && res.ok){
-      track('report_sent', {channel:res.channel});
-      if(res.channel === 'link' && res.url){
-        const pdfBtn = res.pdfUrl ? `<a class="btn btn-sm btn-ghost" href="${res.pdfUrl}" target="_blank" rel="noopener">Descargar PDF</a>` : '';
-        addCard(
-          '<h3>Tu reporte está listo</h3>Como dejaste un número, te lo dejo aquí — en PDF, para que lo abras, lo guardes o lo reenvíes por WhatsApp cuando quieras.' +
-          `<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">` +
-          `<a class="btn btn-sm" href="${res.wa}" target="_blank" rel="noopener">Abrir en WhatsApp</a>` +
-          pdfBtn +
-          `<a class="btn btn-sm btn-ghost" href="${res.url}" target="_blank" rel="noopener">Ver como página</a></div>`,
-          'report'
-        );
-      }
-    } else {
-      track('report_failed', {error: (res && res.error) || 'unknown'});
-    }
+    if(res && res.ok) track('report_sent', {channel:res.channel});
+    else track('report_failed', {error: (res && res.error) || 'unknown'});
   }).catch(()=> track('report_failed', {error:'network'}));
 }
 
-/* Para quien prefiere no dejar contacto: igual arma el PDF (con el apodo que haya
-   escrito, si escribió alguno) y lo ofrece para descargar directo, sin guardar lead
-   ni fila en `reports` — nada queda asociado a un correo o número. */
+/* El PDF que toda usuaria puede descargar al terminar (con el apodo que haya escrito, si
+   escribió alguno). No guarda lead ni fila en `reports`. → Promise<url del PDF | null>. */
 function requestDownloadOnly(){
-  if(!BACKEND_ON) return;
-  (state.sessionSaved || Promise.resolve()).then(()=>
+  if(!BACKEND_ON) return Promise.resolve(null);
+  return (state.sessionSaved || Promise.resolve()).then(()=>
     fetch(`${SUPABASE_URL}/functions/v1/send-report`, {
       method:'POST',
       headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY},
       body:JSON.stringify({session_id:SESSION_ID, name: state.name || undefined, download_only:true}),
     })
   ).then(r=>r.json()).then(res=>{
-    if(res && res.ok && res.pdfUrl){
-      track('report_sent', {channel:'download'});
-      addCard(
-        '<h3>Tu reporte está listo</h3>No guardamos ningún dato de contacto — aquí tienes tu reporte en PDF para descargar directamente.' +
-        `<div style="margin-top:12px;"><a class="btn btn-sm" href="${res.pdfUrl}" target="_blank" rel="noopener">Descargar mi reporte (PDF)</a></div>`,
-        'report'
-      );
-    } else {
-      track('report_failed', {error:(res && res.error) || 'unknown', channel:'download'});
-    }
-  }).catch(()=> track('report_failed', {error:'network', channel:'download'}));
+    if(res && res.ok && res.pdfUrl){ track('report_sent', {channel:'download'}); return res.pdfUrl; }
+    track('report_failed', {error:(res && res.error) || 'unknown', channel:'download'});
+    return null;
+  }).catch(()=>{ track('report_failed', {error:'network', channel:'download'}); return null; });
 }
 
 function computeLevel(){ return mrsLevel(state.scores); }
@@ -212,27 +199,6 @@ const MRS_ITEMS = [
     scaleLabels:['Sin molestia','Sequedad leve, no me afecta mucho','La noto con cierta frecuencia','Me genera incomodidad seguido','Me duele o me molesta bastante']},
 ];
 const SCALE_LABELS = ['Nada','Leve','Moderado','Fuerte','Muy fuerte'];
-
-/* Nota fisiológica que el bot agrega tras responder con intensidad 2-4 (Moderado o más).
-   Base fija por ítem + cierre según el nivel. Solo informativa: no toca puntajes ni flujo. */
-const PHYS_NOTES = {
-  p3:  'Los bochornos ocurren porque la caída de estrógeno afecta el centro que regula la temperatura en el cerebro — es una respuesta física real, no "está en tu cabeza".',
-  p4:  'Sentir el corazón acelerado también puede relacionarse con los cambios hormonales de esta etapa.',
-  p5:  'Los dolores articulares son más comunes en esta etapa — el estrógeno ayuda a proteger las articulaciones, y su descenso puede hacer que se sientan más.',
-  p6:  'Despertarse a medianoche es muy frecuente: las caídas nocturnas de estrógeno alteran el sueño profundo.',
-  p7:  'Los cambios de ánimo en esta etapa tienen una base hormonal real — las fluctuaciones de estrógeno afectan directamente la química del cerebro.',
-  p8:  'La irritabilidad también puede tener una causa hormonal, no solo de carácter — vale la pena tenerlo en cuenta antes de ser dura contigo misma por esto.',
-  p9:  'La ansiedad en esta etapa puede intensificarse por los mismos cambios hormonales, no solo por lo que está pasando en tu vida.',
-  p10: 'El cansancio de esta etapa no es solo falta de sueño — el cambio hormonal también afecta tu energía de forma directa.',
-  p11: 'Los cambios en el deseo sexual son comunes en esta etapa y tienen una explicación hormonal — no significa que algo esté mal contigo.',
-  p12: 'Los cambios al orinar se relacionan con cambios en los tejidos por la baja de estrógeno — es más común de lo que se habla.',
-  p13: 'La sequedad íntima ocurre porque esos tejidos también dependen del estrógeno — hay opciones simples que puedes comentar con tu médico(a).',
-};
-const PHYS_NOTE_CLOSING = {
-  2: 'Es algo que muchas mujeres notan en este punto.',
-  3: 'Vale la pena que lo tengas presente para tu próxima consulta.',
-  4: 'A este nivel, es de las cosas más importantes que comentarle a tu médico(a).',
-};
 
 const RED_FLAGS = [
   {id:'rf1', text:'Sangrado vaginal inesperado (más de 12 meses sin regla, o sin causa clara)'},
@@ -314,7 +280,9 @@ if(vv){
   syncViewport();
 }
 
-function addBubble(text, who, cls, subText){
+/* more: [{q, a, id}] — explicaciones que se abren al tocarlas ("¿Qué significa esto?",
+   "¿Qué es el aura?"), para que el texto extra no aparezca entre pregunta y pregunta. */
+function addBubble(text, who, cls, subText, more){
   const row = document.createElement('div');
   row.className = 'row ' + who;
   const b = document.createElement('div');
@@ -326,6 +294,18 @@ function addBubble(text, who, cls, subText){
     sp.textContent = subText;
     b.appendChild(sp);
   }
+  (more || []).forEach(({q, a, id})=>{
+    const d = document.createElement('details');
+    d.className = 'more';
+    const s = document.createElement('summary');
+    s.textContent = q;
+    const p = document.createElement('span');
+    p.className = 'more-body';
+    p.textContent = a;
+    d.append(s, p);
+    d.addEventListener('toggle', ()=>{ if(d.open){ track('help_open', {q:id}); scrollBottom(); } });
+    b.appendChild(d);
+  });
   row.appendChild(b);
   chat.appendChild(row);
   scrollBottom();
@@ -390,9 +370,10 @@ function revealCardWithPause(introMsg, html, kind, isLast = false, continueText 
 async function showResultsCardSequence(){
   const msg = levelMessage(state.scores);
   await revealCardWithPause(null,                                         levelCard(msg), BAND_KIND[msg.band], false, 'Ver mis resultados por área');
-  await revealCardWithPause('Veamos cómo se distribuye eso por áreas:',   areasCard(),         '',      false, '¿Y qué hago con esto?');
-  await revealCardWithPause('Estas son algunas preguntas que puedes hacerle a tu médico(a):', consultCard(), '', false, 'Muy útil, ¿algo más?');
-  await revealCardWithPause('Estas son algunas recomendaciones de autocuidado según tus resultados:', selfCareCard(), 'calm', true);
+  await revealCardWithPause('Así se ve por áreas:',                        areasCard(),         '',      false, '¿Y qué hago con esto?');
+  await revealCardWithPause('Preguntas para tu médico(a):',                consultCard(),       '',      false, 'Muy útil, ¿algo más?');
+  // Consejos: un solo mensaje, máximo 2, del área más afectada. El resto queda en el reporte.
+  await revealCard(selfCareCard(), 'calm', 400);
   addCard('<p class="topics-disclaimer">Esto es solo orientación informativa según la Guía HNHU (RD N° 211-2024-DG/HNHU). Solo un profesional de salud puede evaluarte con exámenes clínicos en consulta presencial.</p>', '');
 }
 
@@ -406,7 +387,7 @@ function botSay(messages){
       setTimeout(()=>{
         hideTyping();
         const m = messages[i];
-        if(typeof m === 'string') addBubble(m, 'bot'); else addBubble(m.text, 'bot', m.cls, m.sub);
+        if(typeof m === 'string') addBubble(m, 'bot'); else addBubble(m.text, 'bot', m.cls, m.sub, m.more);
         i++;
         setTimeout(next, reduceMotion ? 0 : 450);
       }, TYPING_MS);
@@ -630,6 +611,7 @@ function renderTextInput(placeholder, opts, onSubmit){
   input.placeholder = placeholder;
   input.setAttribute('aria-label', placeholder);
   if(opts.inputmode) input.inputMode = opts.inputmode;
+  if(opts.inputType === 'email'){ input.type = 'email'; input.autocomplete = 'email'; }
   const send = document.createElement('button');
   send.type = 'submit';
   send.className = 'sendBtn';
@@ -694,32 +676,35 @@ async function start(){
   askAge();
 }
 
+/* Entre pregunta y pregunta, cada mensaje del bot cabe en UNA línea a 360 px (unos 35
+   caracteres). Lo que explica o da contexto va en un desplegable de la pregunta (more) o en
+   el reporte (la nota de etapa). Las preguntas en sí pueden ocupar más de una línea. */
 function askAge(){
   setSection('Sobre ti');
-  botSay([
-    {text:'Te pregunto tu edad porque las etapas de esta transición suelen ubicarse en rangos distintos, y así el reporte se ajusta mejor a ti.'},
-    '¿En qué rango de edad estás?',
-  ]).then(()=>{
+  botSay([{text:'¿En qué rango de edad estás?', cls:'question'}]).then(()=>{
     renderChips([{label:'Menor de 40'},{label:'40 a 45'},{label:'46 a 52'},{label:'Mayor de 52'}],
       (v)=>{ state.age = v; track('answer',{q:'p1'}); askCycle(); });
   });
 }
 
 function askCycle(){
-  botSay(['Gracias. Ahora, sobre tu ciclo: te lo pregunto porque cómo ha cambiado tu regla ayuda a ubicar en qué punto de la transición podrías estar.', 'En los últimos 12 meses, ¿cómo ha estado tu periodo?']).then(()=>{
+  botSay([{text:'En los últimos 12 meses, ¿cómo ha estado tu periodo?', cls:'question', more:[
+    {id:'p2', q:'¿Qué es una histerectomía?', a:'Es la cirugía en la que se retira el útero. Después de ella ya no hay regla.'},
+  ]}]).then(()=>{
     renderChips([
       {label:'Sigue regular'},
       {label:'Es irregular (varía o se retrasa)'},
       {label:'Más de 60 días sin regla'},
       {label:'Más de 12 meses sin regla'},
       {label:'Me hicieron una histerectomía'},
-    ], (v)=>{ state.cycle = v; track('answer',{q:'p2'}); showStageNote(); });
+    ], (v)=>{ state.cycle = v; track('answer',{q:'p2'}); afterStageQuestions(); });
   });
 }
 
 /* Ubica a la usuaria en su etapa a partir de P1 (edad) + P2 (ciclo), usando solo la
    definición clínica de la guía (6.2.1) — nunca STRAW+10 (necesita FSH/AMH que no
-   recolectamos). Mismo contenido que supabase/functions/send-report/index.ts (stageNote). */
+   recolectamos). Mismo contenido que supabase/functions/send-report/index.ts (stageNote).
+   Ya no se dice en el chat entre preguntas: va en el reporte. */
 function stageNote(){
   const age = state.age, cycle = state.cycle;
   if(cycle === 'Me hicieron una histerectomía'){
@@ -741,28 +726,62 @@ function stageNote(){
 }
 const PERU_AGE_NOTE = 'En Perú, la edad promedio de la menopausia es 47 años — cada cuerpo tiene su propio ritmo, así que esto es orientativo.';
 
-function showStageNote(){
+/* Filtro de etapa (src/etapa.js): una menor de 40 nunca llega al test ni ve un puntaje. */
+function afterStageQuestions(){
+  const exit = stageFilter(state.age, state.cycle);
+  if(exit === STAGE_EXIT.continue) return startDomain('somatico');
+  track('stage_filter_exit', {segment:exit});
+  showStageExit(exit);
+}
+
+const STAGE_EXIT_CARD = {
+  [STAGE_EXIT.under40Regular]: {kind:'calm',
+    title:'Mindi está pensada para mujeres desde los 40',
+    body:'Las preguntas y el puntaje de Mindi miden los cambios de la transición a la menopausia, que suelen empezar después de los 40. Con un ciclo regular antes de esa edad no aplican, así que no te mostraré un puntaje.'},
+  [STAGE_EXIT.under40Irregular]: {kind:'notice',
+    title:'Te recomendamos consultar con un médico',
+    body:'Antes de los 40, los cambios en la regla deben evaluarse con tu ginecóloga u obstetra, para encontrar la causa. Por eso no te mostraré un puntaje: las preguntas de Mindi están pensadas para mujeres desde los 40.'},
+};
+function showStageExit(segment){
   setSection('Sobre tu etapa');
-  botSay([PERU_AGE_NOTE, stageNote()]).then(()=> startDomain('somatico'));
+  const c = STAGE_EXIT_CARD[segment];
+  revealCard(`<h3>${c.title}</h3><p>${c.body}</p>`, c.kind).then(()=> askInterest(segment));
+}
+
+/* Lista de interés de quienes salen por el filtro: solo correo + segmento (tabla
+   interest_signups, SQL 015). No hay sesión ni respuestas de salud guardadas. */
+function askInterest(segment){
+  setSection('Lista de interés');
+  botSay([{text:'¿Quieres que te avisemos cuando Mindi tenga algo para tu etapa?', cls:'question'}]).then(()=>{
+    renderTextInput('correo@ejemplo.com', {
+      inputType:'email',
+      skipLabel:'No, gracias',
+      validate:validEmail,
+      errorText:'Revisa el correo, o elige "No, gracias".',
+      hint:'Usaremos tu correo solo para avisarte de novedades de Mindi.',
+    }, (val)=>{
+      setProgress(TOTAL_STEPS);
+      if(val){
+        sb('interest_signups', {contact:val, segment, consent:true, consent_text_version:CONSENT_VERSION, is_test:TEST_MODE});
+        track('interest_signup', {segment});
+        botSay(['Listo, te avisaremos. Cuídate.']);
+      } else {
+        track('interest_skip', {segment});
+        botSay(['Está bien. Cuídate mucho.']);
+      }
+    });
+  });
 }
 
 const DOMAIN_BRIDGE = {
-  somatico: ['Vamos a repasar cómo te has sentido físicamente en el último mes.', 'Para cada síntoma, dime qué tanto te ha molestado.'],
-  psicologico: ['Gracias por contarme, esto es útil. Ahora hablemos un poco de tu estado de ánimo.'],
-  urogenital: ['Ya casi terminamos esta parte.', 'Las próximas preguntas son más íntimas. Respóndelas solo si te sientes cómoda; no hay respuesta incorrecta y puedes saltarlas.'],
+  somatico: 'Pensando en el último mes:',
+  psicologico: 'Ahora, tu ánimo y energía.',
+  urogenital: 'Ahora, algo más íntimo.',
 };
 
-const DOMAIN_LABEL = {somatico:'Cómo se siente tu cuerpo', psicologico:'Ánimo y energía', urogenital:'Lo íntimo'};
 function startDomain(domain){
-  setSection(DOMAIN_LABEL[domain]);
   const items = MRS_ITEMS.filter(i=>i.sub===domain);
-  if(domain === 'somatico'){
-    botSay([...DOMAIN_BRIDGE[domain], 'Cada síntoma es distinto: puede que uno te moleste mucho y otro nada. Tómate un segundo para pensar cada uno por separado.']).then(()=>{
-      renderChips([{label:'Entiendo, continuemos', primary:true}], ()=> askItem(items, 0, domain));
-    });
-  } else {
-    botSay(DOMAIN_BRIDGE[domain]).then(()=> askItem(items, 0, domain));
-  }
+  botSay([DOMAIN_BRIDGE[domain]]).then(()=> askItem(items, 0, domain));
 }
 
 function askItem(items, idx, domain){
@@ -772,20 +791,15 @@ function askItem(items, idx, domain){
     if(domain === 'urogenital') return finishMrs();
   }
   const item = items[idx];
-  const msgs = [];
-  if(item.why) msgs.push(item.why);
-  msgs.push({text:item.question, sub:item.example, cls:'question'});
-  botSay(msgs).then(()=>{
+  setSection(`Pregunta ${MRS_ITEMS.indexOf(item) + 1} de ${MRS_ITEMS.length}`);
+  // La razón de las preguntas íntimas (why) va dentro de la misma burbuja, con el mismo texto:
+  // es parte de la pregunta, no un mensaje más entre preguntas.
+  botSay([{text:item.question, cls:'question', sub:item.why, more:[{id:item.id, q:'¿Qué significa esto?', a:item.example}]}]).then(()=>{
     renderScale((val)=>{
       state.answers[item.id] = val;
       if(val === null && item.skippable) state.skippedIntimate = true;
       track('answer',{q:item.id});
-      const note = PHYS_NOTES[item.id];
-      if(note && val !== null && val >= 2){
-        botSay([`${note} ${PHYS_NOTE_CLOSING[val]}`]).then(()=> askItem(items, idx+1, domain));
-      } else {
-        askItem(items, idx+1, domain);
-      }
+      askItem(items, idx+1, domain);
     }, !!item.skippable, undefined, item.scaleLabels);
   });
 }
@@ -800,27 +814,35 @@ function finishMrs(){
   botSay(['Gracias por contarme todo esto.']).then(()=> askSmoking());
 }
 
+/* Preguntas de contexto: no suman puntos. Cada respuesta dispara `answer` con su id
+   (sin el valor), igual que las 11 de la escala, para ver en qué pregunta se abandona. */
 function askSmoking(){
   setSection('Contexto para tu reporte');
-  botSay(['Ahora unas últimas preguntas para completar tu reporte. No suman puntos: dan contexto sobre qué opciones de cuidado podrías conversar con tu médico(a). Te las hago porque algunos hábitos y antecedentes cambian qué vía de tratamiento suele preferirse.', '¿Fumas actualmente?']).then(()=>{
+  botSay(['Ahora, unas preguntas de contexto.', {text:'¿Fumas actualmente?', cls:'question', more:[
+    {id:'ctx_fuma', q:'¿Por qué te pregunto esto?', a:'No suma puntos. Algunos hábitos y antecedentes cambian qué tratamiento suele preferirse, y así tu reporte lo incluye.'},
+  ]}]).then(()=>{
     renderChips([{label:'No fumo'},{label:'Fumo ocasionalmente'},{label:'Fumo a diario'},{label:'Fumaba antes, ya no'}],
-      (v)=>{ state.smoking = v; askObesity(); });
+      (v)=>{ state.smoking = v; track('answer',{q:'ctx_fuma'}); askObesity(); });
   });
 }
 function askObesity(){
-  botSay(['¿Un médico te ha dicho alguna vez que tienes obesidad (IMC entre 30 y 40)?']).then(()=>{
-    renderChips([{label:'Sí'},{label:'No'},{label:'No estoy segura'}], (v)=>{ state.obesity = v; askFamilyHistory(); });
+  botSay([{text:'¿Un médico te ha dicho alguna vez que tienes obesidad (IMC entre 30 y 40)?', cls:'question', more:[
+    {id:'ctx_imc', q:'¿Qué es el IMC?', a:'El índice de masa corporal relaciona tu peso con tu talla: peso en kilos dividido entre la talla en metros al cuadrado. Entre 30 y 40 se considera obesidad.'},
+  ]}]).then(()=>{
+    renderChips([{label:'Sí'},{label:'No'},{label:'No estoy segura'}], (v)=>{ state.obesity = v; track('answer',{q:'ctx_obesidad'}); askFamilyHistory(); });
   });
 }
 function askFamilyHistory(){
-  botSay(['¿Tu mamá o alguna hermana ha tenido cáncer de mama?']).then(()=>{
-    renderChips([{label:'Sí'},{label:'No'},{label:'No sé / no tengo ese dato'}], (v)=>{ state.familyBreastCa = v; askMigraine(); });
+  botSay([{text:'¿Tu mamá o alguna hermana ha tenido cáncer de mama?', cls:'question'}]).then(()=>{
+    renderChips([{label:'Sí'},{label:'No'},{label:'No sé / no tengo ese dato'}], (v)=>{ state.familyBreastCa = v; track('answer',{q:'ctx_antecedente'}); askMigraine(); });
   });
 }
 const MIGRAINE_AURA = 'Sí, con aura (destellos, luces u otros síntomas antes del dolor)';
 function askMigraine(){
-  botSay(['¿Sufres de migrañas?']).then(()=>{
-    renderChips([{label:'No'},{label:'Sí, sin aura'},{label:MIGRAINE_AURA}], (v)=>{ state.migraine = v; askCurrentTreatment(); });
+  botSay([{text:'¿Sufres de migrañas?', cls:'question', more:[
+    {id:'ctx_aura', q:'¿Qué es el aura?', a:'Son señales que aparecen antes del dolor de cabeza y duran unos minutos: destellos, luces o líneas en zigzag, o un hormigueo en la cara o la mano.'},
+  ]}]).then(()=>{
+    renderChips([{label:'No'},{label:'Sí, sin aura'},{label:MIGRAINE_AURA}], (v)=>{ state.migraine = v; track('answer',{q:'ctx_migrana'}); askCurrentTreatment(); });
   });
 }
 /* P18 (tiempo desde la última regla/cirugía) se quitó: solo servía para la "ventana
@@ -829,19 +851,23 @@ function askMigraine(){
    cirugía" no es un buen indicador de "tiempo desde la menopausia" (la guía excluye
    a este grupo de STRAW+10 por la misma razón). No se usaba en ningún resultado. */
 function askCurrentTreatment(){
-  botSay(['Por último de este bloque: ¿actualmente usas algún tratamiento para estos síntomas?']).then(()=>{
+  botSay([{text:'¿Usas algún tratamiento para estos síntomas?', cls:'question', more:[
+    {id:'ctx_tratamiento', q:'¿Qué cuenta como tratamiento?', a:'Por ejemplo: terapia hormonal (pastillas, parches o gel con estrógeno) o productos naturales como isoflavonas de soya u otros suplementos, si los tomas para los bochornos, el sueño u otros síntomas de esta etapa.'},
+  ]}]).then(()=>{
     renderChips([
       {label:'No uso ningún tratamiento'},
       {label:'Sí, tratamiento hormonal'},
       {label:'Sí, tratamiento no hormonal (plantas, suplementos, etc.)'},
       {label:'No estoy segura'},
-    ], (v)=>{ state.currentTreatment = v; askRedFlags(); });
+    ], (v)=>{ state.currentTreatment = v; track('answer',{q:'ctx_tratamiento'}); askRedFlags(); });
   });
 }
 
 function askRedFlags(){
   setSection('Por tu seguridad');
-  botSay(['Ya casi terminamos. Te pregunto esto por tu seguridad: algunos antecedentes cambian por completo qué conviene revisar primero con tu médico(a). Marca todo lo que aplique.']).then(()=>{
+  botSay(['Por último, algo de seguridad.', {text:'¿Tienes alguno de estos antecedentes? Marca todo lo que aplique.', cls:'question', more:[
+    {id:'rf_terminos', q:'¿Qué significan algunos términos?', a:'ACV: un derrame o infarto cerebral. Hormono-dependiente: un cáncer que crece con las hormonas, como algunos de mama o de endometrio.'},
+  ]}]).then(()=>{
     renderMultiSelect(RED_FLAGS, (selected)=>{
       state.redFlags = selected;
       computeScores();
@@ -903,9 +929,13 @@ function areasBody(){ return areasCard(); }
 const BAND_CLASS = {A0:'level-a', A1:'level-a', B:'level-b', C:'level-c'};
 const BAND_KIND = {A0:'calm', A1:'calm', B:'notice', C:'notice'};
 const levelText = (msg)=> msg.paragraphs.join('<br><br>');
+/* Nivel para la recomendación médica: con una señal de alerta manda la indicación del aviso. */
+const recoLevel = ()=> hasFlag() ? 'alert' : computeLevel();
+const doctorReco = ()=> `<p class="doctor-reco">${doctorRecommendation(recoLevel())}</p>`;
 function levelCard(msg){
   return `<div class="result-badge-row"><span class="result-level-badge ${BAND_CLASS[msg.band]}">${msg.badge}</span></div>` +
     `<h3>${msg.title}</h3>` +
+    doctorReco() +
     `<p>${levelText(msg)}</p>`;
 }
 
@@ -919,41 +949,18 @@ function consultCard(){
   return `<h3>¿Qué preguntarle a tu médico(a)?</h3>` + consultBody();
 }
 
+/* Chat: máximo 2 consejos, uno por línea (topSelfCare). Reporte: la lista completa
+   (selfCareBody). Los dos salen de supabase/functions/_shared/autocuidado.js, igual que send-report. */
 function selfCareCard(){
-  return `<h3>Recomendaciones de autocuidado</h3>` + selfCareBody();
-}
-
-/* Autocuidado seguro para cualquier nivel (A/B/C) — no reemplaza tratamiento.
-   Específicas: solo si alguno de sus ítems MRS se respondió con 2-4 (en orden P3→P13).
-   Universales: siempre, al final. P11 no tiene recomendación propia a propósito.
-   Mismo contenido que supabase/functions/send-report/index.ts — mantener sincronizado. */
-const SELF_CARE_SPECIFIC = [
-  {ids:['p3'], t:'Para los bochornos', d:'ropa en capas de fibras naturales, evitar bebidas muy calientes, café, alcohol y comidas muy condimentadas cuando puedas, y respirar lento y profundo en el momento del calor.'},
-  {ids:['p4'], t:'Para las palpitaciones', d:'evita la cafeína y el alcohol en exceso — pueden intensificar la sensación. Si son muy frecuentes, coméntalo con tu médico(a).'},
-  {ids:['p5'], t:'Para las molestias musculares', d:'estiramientos suaves y calor local pueden ayudar con la rigidez — el ejercicio regular también protege las articulaciones a largo plazo.'},
-  {ids:['p6'], t:'Para dormir mejor', d:'horarios fijos para acostarte, y un ambiente fresco y ventilado.'},
-  {ids:['p7','p8','p9'], t:'Para el ánimo y la irritabilidad', d:'el ejercicio regular ayuda especialmente aquí — libera endorfinas que estabilizan el ánimo y reducen la irritabilidad.'},
-  {ids:['p10'], t:'Para el cansancio', d:'mantener horarios regulares de sueño y actividad física moderada ayuda a recuperar energía — el sedentarismo tiende a empeorarlo.'},
-  {ids:['p12'], t:'Para las molestias al orinar', d:'los ejercicios de Kegel (fortalecer el piso pélvico) pueden ayudar con la urgencia y los escapes — puedes empezar por tu cuenta, sin receta.'},
-  {ids:['p13'], t:'Para la sequedad íntima', d:'lubricantes o humectantes de base acuosa y pH neutro, sin receta.'},
-];
-const SELF_CARE_UNIVERSAL = [
-  ['Para la alimentación', 'un patrón mediterráneo: legumbres, frutas, verduras, pescado y aceite de oliva.'],
-  ['Para el cuerpo en general', 'unos 150 minutos a la semana de actividad moderada (caminar rápido, nadar, bailar) — ayuda con el sueño, el ánimo y los huesos a la vez.'],
-  ['Para los huesos', '1,200 mg de calcio al día (dieta o suplementos) y al menos 800 UI de vitamina D — coméntalo con tu médico(a) antes de tomar suplementos.'],
-];
-function selfCareItems(answers){
-  const specific = SELF_CARE_SPECIFIC
-    .filter(s => s.ids.some(id => answers[id] != null && answers[id] >= 2))
-    .map(s => [s.t, s.d]);
-  return [...specific, ...SELF_CARE_UNIVERSAL];
+  const tips = topSelfCare(state.answers, state.scores).map(t=>`<li>${t}</li>`).join('');
+  return `<h3>Dos ideas para empezar</h3><ul class="card-list tips">${tips}</ul>` +
+    `<p class="card-note">El resto de recomendaciones está en tu reporte.</p>`;
 }
 function selfCareBody(){
-  const items = selfCareItems(state.answers);
-  const rows = items.map(([t,d])=>`<li><strong>${t}:</strong> ${d}</li>`).join('');
+  const rows = selfCareItems(state.answers).map(([t,d])=>`<li><strong>${t}:</strong> ${d}</li>`).join('');
   return `<p class="card-note">No reemplazan un tratamiento si tu médico(a) lo indica — son medidas seguras para cualquier momento de esta etapa.</p>` +
     `<ul class="card-list">${rows}</ul>` +
-    `<span class="cite">Fuente: Guía de Práctica Clínica para Diagnóstico y Tratamiento del Climaterio, Hospital Nacional Hipólito Unanue (RD N° 211-2024-DG/HNHU), sección 6.4.1 · dato inicial: Ayala-Peralta, 2020.</span>`;
+    `<span class="cite">Fuente: ${SELF_CARE_SOURCE}</span>`;
 }
 
 /* "¿Qué preguntarle a mi médico?": preguntas siempre útiles + los puntos de contexto
@@ -1002,10 +1009,9 @@ function resultTopicsCard(){
 function showResultsTopics(){
   setSection('Lo que noto');
   clearComposer();
-  const nombre = state.name ? `, ${state.name}` : '';
   const level = computeLevel();
 
-  botSay([`Gracias${nombre}. Esto es lo que noto en base a lo que me contaste:`]).then(async ()=>{
+  botSay(['Esto es lo que noto:']).then(async ()=>{
     await showResultsCardSequence();
     track('result',{level});
     continueToGoals();
@@ -1032,7 +1038,7 @@ function showSafetyMessage(){
         '<br><br>Esto no reemplaza la valoración de un profesional de salud.', 'notice');
     }
     track('result',{level:'alert', emergency:hasEmergency});
-    await botSay(['De todas formas, esto es lo que notamos en el resto de tus respuestas:']);
+    await botSay(['Y esto noto en tus síntomas:']);
 
     const level = computeLevel();
     await showResultsCardSequence();
@@ -1074,37 +1080,128 @@ function askGoals(){
 
 function askName(){
   setSection('Tu reporte');
-  botSay(['¿Cómo te gustaría que te llame en tu reporte?']).then(()=>{
-    renderTextInput('Tu nombre o un apodo', {skipLabel:'Prefiero usar un apodo', skipValue:''}, (val)=>{
+  // Opcional: solo personaliza el saludo del reporte (PDF y correo). No se guarda si no deja su correo.
+  botSay([{text:'¿Cómo quieres que te llame en tu reporte?', cls:'question'}]).then(()=>{
+    renderTextInput('Tu nombre o un apodo', {skipLabel:'Prefiero no decirlo', skipValue:''}, (val)=>{
       state.name = val || '';
-      askContact();
+      showReport();
     });
   });
 }
 
+/* Correo para la copia del reporte (el número de WhatsApp ya no se pide). validContact sigue
+   aceptando WhatsApp solo para la inscripción a los conversatorios. */
+function validEmail(v){ return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v); }
 function validContact(v){
-  const email = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v);
   const phone = v.replace(/\D/g,'').length >= 9;
-  return email || phone;
+  return validEmail(v) || phone;
 }
 
-function askContact(){
-  botSay(['Para terminar, ¿a qué correo o número de WhatsApp te envío tu reporte completo? Es opcional — si prefieres no dejarlo, igual te dejo tu reporte para descargar.']).then(()=>{
-    renderTextInput('correo@ejemplo.com o WhatsApp', {
-      skipLabel:'Prefiero no dejar mis datos',
-      validate:validContact,
-      errorText:'Revisa el correo o el número (mínimo 9 dígitos), o elige no dejar tus datos.',
-      hint:'Solo lo usamos para enviarte tu reporte. Tus respuestas se guardan sin tu nombre, separadas de tu contacto.',
-    }, (val)=>{
-      state.contact = val;
-      track('lead', {captured: !!val});
-      if(val){
-        saveLead().then(requestReport);
+/* Navegadores internos de TikTok, Facebook e Instagram: a veces no abren ni descargan PDF. */
+const IN_APP_BROWSER = /FBAN|FBAV|FB_IAB|FBIOS|Instagram|musical_ly|BytedanceWebview|TikTok/i.test(navigator.userAgent);
+
+/* El reporte completo, dentro del chat: lo mismo que el PDF y el correo, en el mismo orden. */
+function reportAnswersList(){
+  const rows = MRS_ITEMS.map(it=>{
+    const v = state.answers[it.id];
+    return `<li><span>${it.short}</span><span>${v === null || v === undefined ? 'Sin responder' : SCALE_LABELS[v]}</span></li>`;
+  }).join('');
+  return `<ul class="report-answers">${rows}</ul>`;
+}
+function reportFullHtml(){
+  const msg = levelMessage(state.scores);
+  const alertNote = hasFlag()
+    ? `<p class="card-note"><strong>Marcaste una señal de alerta.</strong> Conviene revisarla con tu médico(a) antes de considerar cualquier tratamiento.</p>` : '';
+  return `<div class="report-full">` +
+    `<section>${alertNote}${levelCard(msg)}</section>` +
+    `<section><h3>Sobre tu etapa</h3><p>${stageNote()}</p><span class="cite">${PERU_AGE_NOTE} Fuente: Guía HNHU (RD N° 211-2024-DG/HNHU), secciones 5.4 y 6.2.1.</span></section>` +
+    `<section>${areasCard()}</section>` +
+    `<section><h3>Recomendaciones de autocuidado</h3>${selfCareBody()}</section>` +
+    `<section><h3>Para tu consulta</h3>${consultBody()}</section>` +
+    `<section><h3>Tus 11 respuestas</h3>${reportAnswersList()}</section>` +
+    `</div>`;
+}
+
+let reportSeq = 0;
+function showReport(){
+  setSection('Tu reporte');
+  const id = 'pdfBtn' + (++reportSeq);
+  const inApp = IN_APP_BROWSER
+    ? `<p class="report-inapp">Si la descarga no abre aquí, abre esta página en tu navegador (menú ··· › Abrir en el navegador) o recíbelo en tu correo.</p>` : '';
+  revealCard(
+    `<h3>Tu reporte</h3><p class="card-note">Todo lo que vimos, para llevarlo a tu consulta.</p>` +
+    `<div class="report-actions"><a class="btn btn-sm" id="${id}" aria-disabled="true">Preparando tu PDF…</a></div>` +
+    inApp + reportFullHtml(), 'report'
+  ).then(()=>{
+    track('report_shown', {in_app: IN_APP_BROWSER});
+    requestDownloadOnly().then(url=>{
+      const btn = document.getElementById(id);
+      if(!btn) return;
+      if(url){
+        btn.href = url; btn.target = '_blank'; btn.rel = 'noopener';
+        btn.removeAttribute('aria-disabled');
+        btn.textContent = 'Descargar mi reporte';
+        btn.addEventListener('click', ()=> track('report_download', {in_app: IN_APP_BROWSER}));
       } else {
-        requestDownloadOnly();
+        btn.textContent = 'No se pudo preparar el PDF';
+        btn.insertAdjacentHTML('afterend', '<p class="card-note">Déjanos tu correo abajo y te enviamos una copia.</p>');
       }
-      askSatisfaction();
     });
+    askEmailCopy();
+  });
+}
+
+/* Copia opcional por correo + las dos casillas opcionales (avisos e investigación).
+   Si no deja el correo, igual ya vio y puede descargar su reporte. */
+function askEmailCopy(){
+  botSay([{text:'¿Quieres recibirlo también en tu correo? Así no lo pierdes.', cls:'question'}]).then(()=>{
+    clearComposer();
+    const form = document.createElement('form');
+    form.className = 'email-offer';
+    form.noValidate = true;
+    form.innerHTML =
+      `<div class="inputRow"><input type="email" name="email" placeholder="correo@ejemplo.com" autocomplete="email" aria-label="Tu correo">` +
+      `<button type="submit" class="sendBtn" aria-label="Enviarme una copia">${ICON_SEND}</button></div>` +
+      `<p class="hint">Usaremos tu correo solo para enviarte una copia de tu reporte.</p>` +
+      `<label class="opt"><input type="checkbox" name="news"><span>(Opcional) Avísenme por correo cuando lancen el acompañamiento de Mindi.</span></label>` +
+      `<label class="opt"><input type="checkbox" name="research"><span>(Opcional) Acepto que mis respuestas, sin mi nombre ni mi contacto, se usen para mejorar Mindi y para estudios sobre la menopausia.</span></label>` +
+      `<div class="chips suggestRow"><button type="button" class="chip quiet" data-skip>No, gracias</button></div>`;
+    composer.appendChild(form);
+    const input = form.elements.email;
+    const showErr = (text)=>{
+      let err = form.querySelector('.hint.err');
+      if(!err){ err = document.createElement('p'); err.className = 'hint err'; err.setAttribute('role','alert'); form.querySelector('.inputRow').after(err); }
+      err.textContent = text;
+      scrollBottom();
+    };
+    const finish = (email)=>{
+      const news = !!email && form.elements.news.checked;
+      const research = form.elements.research.checked;
+      addBubble(email || 'No, gracias', 'user');
+      clearComposer();
+      advance();
+      state.contact = email || null;
+      track('lead', {captured: !!email, news, research});
+      if(research) saveResearchConsent();
+      if(email){
+        saveLead(news).then(requestReport);
+        botSay(['Listo, te llegará en unos minutos.']).then(askSatisfaction);
+      } else {
+        askSatisfaction();
+      }
+    };
+    form.onsubmit = (e)=>{
+      e.preventDefault();
+      const v = input.value.trim();
+      if(!validEmail(v)) return showErr(v ? 'Revisa el correo, o elige "No, gracias".' : 'Escribe tu correo, o elige "No, gracias".');
+      finish(v);
+    };
+    form.querySelector('[data-skip]').onclick = ()=>{
+      if(form.elements.news.checked) return showErr('Para recibir avisos, escribe tu correo.');
+      finish(null);
+    };
+    scrollBottom();
+    if(!isTouch) input.focus({preventScroll:true});
   });
 }
 
@@ -1113,16 +1210,15 @@ function askContact(){
    Excepción deliberada a "sin emojis" del sistema de diseño (ver renderFaceScale). */
 function askSatisfaction(){
   setSection('¿Qué tal estuvo?');
-  botSay(['Una última cosa, antes de despedirnos.']).then(()=>{
+  botSay(['Una última cosa:']).then(()=>{
     addCard('<h3>¿Qué tal te pareció esta experiencia?</h3>', '');
     renderFaceScale((score, label)=>{
       state.satisfaction = label;
       track('satisfaction', {answer:label, score});
-      const reply = score >= 3 ? 'Qué bueno saberlo, gracias por contarme.'
-        : score === 2 ? 'Gracias por decírmelo — lo tomo en cuenta.'
-        : 'Gracias por la honestidad, de verdad ayuda a mejorar esto.';
-      const saludo = state.name ? `Gracias, ${state.name}. ` : '';
-      botSay([reply, `${saludo}Fue un gusto acompañarte. Cuídate mucho.`]);
+      const reply = score >= 3 ? 'Qué bueno, gracias por contarme.'
+        : score === 2 ? 'Gracias, lo tomo en cuenta.'
+        : 'Gracias, de verdad ayuda a mejorar.';
+      botSay([reply, 'Fue un gusto. Cuídate mucho.']);
     });
   });
 }
