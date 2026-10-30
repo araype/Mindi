@@ -1,5 +1,5 @@
-// Mindi · Glosario del chat: explicaciones cortas que se abren con el ícono ⓘ junto a la
-// pregunta (nunca dentro de un botón de respuesta, porque tocarlo elige esa opción).
+// Mindi · Glosario del chat: explicaciones cortas en un enlace desplegable debajo de la pregunta,
+// como "¿Qué significa esto?" (nunca dentro de un botón de respuesta, porque tocarlo elige esa opción).
 // Perimenopausia y postmenopausia usan la definición clínica de la guía HNHU (6.2.1),
 // la misma que la nota de etapa del reporte. Pendiente de validación médica.
 
@@ -22,7 +22,20 @@ export const GLOSSARY_BY_QUESTION = {
   rf_terminos: ['acv', 'hormonodependiente'],
 };
 
+/** Texto del enlace desplegable de cada pregunta. */
+export const GLOSSARY_SUMMARY = {
+  p2: '¿Qué significan estos términos?',
+  ctx_imc: '¿Qué es el IMC?',
+  ctx_aura: '¿Qué es el aura?',
+  rf_terminos: '¿Qué significan algunos términos?',
+};
+
 /** id de la pregunta → [{ term, def }] en el orden definido. */
 export function glossaryFor(questionId) {
   return (GLOSSARY_BY_QUESTION[questionId] || []).map((k) => GLOSSARY[k]);
+}
+
+/** id de la pregunta → { id, q, items }: el desplegable que se agrega debajo de la pregunta. */
+export function glossaryMore(questionId) {
+  return { id: questionId, q: GLOSSARY_SUMMARY[questionId], items: glossaryFor(questionId) };
 }
