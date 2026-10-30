@@ -9,7 +9,7 @@ import { whyNotes, WHY_TITLE } from '../supabase/functions/_shared/notas.js';
 import { stageFilter, STAGE_EXIT } from './etapa.js';
 import { whatsappUrl, WHATSAPP_TEXT, channelUrl } from './whatsapp.js';
 import { createAgentClient, agentHtml, AI_NOTICE, GREETING, ERROR_TEXT, LIMIT_TEXT } from './agente.js';
-import { glossaryFor } from './glosario.js';
+import { glossaryMore } from './glosario.js';
 
 /* ---------- Medición (hooks listos para conectar a analítica real) ---------- */
 /* ---------- Backend (Supabase vía REST, solo INSERT con la clave pública) ----------
@@ -268,7 +268,6 @@ const RED_FLAGS = [
 const NONE_TEXT = RED_FLAGS.find(f=>f.id==='none').text;
 
 const ICON_CHECK = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
-const ICON_INFO  = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/><path d="M12 11v5.5"/><path d="M12 7.6h.01"/></svg>';
 const ICON_SEND  = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h15M13 6l6 6-6 6"/></svg>';
 
 /* ---------- Estado ---------- */
@@ -338,61 +337,41 @@ if(vv){
   syncViewport();
 }
 
-/* more: [{q, a, id}] — explicaciones que se abren al tocarlas ("¿Qué significa esto?"),
-   para que el texto extra no aparezca entre pregunta y pregunta.
-   info: {id, items:[{term, def}]} — glosario (src/glosario.js): un ícono ⓘ junto a la pregunta,
-   nunca dentro de un botón de respuesta, que abre la explicación de esos términos. */
-let infoSeq = 0;
-function addBubble(text, who, cls, subText, more, info){
+/* more: [{q, a, id}] o [{q, items:[{term, def}], id}] — explicaciones que se abren al tocar el
+   enlace debajo de la pregunta ("¿Qué significa esto?", "¿Qué es el aura?"), para que el texto
+   extra no aparezca entre pregunta y pregunta. Con items (glosario, src/glosario.js), cada término
+   va en su línea, con el nombre en negrita. */
+function addBubble(text, who, cls, subText, more){
   const row = document.createElement('div');
   row.className = 'row ' + who;
   const b = document.createElement('div');
   b.className = 'bubble' + (cls ? ' '+cls : '');
   b.textContent = text;
-  let infoPanel = null;
-  if(info && info.items && info.items.length){
-    const terms = info.items.map(i=>i.term).join(', ');
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'info-btn';
-    btn.setAttribute('aria-expanded', 'false');
-    btn.setAttribute('aria-label', `Qué significa: ${terms}`);
-    btn.innerHTML = ICON_INFO;
-    infoPanel = document.createElement('div');
-    infoPanel.className = 'info-panel';
-    infoPanel.id = 'info' + (++infoSeq);
-    infoPanel.hidden = true;
-    btn.setAttribute('aria-controls', infoPanel.id);
-    info.items.forEach(({term, def})=>{
-      const p = document.createElement('p');
-      const t = document.createElement('strong');
-      t.textContent = term + ': ';
-      p.append(t, def);
-      infoPanel.appendChild(p);
-    });
-    btn.onclick = ()=>{
-      const open = infoPanel.hidden;
-      infoPanel.hidden = !open;
-      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-      if(open){ track('help_open', {q:info.id}); scrollBottom(); }
-    };
-    b.appendChild(btn);
-  }
   if(subText){
     const sp = document.createElement('span');
     sp.className = 'sub';
     sp.textContent = subText;
     b.appendChild(sp);
   }
-  if(infoPanel) b.appendChild(infoPanel);
-  (more || []).forEach(({q, a, id})=>{
+  (more || []).forEach(({q, a, items, id})=>{
     const d = document.createElement('details');
     d.className = 'more';
     const s = document.createElement('summary');
     s.textContent = q;
     const p = document.createElement('span');
     p.className = 'more-body';
-    p.textContent = a;
+    if(items){
+      items.forEach(({term, def})=>{
+        const line = document.createElement('span');
+        line.className = 'more-term';
+        const t = document.createElement('strong');
+        t.textContent = term + ': ';
+        line.append(t, def);
+        p.appendChild(line);
+      });
+    } else {
+      p.textContent = a;
+    }
     d.append(s, p);
     d.addEventListener('toggle', ()=>{ if(d.open){ track('help_open', {q:id}); scrollBottom(); } });
     b.appendChild(d);
@@ -479,7 +458,7 @@ function botSay(messages){
       setTimeout(()=>{
         hideTyping();
         const m = messages[i];
-        if(typeof m === 'string') addBubble(m, 'bot'); else addBubble(m.text, 'bot', m.cls, m.sub, m.more, m.info);
+        if(typeof m === 'string') addBubble(m, 'bot'); else addBubble(m.text, 'bot', m.cls, m.sub, m.more);
         i++;
         setTimeout(next, reduceMotion ? 0 : 450);
       }, TYPING_MS);
@@ -788,7 +767,7 @@ function askAge(){
 }
 
 function askCycle(){
-  botSay([{text:'En los últimos 12 meses, ¿cómo ha estado tu periodo?', cls:'question', info:{id:'p2', items:glossaryFor('p2')}}]).then(()=>{
+  botSay([{text:'En los últimos 12 meses, ¿cómo ha estado tu periodo?', cls:'question', more:[glossaryMore('p2')]}]).then(()=>{
     renderChips([
       {label:'Sigue regular'},
       {label:'Es irregular (varía o se retrasa)'},
@@ -926,7 +905,7 @@ function askSmoking(){
   });
 }
 function askObesity(){
-  botSay([{text:'¿Un médico te ha dicho alguna vez que tienes obesidad (IMC entre 30 y 40)?', cls:'question', info:{id:'ctx_imc', items:glossaryFor('ctx_imc')}}]).then(()=>{
+  botSay([{text:'¿Un médico te ha dicho alguna vez que tienes obesidad (IMC entre 30 y 40)?', cls:'question', more:[glossaryMore('ctx_imc')]}]).then(()=>{
     renderChips([{label:'Sí'},{label:'No'},{label:'No estoy segura'}], (v)=>{ state.obesity = v; track('answer',{q:'ctx_obesidad'}); askFamilyHistory(); });
   });
 }
@@ -937,7 +916,7 @@ function askFamilyHistory(){
 }
 const MIGRAINE_AURA = 'Sí, con aura (destellos, luces u otros síntomas antes del dolor)';
 function askMigraine(){
-  botSay([{text:'¿Sufres de migrañas?', cls:'question', info:{id:'ctx_aura', items:glossaryFor('ctx_aura')}}]).then(()=>{
+  botSay([{text:'¿Sufres de migrañas?', cls:'question', more:[glossaryMore('ctx_aura')]}]).then(()=>{
     renderChips([{label:'No'},{label:'Sí, sin aura'},{label:MIGRAINE_AURA}], (v)=>{ state.migraine = v; track('answer',{q:'ctx_migrana'}); askCurrentTreatment(); });
   });
 }
@@ -961,7 +940,7 @@ function askCurrentTreatment(){
 
 function askRedFlags(){
   setSection('Por tu seguridad');
-  botSay(['Por último, algo de seguridad.', {text:'¿Tienes alguno de estos antecedentes? Marca todo lo que aplique.', cls:'question', info:{id:'rf_terminos', items:glossaryFor('rf_terminos')}}]).then(()=>{
+  botSay(['Por último, algo de seguridad.', {text:'¿Tienes alguno de estos antecedentes? Marca todo lo que aplique.', cls:'question', more:[glossaryMore('rf_terminos')]}]).then(()=>{
     renderMultiSelect(RED_FLAGS, (selected)=>{
       state.redFlags = selected;
       computeScores();

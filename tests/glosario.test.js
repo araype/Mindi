@@ -23,3 +23,12 @@ test('postmenopausia usa la misma definición clínica que la nota de etapa (12 
 test('explicaciones cortas: caben en un desplegable sin saturar la pantalla', () => {
   for (const g of Object.values(GLOSSARY)) assert.ok(g.def.length <= 170, g.term);
 });
+
+test('cada pregunta con glosario tiene su enlace desplegable, como "¿Qué significa esto?"', async () => {
+  const { glossaryMore } = await import('../src/glosario.js');
+  assert.equal(glossaryMore('p2').q, '¿Qué significan estos términos?');
+  assert.equal(glossaryMore('ctx_imc').q, '¿Qué es el IMC?');
+  assert.equal(glossaryMore('ctx_aura').q, '¿Qué es el aura?');
+  assert.equal(glossaryMore('rf_terminos').q, '¿Qué significan algunos términos?');
+  assert.equal(glossaryMore('p2').items.length, 3);
+});
