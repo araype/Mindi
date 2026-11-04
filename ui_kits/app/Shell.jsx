@@ -3,7 +3,7 @@ function PhoneFrame({ children }) {
     <div style={{
       width: '380px', height: '760px', background: 'var(--surface-page)', borderRadius: '36px',
       boxShadow: 'var(--shadow-raised)', overflow: 'hidden', display: 'flex', flexDirection: 'column',
-      fontFamily: 'var(--font-ui)', border: '8px solid var(--ink-900)',
+      fontFamily: 'var(--font-ui)', border: '8px solid var(--text-primary)',
     }}>
       {children}
     </div>

@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Mindi · Sistema de diseño</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Special+Gothic:wght@700&family=Signika:wght@400;600&family=Space+Mono&family=DM+Mono:wght@300&display=swap">
+<script type="module">import './src/ds.css';</script>
+<style>
+  /* Solo para el muestrario (no se publica: no está en vite.config.js) */
+  .sg{max-width:var(--container-max);margin:0 auto;padding:40px var(--gutter) 80px;display:flex;flex-direction:column;gap:48px}
+  .sg section{display:flex;flex-direction:column;gap:16px}
+  .row{display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+  .sw{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}
+  .sw div{border-radius:14px;border:1px solid var(--line-soft);overflow:hidden;font-family:var(--font-mono);font-size:11px;color:var(--plum)}
+  .sw b{display:block;height:54px}.sw span{display:block;padding:6px 8px}
+  .dark{background:var(--plum);padding:24px;border-radius:var(--radius-l)}
+  .pink{background:var(--magenta-btn);padding:24px;border-radius:var(--radius-l)}
+  .grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:22px;align-items:start}
+  .stack{display:flex;flex-direction:column;gap:8px;padding:14px}
+</style>
+</head>
+<body>
+<main class="sg">
+  <header><span class="m-eyebrow">Sistema de diseño</span><h1 class="m-h2" style="margin-top:10px">Mindi</h1></header>
+
+  <section aria-label="Colores">
+    <span class="m-eyebrow">Colores</span>
+    <div class="sw" id="sw"></div>
+  </section>
+
+  <section aria-label="Tipografía">
+    <span class="m-eyebrow">Tipografía</span>
+    <p style="font-family:var(--font-display);font-size:var(--fs-hero);line-height:var(--lh-display);text-transform:uppercase;color:var(--magenta-btn)">Entiende tu<br>cuerpo</p>
+    <h2 class="m-h2">Elige cómo te acompaña Mindi</h2>
+    <h3 class="m-h3">Cuéntale cómo te has sentido</h3>
+    <p class="m-text">Mindi te ayuda a entender lo que sientes con un test gratuito de 5 minutos, basado en una escala que usan los ginecólogos.</p>
+    <p class="m-text-s">Línea de vida: Guía de Práctica Clínica del Climaterio, Hospital Nacional Hipólito Unanue (2024) e INEI.</p>
+    <p style="font-family:var(--font-tagline);font-weight:300;letter-spacing:.07em">The bridge across the menopause gap in Peru and LATAM</p>
+  </section>
+
+  <section aria-label="Botones">
+    <span class="m-eyebrow">Botones</span>
+    <div class="row"><a class="m-btn" href="#">Haz el test gratis →</a><a class="m-btn m-btn--outline" href="#">Pregúntale a Mindi →</a><a class="m-btn m-btn--nav" href="#">Haz el test →</a><button class="m-btn" disabled>Deshabilitado</button></div>
+    <div class="row pink m-on-dark"><a class="m-btn m-btn--white" href="#">Quiero acceso anticipado →</a></div>
+    <div class="row dark m-on-dark"><a class="m-link" style="color:#fff" href="#">o pregúntale a Mindi</a><span class="m-eyebrow">Esta etapa</span></div>
+    <div class="row"><span class="m-chip">Peso</span><span class="m-chip m-chip--sev">Intensidad moderada</span><span class="m-meta">Pregunta 3 de 11</span></div>
+  </section>
+
+  <section aria-label="Pasos">
+    <span class="m-eyebrow">¿Cómo funciona?</span>
+    <ol class="m-steps">
+      <li class="m-step is-active"><div class="m-step__n">01</div><h3>Cuéntale cómo te has sentido</h3><p>Respondes 11 preguntas cortas sobre tu cuerpo, tu ánimo y tu zona íntima. Toma 5 minutos, desde tu celular.</p></li>
+      <li class="m-step"><div class="m-step__n">02</div><h3>Entiende lo que te pasa</h3><p>Mindi te muestra, en palabras simples, qué tan fuertes son tus síntomas y qué áreas de tu vida están afectando.</p></li>
+    </ol>
+  </section>
+
+  <section aria-label="Celular y chats">
+    <span class="m-eyebrow">Test (claro) y chat con IA (oscuro)</span>
+    <div class="grid3">
+      <div class="m-phone"><img class="m-phone__frame" src="/img/frame.webp" alt=""><div class="m-phone__screen m-chat"><div class="stack" style="padding-top:14%">
+        <div class="m-chat__head"><span class="m-avatar">M</span>Mindi</div>
+        <div class="m-progress"><i style="width:27%"></i></div><div class="m-meta">Pregunta 3 de 11</div>
+        <div class="m-bubble m-bubble--bot" style="font-size:13.5px">¿Qué tanto te han molestado los bochornos o sudoraciones?<small>Por ejemplo: calor repentino en una reunión o despertar empapada.</small></div>
+        <div class="m-bubble m-bubble--me" style="font-size:13px">3 · Fuerte</div>
+        <div class="m-typing"><i></i><i></i><i></i></div>
+      </div></div></div>
+
+      <div class="m-card" style="background:var(--test-bg)">
+        <div class="m-scale" role="group" aria-label="Escala de 0 a 4">
+          <button type="button">0<small>Nada</small></button><button type="button">1<small>Leve</small></button><button type="button">2<small>Moderado</small></button><button type="button" aria-pressed="true">3<small>Fuerte</small></button><button type="button">4<small>Muy fuerte</small></button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px;margin-top:20px">
+          <h3 class="m-h3">Tus síntomas hoy</h3><span class="m-chip m-chip--sev" style="align-self:flex-start">Intensidad moderada</span>
+          <div class="m-bar is-on" style="--w:68%"><div class="m-bar__label"><span>Cuerpo</span><span>68%</span></div><div class="m-bar__track"><i></i></div></div>
+          <div class="m-bar is-on" style="--w:52%"><div class="m-bar__label"><span>Ánimo</span><span>52%</span></div><div class="m-bar__track"><i></i></div></div>
+          <div class="m-bar is-on" style="--w:30%"><div class="m-bar__label"><span>Vida íntima</span><span>30%</span></div><div class="m-bar__track"><i></i></div></div>
+        </div>
+      </div>
+
+      <div class="m-chat m-chat--dark m-on-dark" style="border-radius:var(--radius-l);overflow:hidden">
+        <div class="m-chat__head"><span class="m-avatar">M</span><div>Mindi<span class="m-chat__status">en línea</span></div></div>
+        <div class="stack">
+          <div class="m-msg m-msg--user">¿Es normal tener bochornos a los 47?</div>
+          <div class="m-msg m-msg--bot">Sí, es muy común. A esa edad muchas mujeres empiezan la perimenopausia y los bochornos son de las primeras señales. No estás sola en esto.</div>
+          <div class="m-typing"><i></i><i></i><i></i></div>
+          <form class="m-chat-input" onsubmit="return false"><label class="m-sr-only" for="q">Escribe tu duda</label><input id="q" placeholder="Escribe tu duda…"><button type="submit" aria-label="Enviar">➤</button></form>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section aria-label="Planes">
+    <span class="m-eyebrow">Planes</span>
+    <div class="grid3">
+      <article class="m-plan"><div class="m-plan__who">Para empezar</div><h3 class="m-plan__name">Mindi Free</h3><p class="m-plan__desc">Entiende qué te pasa y resuelve tus primeras dudas.</p><div class="m-plan__price" style="margin-top:22px">S/ 0</div><ul class="m-plan__feat"><li>Tests de síntomas (escala MRS)</li><li>Reporte descargable para tu médico</li></ul><a class="m-btn" href="#">Haz el test gratis →</a></article>
+      <article class="m-plan m-plan--plus m-on-dark"><div class="m-plan__who">Para acompañarte</div><h3 class="m-plan__name">Mindi Plus</h3><p class="m-plan__desc">Sigue tu evolución mes a mes sin repetir tu historia.</p><div class="m-plan__from">Desde</div><div class="m-plan__price">S/ 29.90</div><ul class="m-plan__feat"><li>Todo lo de Free</li></ul><a class="m-btn m-btn--white" href="#">Quiero acceso anticipado →</a></article>
+      <article class="m-plan m-plan--ent m-on-dark"><div class="m-plan__who">Para empresas</div><h3 class="m-plan__name">Mindi Enterprise</h3><p class="m-plan__desc">Acompaña a tus colaboradoras en una etapa de la que casi nadie habla en el trabajo.</p><div class="m-plan__from">Desde</div><div class="m-plan__price">S/ 15</div><div class="m-plan__per">por colaboradora</div><ul class="m-plan__feat"><li>Mindi Plus para todas tus colaboradoras</li></ul><a class="m-btn m-btn--outline" href="#">Agenda una demo →</a></article>
+    </div>
+  </section>
+
+  <section aria-label="Preguntas, avisos y formularios">
+    <span class="m-eyebrow">Preguntas frecuentes, avisos y formularios</span>
+    <div class="grid3">
+      <div class="m-faq"><details><summary>¿El test es gratis?</summary><p>Sí. Toma unos 5 minutos y al final recibes tu reporte para descargar.</p></details><details><summary>¿Mindi reemplaza a mi médico?</summary><p>No. Mindi te ayuda a entender lo que sientes y a llegar mejor preparada a tu consulta, pero no da diagnósticos ni tratamientos.</p></details></div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div class="m-notice m-notice--emergency"><div class="m-notice__title">Variante: emergencia</div><p class="m-text-s">Acento ciruela, sin rojo (10.3). Texto de muestra.</p></div>
+        <div class="m-notice m-notice--eval"><div class="m-notice__title">Variante: evaluación</div><p class="m-text-s">Acento magenta (10.3). Texto de muestra.</p></div>
+      </div>
+      <form class="m-card" style="display:flex;flex-direction:column;gap:14px" onsubmit="return false">
+        <div class="m-field"><label for="n">Nombre</label><input class="m-input" id="n"></div>
+        <div class="m-field"><label for="e">Correo</label><input class="m-input" id="e" type="email"></div>
+        <label class="m-check"><input type="checkbox">Casilla no marcada por defecto</label>
+        <button class="m-btn" type="submit">Enviar</button>
+      </form>
+    </div>
+  </section>
+</main>
+<script>
+  const names=['magenta-btn','magenta','magenta-text','magenta-deep','plum','plum-soft','body-text','pink-bg','pink-tint','line','line-soft','wordmark','scale-0','scale-1','scale-2','scale-3','scale-4','test-bg','chat-bg','chat-header','bubble-user','bubble-bot','ok-text','ok-bg'];
+  document.getElementById('sw').innerHTML=names.map(n=>`<div><b style="background:var(--${n})"></b><span>--${n}</span></div>`).join('');
+</script>
+</body>
+</html>

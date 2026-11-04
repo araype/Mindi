@@ -11,7 +11,7 @@ function OnboardingScreen({ Button, Input, onDone }) {
     <div style={{ padding: '40px 28px', display: 'flex', flexDirection: 'column', gap: '24px', height: '100%', boxSizing: 'border-box' }}>
       <div style={{ display: 'flex', gap: '6px' }}>
         {steps.map((_, i) => (
-          <div key={i} style={{ height: '4px', flex: 1, borderRadius: '2px', background: i <= step ? 'var(--action-primary)' : 'var(--sand-200)' }} />
+          <div key={i} style={{ height: '4px', flex: 1, borderRadius: '2px', background: i <= step ? 'var(--action-primary)' : 'var(--surface-sunken)' }} />
         ))}
       </div>
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px', justifyContent: 'center' }}>

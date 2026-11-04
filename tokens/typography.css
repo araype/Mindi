@@ -1,25 +1,43 @@
-@import url('https://fonts.googleapis.com/css2?family=Petrona:ital,wght@0,400;0,500;0,600;1,400&family=Public+Sans:wght@400;500;600;700&display=swap');
+/* Mindi · Tipografía (handoff, sección 4). Las fuentes se cargan con <link> en cada página
+   (ver tokens/fonts.css para las páginas estáticas del paquete de diseño). */
 :root{
---font-editorial:'Petrona',Georgia,serif; /* reassurance, welcome moments, brand headlines only */
---font-ui:'Public Sans',-apple-system,Helvetica,Arial,sans-serif; /* everything functional: nav, forms, settings, resource titles, section headings */
---font-display:var(--font-editorial);
---font-body:var(--font-ui);
+--font-display:"Special Gothic","Archivo","Arial Black",system-ui,sans-serif; /* títulos, números, botones, planes · 700 */
+--font-body:"Signika","Segoe UI",system-ui,sans-serif;                        /* párrafos, citas, preguntas · 400 y 600 */
+--font-mono:"Space Mono",ui-monospace,monospace;                              /* eyebrows, chips, metadatos · 400 */
+--font-tagline:"DM Mono",var(--font-mono);                                    /* solo el tagline del cierre · 300 */
+--font-ui:var(--font-body);
+--font-editorial:var(--font-display);
 
---text-editorial-xl:clamp(1.9rem,4vw,2.4rem);
---text-editorial-l:1.6rem;
---text-editorial-m:1.35rem;
+/* Escala: escritorio (móvil abajo, ≤ 760 px) */
+--fs-hero:118px;          /* título de portada, mayúsculas, 2 líneas fijas */
+--fs-wordmark:min(25vw,380px);
+--fs-h2:50px;
+--fs-statement:38px;      /* "QUE SEA COMÚN…", mayúsculas, 3 líneas fijas */
+--fs-stat:35px;           /* números de datos */
+--fs-plan:30px;           /* nombres de plan */
+--fs-h3:22px;
+--fs-body:17px;
+--fs-small:14.5px;
+--fs-mono:12px;
+--fs-quote:20px;
+--fs-quote-mark:64px;
 
---text-heading-l:1.25rem;
---text-heading-m:1.0625rem;
+--lh-display:.98;
+--lh-title:1.06;
+--lh-body:1.5;
+--tracking-mono:.13em;
+--tracking-display:-.01em;
 
---text-body-l:1.0625rem;
---text-body-m:1rem;
---text-body-s:0.875rem;
---text-caption:0.8125rem;
-
---lh-editorial:1.2; /* @kind other */
---lh-heading:1.35; /* @kind other */
---lh-body:1.6; /* @kind other */
---tracking-tight:-0.01em; /* @kind other */
---tracking-wide:0.02em; /* @kind other */
+/* Nombres del paquete de diseño (apuntan a la escala de arriba) */
+--text-editorial-xl:var(--fs-h2);--text-editorial-l:var(--fs-plan);--text-editorial-m:var(--fs-h3);
+--text-heading-l:var(--fs-h3);--text-heading-m:18px;
+--text-body-l:var(--fs-body);--text-body-m:16px;--text-body-s:var(--fs-small);--text-caption:var(--fs-mono);
+--lh-editorial:var(--lh-title);--lh-heading:var(--lh-title);
+--tracking-tight:var(--tracking-display);--tracking-wide:var(--tracking-mono);
+}
+@media (max-width:760px){
+:root{
+--fs-hero:11.2vw;--fs-wordmark:96px;--fs-h2:30px;--fs-statement:22px;--fs-stat:23px;
+--fs-plan:24px;--fs-h3:18px;--fs-body:16px;--fs-small:14px;--fs-mono:11px;--fs-quote:18px;
+}
 }

@@ -19,7 +19,7 @@ export function Switch({ checked, onChange, label, id }) {
         />
         <span aria-hidden="true" style={{
           position: 'absolute', inset: 0, borderRadius: 'var(--radius-pill)',
-          background: checked ? 'var(--action-primary)' : 'var(--ink-200)', transition: 'background var(--duration-base) var(--ease-standard)',
+          background: checked ? 'var(--action-primary)' : 'var(--border-strong)', transition: 'background var(--duration-base) var(--ease-standard)',
           pointerEvents: 'none',
         }}>
           <span style={{

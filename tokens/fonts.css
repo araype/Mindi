@@ -1,0 +1,3 @@
+/* Fuentes de Mindi para páginas estáticas (paquete de diseño). En el sitio se cargan con <link>
+   en el <head> de cada página, que es más rápido que un @import. */
+@import url('https://fonts.googleapis.com/css2?family=Special+Gothic:wght@700&family=Signika:wght@400;600&family=Space+Mono&family=DM+Mono:wght@300&display=swap');

@@ -11,7 +11,7 @@ export function Tabs({ items = [], defaultActive = 0, onChange, label = 'Seccion
     if (next !== null) { e.preventDefault(); select(next); refs.current[next] && refs.current[next].focus(); }
   };
   return (
-    <div role="tablist" aria-label={label} style={{ display: 'flex', gap: '4px', background: 'var(--sand-200)', borderRadius: 'var(--radius-pill)', padding: '4px', fontFamily: 'var(--font-ui)', width: 'fit-content' }}>
+    <div role="tablist" aria-label={label} style={{ display: 'flex', gap: '4px', background: 'var(--surface-sunken)', borderRadius: 'var(--radius-pill)', padding: '4px', fontFamily: 'var(--font-ui)', width: 'fit-content' }}>
       {items.map((item, i) => (
         <button
           key={item}

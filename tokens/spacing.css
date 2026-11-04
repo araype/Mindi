@@ -1,5 +1,9 @@
+/* Mindi · Espaciado y contenedores */
 :root{
 --space-2xs:4px;--space-xs:8px;--space-s:12px;--space-m:16px;--space-l:24px;--space-xl:32px;--space-2xl:48px;--space-3xl:64px;--space-4xl:96px;
---container-max:1120px;
+--gutter:max(16px,env(safe-area-inset-left,0px)); /* margen lateral: 16 px en un celular de 360 px */
+--container-max:1180px;
+--container-wide:1280px;   /* menú */
 --container-narrow:680px;
+--tap-min:44px;            /* área táctil mínima */
 }

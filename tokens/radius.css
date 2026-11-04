@@ -1,3 +1,9 @@
+/* Mindi · Radios (handoff, 5.10) */
 :root{
---radius-s:10px;--radius-m:16px;--radius-l:24px;--radius-pill:999px;
+--radius-s:10px;   /* burbujas del chat oscuro, tarjetas internas */
+--radius-m:16px;   /* burbujas del test, tarjetas internas */
+--radius-l:24px;   /* tarjetas grandes, tarjetas de datos */
+--radius-xl:30px;  /* tarjetas de plan */
+--radius-quote:28px;
+--radius-pill:40px;/* botones y chips */
 }

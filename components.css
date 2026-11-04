@@ -1,0 +1,172 @@
+/* ==================================================================
+   Mindi · Componentes base (handoff, sección 5, y pantallas de la 10)
+   Prefijo m- para no chocar con los estilos que se van reemplazando.
+   Los componentes con lógica propia (tarjeta de frases, datos con scroll,
+   celular fijo de "¿Cómo funciona?") se arman en la landing (Fase 2).
+   ================================================================== */
+
+/* ---------- 5.1 Botones ---------- */
+.m-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:var(--tap-min);
+  padding:16px 28px;border-radius:var(--radius-pill);border:2px solid transparent;
+  font-family:var(--font-display);font-weight:700;font-size:16px;line-height:1.1;text-decoration:none;text-align:center;
+  cursor:pointer;background:var(--magenta-btn);color:#fff;
+  transition:background-color var(--duration-fast) ease,color var(--duration-fast) ease,filter var(--duration-fast) ease}
+.m-btn:hover{color:#fff;filter:brightness(1.05)}
+.m-btn:focus-visible{outline:3px solid var(--focus-ring);outline-offset:3px}
+.m-btn[disabled],.m-btn[aria-disabled="true"]{opacity:.5;cursor:not-allowed;filter:none}
+
+.m-btn--outline{background:transparent;border-color:var(--magenta-btn);color:var(--magenta-deep)}
+.m-btn--outline:hover{background:var(--magenta-btn);color:#fff;filter:none}
+
+.m-btn--white{background:#fff;color:var(--magenta-on-white)}
+.m-btn--white:hover{color:var(--magenta-on-white)}
+
+.m-btn--nav{padding:12px 22px;font-size:15px}
+.m-btn--sm{padding:11px 20px;font-size:15px}
+.m-btn--block{display:flex;width:100%}
+
+.m-link{color:inherit;font-size:17px;text-decoration:underline;text-underline-offset:6px;text-decoration-thickness:1.5px}
+.m-link:hover{color:inherit}
+
+/* ---------- 5.2 Eyebrow ---------- */
+.m-eyebrow{display:inline-flex;align-items:center;gap:8px;font-family:var(--font-mono);font-size:var(--fs-mono);
+  letter-spacing:var(--tracking-mono);text-transform:uppercase;color:var(--magenta-text)}
+.m-eyebrow::before{content:"";flex:none;width:10px;height:10px;background:var(--magenta-btn)}
+.m-on-dark .m-eyebrow,.m-eyebrow--on-dark{color:#FFB3EA}
+
+/* Chip (temas de la portada, intensidad del resultado) */
+.m-chip{display:inline-block;font-family:var(--font-mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--magenta-text);background:var(--pink-tint);border-radius:var(--radius-pill);padding:4px 10px}
+.m-chip--sev{font-family:var(--font-body);font-weight:600;font-size:13px;letter-spacing:0;text-transform:none;background:var(--sev-bg);padding:5px 12px}
+
+/* ---------- Títulos ---------- */
+.m-h2{font-family:var(--font-display);font-weight:700;font-size:var(--fs-h2);line-height:var(--lh-title);color:var(--magenta);text-wrap:balance}
+.m-h3{font-family:var(--font-display);font-weight:700;font-size:var(--fs-h3);line-height:var(--lh-title);color:var(--plum)}
+.m-text{font-size:var(--fs-body);line-height:var(--lh-body);color:var(--body-text)}
+.m-text-s{font-size:var(--fs-small);line-height:var(--lh-body);color:var(--plum-soft)}
+
+/* ---------- Tarjetas ---------- */
+.m-card{background:var(--surface-card);border:1.5px solid var(--line);border-radius:var(--radius-l);padding:20px;color:var(--plum)}
+.m-card--glass{background:rgba(255,248,252,.95);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border:0;box-shadow:var(--shadow-photo)}
+
+/* ---------- 5.5 Pasos ---------- */
+.m-steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:clamp(18px,4.5vh,48px)}
+.m-step{position:relative;padding-left:22px;opacity:.32;transition:opacity var(--duration-slow) ease}
+.m-step::before,.m-step::after{content:"";position:absolute;left:0;top:0;width:3px;border-radius:2px}
+.m-step::before{bottom:0;background:var(--line-soft)}
+.m-step::after{height:0;background:var(--magenta-btn);transition:height .5s ease}
+.m-step.is-active{opacity:1}.m-step.is-active::after{height:100%}
+.m-step__n{font-family:var(--font-display);font-weight:700;font-size:clamp(30px,4.4vw,56px);line-height:1;color:var(--magenta);letter-spacing:-.02em}
+.m-step h3{font-size:clamp(18px,1.8vw,22px);margin:8px 0 6px}
+.m-step p{font-size:15.5px;color:var(--body-text);max-width:38ch}
+
+/* ---------- 5.6 Marco de celular ---------- */
+.m-phone{position:relative;width:min(290px,68vw);aspect-ratio:290/560;filter:drop-shadow(var(--shadow-phone))}
+.m-phone__frame{position:absolute;inset:0;width:100%;height:100%;z-index:4;pointer-events:none;user-select:none}
+.m-phone__screen{position:absolute;left:10.2%;top:4.3%;width:81.7%;height:91.6%;border-radius:13% / 6.6%;overflow:hidden;background:var(--test-bg);z-index:1}
+
+/* ---------- 10.1 Chat del test (claro) ---------- */
+.m-chat{background:var(--test-bg);color:var(--plum);font-family:var(--font-body)}
+.m-chat__head{display:flex;align-items:center;gap:10px;font-family:var(--font-display);font-weight:700;font-size:16px;color:var(--plum)}
+.m-avatar{flex:none;width:32px;height:32px;border-radius:50%;background:var(--magenta-btn);color:#fff;display:grid;place-items:center;
+  font-family:var(--font-display);font-weight:700;font-size:14px}
+.m-progress{height:5px;border-radius:3px;background:var(--line-soft);overflow:hidden}
+.m-progress > i{display:block;height:100%;width:0;background:var(--magenta-btn);transition:width var(--duration-slow) var(--ease-out)}
+.m-meta{font-family:var(--font-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--plum-soft)}
+
+.m-bubble{max-width:86%;padding:12px 14px;font-size:16px;line-height:1.45;animation:m-pop var(--duration-pop) ease both}
+.m-bubble--bot{align-self:flex-start;background:#fff;border:1.5px solid var(--bubble-bot-border);border-radius:16px 16px 16px 4px;color:var(--plum)}
+.m-bubble--bot small,.m-bubble__example{display:block;margin-top:6px;color:var(--plum-soft);font-size:13px;line-height:1.4}
+.m-bubble--me{align-self:flex-end;background:var(--magenta-btn);color:#fff;border-radius:16px 16px 4px 16px}
+@keyframes m-pop{from{opacity:0;transform:translateY(8px) scale(.97)}to{opacity:1;transform:none}}
+
+.m-typing{align-self:flex-start;display:inline-flex;gap:4px;padding:12px 14px;background:#fff;border:1.5px solid var(--bubble-bot-border);border-radius:16px 16px 16px 4px}
+.m-typing i{width:7px;height:7px;border-radius:50%;background:var(--plum-soft);animation:m-blink 1s infinite}
+.m-typing i:nth-child(2){animation-delay:.15s}.m-typing i:nth-child(3){animation-delay:.3s}
+@keyframes m-blink{0%,80%,100%{opacity:.3}40%{opacity:1}}
+
+/* Escala 0–4: 5 botones con color progresivo; 3 y 4 con texto blanco; elegido con anillo ciruela */
+.m-scale{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+.m-scale button{min-height:56px;min-width:var(--tap-min);border:0;border-radius:12px;padding:8px 2px 6px;cursor:pointer;color:var(--plum);
+  font-family:var(--font-display);font-weight:700;font-size:20px;line-height:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}
+.m-scale button small{font-family:var(--font-body);font-weight:400;font-size:12px;line-height:1.1;color:var(--plum-soft)}
+.m-scale button:nth-child(1){background:var(--scale-0)}
+.m-scale button:nth-child(2){background:var(--scale-1)}
+.m-scale button:nth-child(3){background:var(--scale-2)}
+.m-scale button:nth-child(4){background:var(--scale-3);color:#fff}
+.m-scale button:nth-child(5){background:var(--scale-4);color:#fff}
+.m-scale button:nth-child(n+4) small{color:#fff}
+.m-scale button[aria-pressed="true"]{box-shadow:0 0 0 2px var(--plum)}
+.m-scale button:focus-visible{outline:3px solid var(--plum);outline-offset:2px}
+
+/* Barras del resultado (10.2): se llenan al aparecer */
+.m-bar{display:flex;flex-direction:column;gap:6px;font-size:15px;color:var(--plum)}
+.m-bar__label{display:flex;justify-content:space-between;gap:12px}
+.m-bar__track{height:10px;border-radius:5px;background:var(--line-soft);overflow:hidden}
+.m-bar__track > i{display:block;height:100%;width:0;border-radius:5px;background:var(--magenta-btn);transition:width .9s var(--ease-out)}
+.m-bar.is-on .m-bar__track > i{width:var(--w,0%)}
+
+/* ---------- 5.7 / 10.5 Chat con IA (oscuro) ---------- */
+.m-chat--dark{background:var(--chat-bg);color:#fff}
+.m-chat--dark .m-chat__head{background:var(--chat-header);color:#fff;padding:12px 16px}
+.m-chat__status{display:block;font-family:var(--font-body);font-weight:400;font-size:12px;color:var(--chat-muted);min-height:14px}
+.m-msg{max-width:84%;padding:9px 12px 7px;border-radius:var(--radius-s);font-size:16px;line-height:1.4;color:#fff;animation:m-pop var(--duration-pop) ease both}
+.m-msg--user{align-self:flex-end;background:var(--bubble-user);border-top-right-radius:3px}
+.m-msg--bot{align-self:flex-start;background:var(--bubble-bot);border-top-left-radius:3px}
+.m-chat--dark .m-typing{background:var(--bubble-bot);border:0;border-radius:var(--radius-s);border-top-left-radius:3px}
+.m-chat--dark .m-typing i{background:var(--chat-muted)}
+.m-chat-input{display:flex;align-items:center;gap:8px}
+.m-chat-input input{flex:1;min-width:0;min-height:var(--tap-min);border:0;border-radius:22px;background:var(--chat-input);color:#fff;padding:10px 16px;font-size:16px}
+.m-chat-input input::placeholder{color:#A48C9D}
+.m-chat-input button{flex:none;width:var(--tap-min);height:var(--tap-min);border:0;border-radius:50%;background:var(--magenta-btn);color:#fff;display:grid;place-items:center;cursor:pointer}
+.m-chat--dark :focus-visible{outline-color:#fff}
+
+/* ---------- 5.8 Tarjetas de plan ---------- */
+.m-plan{border-radius:var(--radius-xl);padding:30px 28px 28px;display:flex;flex-direction:column;background:#fff;color:var(--plum)}
+.m-plan--plus{background:var(--magenta-btn);color:#fff;box-shadow:var(--shadow-plus)}
+.m-plan--ent{background:var(--black);color:#fff}
+.m-plan__who{font-family:var(--font-mono);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:#8A7A86}
+.m-plan--plus .m-plan__who,.m-plan--ent .m-plan__who{color:inherit}
+.m-plan__name{font-family:var(--font-display);font-weight:700;font-size:var(--fs-plan);margin:10px 0;color:inherit}
+.m-plan__desc{font-size:15.5px;line-height:1.45;margin:0}
+.m-plan--plus .m-plan__desc{color:#FFE3F5}.m-plan--ent .m-plan__desc{color:#E6E6E6}
+.m-plan__from{margin-top:22px;font-family:var(--font-display);font-weight:700;font-size:15px}
+.m-plan--ent .m-plan__from{color:#FF6FD6}
+.m-plan__price{font-family:var(--font-display);font-weight:700;font-size:clamp(36px,3.8vw,46px);line-height:1;letter-spacing:-.02em;margin-top:4px;font-variant-numeric:tabular-nums}
+.m-plan__per{font-size:14px;margin-top:6px;opacity:.9}
+.m-plan__feat{list-style:none;padding:0;margin:22px 0 28px;display:flex;flex-direction:column;gap:12px;flex:1}
+.m-plan__feat li{display:flex;gap:10px;align-items:flex-start;font-size:14.5px;line-height:1.4}
+.m-plan__feat svg{flex:none;margin-top:2px}
+.m-plan .m-btn{align-self:center}
+.m-plan--ent .m-btn--outline{color:#FF6FD6}
+.m-plan--plus :focus-visible,.m-plan--ent :focus-visible{outline-color:#fff}
+
+/* ---------- 5.9 Preguntas frecuentes ---------- */
+.m-faq details{border-top:1.5px solid var(--line-soft);padding:12px 0}
+.m-faq details:last-child{border-bottom:1.5px solid var(--line-soft)}
+.m-faq summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between;gap:12px;font-weight:600;font-size:16px;color:var(--plum);min-height:28px}
+.m-faq summary::-webkit-details-marker{display:none}
+.m-faq summary::after{content:"+";flex:none;color:var(--magenta-text);font-family:var(--font-display);font-size:22px;line-height:1}
+.m-faq details[open] summary::after{content:"–"}
+.m-faq details p{margin:8px 0 2px;font-size:15px;line-height:1.5;color:var(--body-text)}
+
+/* ---------- Formularios (listas de espera) ---------- */
+.m-field{display:flex;flex-direction:column;gap:6px;font-size:15px;color:var(--plum)}
+.m-field label{font-weight:600}
+.m-input{min-height:var(--tap-min);border:1.5px solid var(--line);border-radius:12px;background:#fff;color:var(--plum);padding:10px 14px;font-size:16px}
+.m-input:focus-visible{outline:3px solid var(--plum);outline-offset:1px;border-color:var(--plum)}
+.m-check{display:flex;gap:10px;align-items:flex-start;font-size:14.5px;color:var(--body-text)}
+.m-check input{width:20px;height:20px;margin:1px 0 0;accent-color:var(--magenta-text)}
+
+/* ---------- Avisos (10.3): sin rojo intenso ---------- */
+.m-notice{border-radius:var(--radius-m);padding:16px 18px;background:#fff;border:1.5px solid var(--line);border-left-width:5px;color:var(--plum)}
+.m-notice--emergency{border-left-color:var(--plum)}
+.m-notice--eval{border-left-color:var(--magenta-btn)}
+.m-notice__title{display:flex;align-items:center;gap:8px;font-family:var(--font-display);font-weight:700;font-size:17px;margin-bottom:6px}
+
+/* Con movimiento reducido: barras y mensajes en su estado final */
+@media (prefers-reduced-motion: reduce){
+  .m-bubble,.m-msg{animation:none}
+  .m-typing i{animation:none;opacity:.7}
+  .m-bar__track > i,.m-progress > i,.m-step,.m-step::after{transition:none}
+}

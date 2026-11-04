@@ -16,3 +16,8 @@ docs/capturas-etiquetas-nivel/
 docs/capturas-experimento-1/
 docs/capturas-bloque-*/
 docs/capturas-produccion/
+
+# Textos pegados y transcripciones de sesión (pueden tener claves): nunca al repo
+docs/*.txt
+*pastedcontent*.txt
+/*-this-session-is-being-continued-*.txt

@@ -1,0 +1,10 @@
+/* Mindi · Sistema de diseño para el sitio (lo importan las páginas desde su JS).
+   Las fuentes se cargan con <link> en cada HTML (ver FONTS_HREF en docs/sistema-diseno.md). */
+@import '../tokens/colors.css';
+@import '../tokens/typography.css';
+@import '../tokens/spacing.css';
+@import '../tokens/radius.css';
+@import '../tokens/shadow.css';
+@import '../tokens/motion.css';
+@import '../base.css';
+@import '../components.css';

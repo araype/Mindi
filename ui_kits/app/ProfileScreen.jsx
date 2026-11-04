@@ -5,7 +5,7 @@ function ProfileScreen({ Card, Switch, Button, Icon }) {
   return (
     <div style={{ padding: '24px 20px', display: 'flex', flexDirection: 'column', gap: '18px', boxSizing: 'border-box' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-        <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'var(--terracotta-100)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--action-primary)', fontFamily: 'var(--font-editorial)', fontSize: '22px' }}>A</div>
+        <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'var(--pink-tint)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--action-primary)', fontFamily: 'var(--font-editorial)', fontSize: '22px' }}>A</div>
         <div>
           <div style={{ fontSize: 'var(--text-heading-l)', fontFamily: 'var(--font-editorial)', color: 'var(--text-primary)' }}>Andrea</div>
           <div style={{ fontSize: 'var(--text-body-s)', color: 'var(--text-muted)' }}>andrea@ejemplo.com</div>

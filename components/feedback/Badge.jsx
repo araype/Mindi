@@ -2,8 +2,8 @@ import React from 'react';
 
 export function Badge({ tone = 'neutral', children }) {
   const tones = {
-    neutral: { background: 'var(--sand-200)', color: 'var(--text-secondary)' },
-    brand: { background: 'var(--terracotta-100)', color: 'var(--action-primary)' },
+    neutral: { background: 'var(--surface-sunken)', color: 'var(--text-secondary)' },
+    brand: { background: 'var(--pink-tint)', color: 'var(--action-primary)' },
     success: { background: 'var(--success-tint)', color: 'var(--success-text)' },
     warning: { background: 'var(--warning-tint)', color: 'var(--warning-text)' },
     danger: { background: 'var(--danger-tint)', color: 'var(--danger-text)' },

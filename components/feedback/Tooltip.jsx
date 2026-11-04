@@ -15,7 +15,7 @@ export function Tooltip({ label, children }) {
       {show && (
         <span role="tooltip" id={id} style={{
           position: 'absolute', bottom: '100%', left: '50%', transform: 'translateX(-50%) translateY(-6px)',
-          background: 'var(--ink-900)', color: '#fff', fontFamily: 'var(--font-ui)', fontSize: 'var(--text-caption)',
+          background: 'var(--text-primary)', color: '#fff', fontFamily: 'var(--font-ui)', fontSize: 'var(--text-caption)',
           padding: '6px 10px', borderRadius: 'var(--radius-s)', whiteSpace: 'nowrap', boxShadow: 'var(--shadow-card)',
         }}>
           {label}

@@ -1,6 +1,17 @@
+/* Mindi · Movimiento (handoff, secciones 6 y 10.1) */
 :root{
---motion-reduced:no-preference; /* @kind other */
+--ease-standard:cubic-bezier(.4,0,.2,1);
+--ease-out:cubic-bezier(.2,.7,.2,1);   /* barras, tarjetas que entran */
+--ease-gentle:var(--ease-out);
+--duration-fast:150ms;
+--duration-base:250ms;
+--duration-slow:450ms;
+--duration-pop:280ms;                   /* cada mensaje del chat entra con un "pop" */
+--quote-interval:5.5s;                  /* rotación de la tarjeta de frases */
+--stagger-plans:120ms;
+--stagger-wordmark:70ms;
 }
+/* Con movimiento reducido: estados finales, sin animación ni rotación (sección 6) */
 @media (prefers-reduced-motion: reduce){
-*{animation-duration:0.001ms!important;animation-iteration-count:1!important;transition-duration:0.001ms!important;scroll-behavior:auto!important}
+*,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}
 }

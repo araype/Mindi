@@ -1,33 +1,68 @@
+/* Mindi · Colores (handoff, sección 3). Fuente única de color para todo el sitio. */
 :root{
---rose-900:#5E333D;--rose-700:#8D505E;--rose-500:#B06B72;--rose-300:#D9A8AC;--rose-100:#F0DCDA;
---terracotta-600:#B5654F;--terracotta-500:#D2846F;--terracotta-300:#E8AC98;--terracotta-100:#F6DDD2;
---sand-050:#FDFAF7;--sand-100:#FBF5EF;--sand-200:#F3E7DC;
---ink-900:#3A2A2A;--ink-700:#6B5652;--ink-500:#7D6A66;--ink-400:#9C8A86;--ink-200:#D8CBC5;
---line:#E3D6CE;
---success-500:#7A9471;--success-text:#4F6B47;--success-tint:#E7EEE3;
---warning-500:#C08A3E;--warning-text:#7A5A1E;--warning-tint:#F5E9D6;
---danger-500:#B5564A;--danger-text:#963E33;--danger-tint:#F4E1DC;
+/* Marca */
+--magenta-btn:#FF3CC7;   /* botones sólidos, acentos, barras */
+--magenta:#FF2FC0;       /* títulos grandes */
+--magenta-text:#C0128C;  /* magenta para texto pequeño (< 18 px) sobre fondo claro: 5.6:1 */
+--magenta-deep:#E01AA5;  /* texto de botones contorno */
+--magenta-on-white:#D9149F; /* texto del botón blanco (sobre fondos magenta) */
+--overlay:#FC2CC9;       /* velo de la foto de portada, opacidad 34% */
+--overlay-opacity:.34;
 
-/* --brand-accent: decorative only (logo, illustration, tags on tint) — NEVER as a solid fill under white/light text; fails AA at 2.89:1 */
---brand-accent:var(--terracotta-500);
-/* --action-primary/-hover: darker terracotta family, safe for white text (5.6:1 / 7.48:1) — use for primary buttons */
---action-primary:#A2503B;
---action-primary-hover:#8A3E2C;
---brand-secondary:var(--rose-700);
---brand-secondary-hover:var(--rose-900);
+/* Neutros cálidos */
+--plum:#2A1026;          /* texto principal, fondos oscuros, degradados */
+--plum-soft:#6A4560;     /* texto secundario */
+--body-text:#4B3646;     /* párrafos sobre blanco */
+--pink-bg:#FDEBF6;       /* fondo de secciones rosadas (planes) */
+--pink-tint:#FFE3F5;     /* chips, etiquetas */
+--line:#F6B8E2;          /* bordes de tarjetas */
+--line-soft:#F3CFE4;     /* separadores, pistas de barras */
+--paper:#FFFFFF;
+--black:#000000;         /* solo tarjeta Enterprise */
+--wordmark:#FDEEF4;      /* "Mindi" gigante del cierre */
 
---surface-page:var(--sand-100);
---surface-page-alt:var(--sand-050);
---surface-card:#FFFFFF;
---surface-sunken:var(--sand-200);
+/* Escala de síntomas 0–4 (test) */
+--scale-0:#FDE7F4;--scale-1:#FBCFE9;--scale-2:#F9A8DB;--scale-3:#FF3CC7;--scale-4:#E01AA5;
 
---text-primary:var(--ink-900);
---text-secondary:var(--ink-700);
---text-muted:var(--ink-500);
---text-disabled:var(--ink-400);
+/* Chat del test (tema claro, sección 10.1) */
+--test-bg:#FFF8FC;
+--bubble-bot-border:#F6C9E6;
+--sev-bg:#FFE0F3;        /* chip de intensidad del resultado (10.2) */
+
+/* Chat con IA (tema oscuro, sección 10.5) */
+--chat-bg:#1B0F19;--chat-header:#2A1026;--bubble-user:#A3207F;--bubble-bot:#3A2236;
+--chat-input:#2E1A2A;--chat-muted:#E7C7DC;
+
+/* Estado */
+--ok-text:#1F7A4D;--ok-bg:#E6F6EE;
+
+/* Roles (los usan los componentes y el paquete de diseño; apuntan a la paleta de arriba) */
+--surface-page:var(--paper);
+--surface-page-alt:var(--test-bg);
+--surface-card:var(--paper);
+--surface-sunken:var(--pink-bg);
+--surface-dark:var(--plum);
+
+--text-primary:var(--plum);
+--text-secondary:var(--plum-soft);
+--text-body:var(--body-text);
+--text-muted:var(--plum-soft);
 --text-on-brand:#FFFFFF;
+--text-accent:var(--magenta-text);
 
---border-default:var(--line);
---border-strong:var(--ink-200);
---focus-ring:var(--rose-700);
+--action-primary:var(--magenta-btn);
+--action-primary-hover:var(--magenta-deep);
+--brand-accent:var(--magenta-btn);
+--brand-secondary:var(--magenta-text);
+--brand-secondary-hover:var(--plum);
+
+--border-default:var(--line-soft);
+--border-strong:var(--line);
+--focus-ring:var(--plum);       /* sobre fondos claros */
+--focus-ring-on-dark:#FFFFFF;   /* sobre fondos oscuros o magenta */
+
+--success-text:var(--ok-text);--success-tint:var(--ok-bg);
+/* El handoff no define amarillo ni rojo: las alertas usan ciruela (emergencia) y magenta (evaluación), 10.3 */
+--danger-text:var(--plum);--danger-tint:var(--pink-tint);
+--warning-text:var(--magenta-text);--warning-tint:var(--pink-tint);
 }

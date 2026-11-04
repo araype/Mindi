@@ -17,7 +17,7 @@ export function Input({ label, placeholder, type = 'text', helperText, error, id
         aria-describedby={helperId}
         style={{
           fontFamily: 'var(--font-ui)', fontSize: 'var(--text-body-m)', padding: '13px 16px', minHeight: '44px',
-          borderRadius: 'var(--radius-m)', border: `1.5px solid ${error ? 'var(--danger-500)' : 'var(--border-default)'}`,
+          borderRadius: 'var(--radius-m)', border: `1.5px solid ${error ? 'var(--plum)' : 'var(--border-default)'}`,
           background: 'var(--surface-card)', color: 'var(--text-primary)', outline: 'none',
         }}
         {...rest}
