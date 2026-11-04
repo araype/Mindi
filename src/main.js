@@ -1,4 +1,6 @@
-import './landing.css';
+import './ds.css';
+import './chat.css';
+import './site.css';
 // Puntaje MRS y cortes de la Guía HNHU: un solo módulo compartido con send-report y los tests.
 import {
   computeScores as mrsScores, computeLevel as mrsLevel, levelMessage, CUTS,
@@ -10,6 +12,7 @@ import { stageFilter, STAGE_EXIT } from './etapa.js';
 import { whatsappUrl, WHATSAPP_TEXT, channelUrl } from './whatsapp.js';
 import { createAgentClient, agentHtml, AI_NOTICE, GREETING, ERROR_TEXT, LIMIT_TEXT } from './agente.js';
 import { glossaryMore } from './glosario.js';
+import { initLanding } from './landing.js';
 
 /* ---------- Medición (hooks listos para conectar a analítica real) ---------- */
 /* ---------- Backend (Supabase vía REST, solo INSERT con la clave pública) ----------
@@ -44,7 +47,18 @@ function newId(){
   return (crypto.randomUUID ? crypto.randomUUID()
     : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0;return (c==='x'?r:(r&3|8)).toString(16);}));
 }
-const SESSION_ID = newId(); // anónimo, vive solo en memoria de esta visita
+/* Id anónimo de la visita. Vive en sessionStorage (solo esta pestaña) para que la landing y el
+   test (/test, que recarga la página) cuenten como la misma visita en el embudo. Se descarta
+   apenas se guarda la sesión del test: el siguiente test de esta pestaña usa uno nuevo. */
+const SESSION_STORE = 'mindi_session';
+const SESSION_ID = (()=>{
+  try {
+    const s = sessionStorage.getItem(SESSION_STORE);
+    if(s && /^[0-9a-f-]{36}$/i.test(s)) return s;
+    const id = newId(); sessionStorage.setItem(SESSION_STORE, id); return id;
+  } catch { return newId(); }
+})();
+function releaseSessionId(){ try { sessionStorage.removeItem(SESSION_STORE); } catch {} }
 
 /* Origen de la visita (p. ej. TikTok), para separar canales en el panel sin tocar la data
    anterior: lo ya registrado no tiene origen y queda como "Sin origen".
@@ -113,23 +127,6 @@ document.addEventListener('click', (e)=>{
 const AGENT_ENABLED = import.meta.env.VITE_AGENT_CHAT_ENABLED === 'true';
 const agentClient = AGENT_ENABLED ? createAgentClient({newId}) : null;
 
-/* Landing: la segunda opción junto al botón del test. Con el agente encendido es "Hazle una
-   pregunta a Mindi", que abre el mismo chat en modo libre; apagado, "Tengo una duda" abre
-   WhatsApp, solo si hay número configurado. */
-const heroWa = document.getElementById('heroWa');
-const heroAgent = document.getElementById('heroAgent');
-if(AGENT_ENABLED && heroAgent){
-  heroAgent.hidden = false;
-  heroAgent.addEventListener('click', ()=>{
-    track('cta_click', {source:'hero_agente'});
-    openChat('agente');
-    if(!started && !freeActive){ openChatShell(); enterFreeMode({from:'landing'}); }
-  });
-} else if(heroWa){
-  const url = whatsappUrl(WHATSAPP_NUMBER, WHATSAPP_TEXT.landing);
-  if(url){ heroWa.href = url; heroWa.hidden = false; }
-}
-
 /* Invitación al canal de tips al final del flujo (VITE_WHATSAPP_CHANNEL_URL). Sin enlace válido,
    no se muestra. Los clics se registran como channel_click {desde}, aparte de whatsapp_click. */
 const CHANNEL_URL = channelUrl(import.meta.env.VITE_WHATSAPP_CHANNEL_URL);
@@ -153,6 +150,7 @@ function saveSession(level){
     level, red_flags:state.redFlags, skipped_intimate:state.skippedIntimate,
     is_test:TEST_MODE,
   });
+  state.sessionSaved.then(ok=>{ if(ok) releaseSessionId(); });
 }
 function saveLead(news){
   if(!state.contact) return Promise.resolve();
@@ -1422,301 +1420,36 @@ function startTestFromAgent(){
   });
 }
 
-/* ---------- Entrada ---------- */
-function openChat(source){
-  document.getElementById('conversar').scrollIntoView({behavior: reduceMotion ? 'auto' : 'smooth', block:'start'});
-  // Volver a tocar "Hablar con Mindi" es una señal explícita de que quiere volver al chat
-  // (a diferencia de un simple resize) — si antes tocó "Salir", esto sí puede reactivar
-  // la pantalla completa en mobile.
-  focusDismissed = false;
-  // Sin aceptar los términos no se empieza: si el chat no arrancó, solo se lleva a la usuaria
-  // a la tarjeta de inicio, donde está el botón "Acepto y empiezo".
-  if(!started && !freeActive){ document.getElementById('startBtn')?.focus({preventScroll:true}); return; }
-  syncFocus();
+/* ---------- Entrada ----------
+   La landing (/) y el chat no se muestran a la vez: /test abre el test y /chat el chat con IA
+   (vercel.json reescribe las dos rutas a index.html; #conversar sigue funcionando). */
+const PATH = location.pathname.replace(/\/+$/, '') || '/';
+const APP_VIEW = PATH === '/test' || PATH === '/chat' || location.hash === '#conversar';
+if(APP_VIEW){
+  document.body.classList.remove('landing-view');
+  document.body.classList.add('app-view');
+  setFocus(true);
+  if(PATH === '/chat' && AGENT_ENABLED){ track('cta_click', {source:'ruta_chat'}); openChatShell(); enterFreeMode({from:'landing'}); }
 }
-document.getElementById('heroCta').addEventListener('click', ()=>{ track('cta_click',{source:'hero'}); openChat('hero'); });
-document.querySelectorAll('[data-open-chat]').forEach(el=>{
-  el.addEventListener('click', ()=>{ track('cta_click',{source:el.dataset.track || 'section'}); openChat('section'); });
-});
 document.getElementById('restartBtn').addEventListener('click', ()=>{ track('restart'); location.hash = 'conversar'; location.reload(); });
 
-/* ---------- Menú de mobile (hamburguesa) ----------
-   En mobile no existe el .nav horizontal (no entra) — este panel es la única forma de
-   llegar a "Cómo funciona"/"Preguntas frecuentes"/"Eventos" desde ahí. */
-const navToggle = document.getElementById('navToggle');
-const mobileNav = document.getElementById('mobileNav');
-if(navToggle && mobileNav){
-  const setNavOpen = (open)=>{
-    navToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-    mobileNav.hidden = !open;
-  };
-  navToggle.addEventListener('click', ()=> setNavOpen(mobileNav.hidden));
-  mobileNav.querySelectorAll('a').forEach(a=> a.addEventListener('click', ()=> setNavOpen(false)));
-}
-
-/* ---------- Lista de espera del conversatorio (sección "Eventos") ----------
-   Aparte del chat: no es una evaluación de síntomas, solo separa un cupo. Guarda en
-   `event_signups` (misma forma que `leads`: solo INSERT para anon, nadie lee con la
-   clave pública). Reutiliza validContact/CONSENT_VERSION/TEST_MODE ya definidos arriba. */
-const eventsSignupEl = document.getElementById('eventsSignup');
-if(eventsSignupEl){
-  document.getElementById('eventsJoinBtn').addEventListener('click', ()=>{
-    track('cta_click', {source:'eventos'});
-    eventsSignupEl.innerHTML = `
-      <form class="events-form" id="eventsForm">
-        <input type="text" id="eventsName" placeholder="Tu nombre (opcional)" autocomplete="name">
-        <input type="text" id="eventsContact" placeholder="correo@ejemplo.com o WhatsApp" autocomplete="email" required>
-        <button class="btn btn-sm" type="submit">Guardar mi cupo</button>
-        <p class="hint">Solo lo usamos para avisarte de este conversatorio. Tú decides qué compartir.</p>
-      </form>`;
-    const form = document.getElementById('eventsForm');
-    const contactInput = document.getElementById('eventsContact');
-    contactInput.focus({preventScroll:true});
-    form.addEventListener('submit', (e)=>{
-      e.preventDefault();
-      const name = document.getElementById('eventsName').value.trim();
-      const contact = contactInput.value.trim();
-      let err = form.querySelector('.hint.err');
-      if(!validContact(contact)){
-        if(!err){ err = document.createElement('p'); err.className = 'hint err'; err.setAttribute('role','alert'); form.appendChild(err); }
-        err.textContent = 'Revisa el correo o el número (mínimo 9 dígitos).';
-        return;
-      }
-      if(err) err.remove();
-      const submitBtn = form.querySelector('button');
-      submitBtn.disabled = true;
-      const signup = {name: name || null, contact, consent:true, consent_text_version:CONSENT_VERSION, is_test:TEST_MODE};
-      // Si la columna `origin` aún no existe (012 sin correr), se reintenta sin ella: nunca se pierde un cupo.
-      (ORIGIN ? sb('event_signups', {...signup, origin:ORIGIN}).then(ok => ok || sb('event_signups', signup)) : sb('event_signups', signup)).then(ok=>{
-        track('event_waitlist_join', {captured: ok});
-        eventsSignupEl.innerHTML = ok
-          ? `<p class="events-confirm"><b>¡Listo, tienes tu cupo!</b>Te escribimos apenas tengamos la fecha del conversatorio.</p>`
-          : `<p class="events-confirm"><b>Algo no salió bien</b>No pudimos guardar tu cupo — inténtalo de nuevo en un momento.</p>`;
-      });
-    });
-  });
-}
-document.getElementById('exitBtn').addEventListener('click', ()=>{
-  focusDismissed = true;
-  setFocus(false);
-  document.getElementById('conversar').scrollIntoView({block:'start'});
-});
+document.getElementById('exitBtn').addEventListener('click', ()=>{ location.href = '/'; });
 document.getElementById('startBtn').addEventListener('click', ()=>{
   track('cta_click',{source:'chat'});
   if(!started) track('consent_accept',{version:CONSENT_VERSION});
   start();
 });
 
-/* ==================================================================
-   NUEVAS INTERACCIONES — Hero Simulator, Síntomas, FAQ, Mobile
-   ================================================================== */
-
-/* ---------- Simulador interactivo en el Hero ---------- */
-const SIM_DATA = {
-  sleep: {
-    question: '¿Cómo has dormido últimamente?',
-    example: 'Por ejemplo: te cuesta conciliar el sueño, te despiertas a medianoche o sientes que no descansas.',
-    options: [
-      { score: 0, text: 'Duermo bien y descanso' },
-      { score: 2, text: 'Me despierto varias veces en la noche' },
-      { score: 4, text: 'Casi no logro descansar nada' }
-    ],
-    reply: (score) => {
-      if (score === 0) return 'Dormir bien es un pilar protector clave. En Mindi revisamos periódicamente si otros cambios físicos o de ánimo interfieren con tu descanso.';
-      if (score === 2) return 'Despertarse a medianoche es muy frecuente: las caídas nocturnas de estrógeno alteran el sueño profundo. Mindi te orienta sobre medidas de higiene del sueño.';
-      return 'Un descanso severamente interrumpido desgasta tu energía y memoria. La Guía Clínica HNHU contempla pautas específicas para este nivel de carga.';
-    }
-  },
-  flashes: {
-    question: '¿Qué tanto te molestan los bochornos o calores?',
-    example: 'Por ejemplo: calor súbito en cuello o pecho, a veces acompañado de sudoración nocturna.',
-    options: [
-      { score: 0, text: 'No los he sentido' },
-      { score: 2, text: 'Calor repentino que interrumpe mi día' },
-      { score: 4, text: 'Muy intensos, con sudoración fuerte' }
-    ],
-    reply: (score) => {
-      if (score === 0) return 'Muchas mujeres no presentan bochornos al inicio y debutan con otros cambios como fatiga o ánimo. Cada cuerpo tiene su propia secuencia.';
-      if (score === 2) return 'Los bochornos son respuestas vasomotoras generadas por el hipotálamo frente a la variación hormonal. Reconocer sus momentos ayuda mucho.';
-      return 'Bochornos de intensidad alta afectan tu bienestar laboral y cotidiano. Existen alternativas terapéuticas tanto no farmacológicas como médicas comprobadas.';
-    }
-  },
-  mood: {
-    question: '¿Has notado cambios en tu ánimo o irritabilidad?',
-    example: 'Por ejemplo: sentirte más reactiva, desanimada o con ansiedad inexplicable.',
-    options: [
-      { score: 0, text: 'Me siento tranquila y con buen ánimo' },
-      { score: 2, text: 'Cambios de humor y tensión frecuentes' },
-      { score: 4, text: 'Me cuesta mucho controlar mi reacción' }
-    ],
-    reply: (score) => {
-      if (score === 0) return 'Conservar el equilibrio emocional en esta transición es un gran recurso. Mindi te ayuda a registrar qué hábitos te permiten sostenerlo.';
-      if (score === 2) return 'No es falta de paciencia: los estrógenos modulan directamente la serotonina cerebral. Entender el origen biológico alivia la culpa.';
-      return 'Sentir irritabilidad o angustia constante merece escucha atenta y evaluación médica, no aislamiento. Juntas armamos un reporte con preguntas precisas.';
-    }
-  }
-};
-
-function initHeroSimulator(){
-  const tabs = document.querySelectorAll('.sim-tab');
-  const questionEl = document.getElementById('simQuestion');
-  const exampleEl = document.getElementById('simExample');
-  const optionsEl = document.getElementById('simOptions');
-  const feedbackZone = document.getElementById('simFeedbackZone');
-  const replyText = document.getElementById('simReplyText');
-  const continueBtn = document.getElementById('simContinueBtn');
-
-  if(!optionsEl) return;
-
-  let currentTopic = 'sleep';
-
-  /* preselectIndex: al cargar la página por primera vez, mostramos una opción ya elegida
-     (con su respuesta) para que el simulador se vea "vivo" desde el primer momento, en vez
-     de una pantalla vacía a la espera de que alguien haga clic. Al cambiar de tab sí
-     arranca vacío otra vez — es una conversación nueva sobre ese síntoma. */
-  function renderTopic(topicKey, preselectIndex){
-    currentTopic = topicKey;
-    const data = SIM_DATA[topicKey];
-    if(!data) return;
-
-    if(questionEl) questionEl.textContent = data.question;
-    if(exampleEl) exampleEl.textContent = data.example;
-    if(feedbackZone) feedbackZone.hidden = true;
-
-    optionsEl.innerHTML = '';
-    // Separado de la selección "real" (clic) a propósito: el preselect inicial actualiza
-    // la vista pero no debe registrarse en analítica como si la usuaria hubiese elegido algo.
-    function applySelection(i){
-      const opt = data.options[i];
-      const btn = optionsEl.children[i];
-      optionsEl.querySelectorAll('.sim-option-btn').forEach(b => b.classList.remove('selected'));
-      btn.classList.add('selected');
-      if(replyText) replyText.textContent = data.reply(opt.score);
-      if(feedbackZone) feedbackZone.hidden = false;
-    }
-    data.options.forEach((opt, i) => {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'sim-option-btn';
-      btn.innerHTML = `<span>${opt.text}</span><span class="sim-scale-num">${opt.score}</span>`;
-      btn.addEventListener('click', () => {
-        applySelection(i);
-        track('sim_option_select', { topic: currentTopic, score: opt.score });
-      });
-      optionsEl.appendChild(btn);
-    });
-    if(typeof preselectIndex === 'number') applySelection(preselectIndex);
-  }
-
-  tabs.forEach(tab => {
-    tab.addEventListener('click', () => {
-      tabs.forEach(t => {
-        t.classList.remove('active');
-        t.setAttribute('aria-selected', 'false');
-      });
-      tab.classList.add('active');
-      tab.setAttribute('aria-selected', 'true');
-      renderTopic(tab.dataset.simTopic);
-      track('sim_tab_switch', { topic: tab.dataset.simTopic });
-    });
-  });
-
-  if(continueBtn){
-    continueBtn.addEventListener('click', () => {
-      track('cta_click', { source: 'sim_continue' });
-      openChat('sim_continue');
-    });
-  }
-
-  renderTopic('sleep', 1); // preseleccionada la opción del medio ("Me despierto varias veces en la noche")
-}
-
-/* ---------- Filtros y Navegación del Carrusel de Síntomas ---------- */
-function initSymptomsExplorer(){
-  const filterChips = document.querySelectorAll('.filter-chip');
-  const cards = document.querySelectorAll('.sym-card');
-  const prevBtn = document.getElementById('carouselPrev');
-  const nextBtn = document.getElementById('carouselNext');
-  const carousel = document.getElementById('symptoms');
-
-  filterChips.forEach(chip => {
-    chip.addEventListener('click', () => {
-      filterChips.forEach(c => {
-        c.classList.remove('active');
-        c.setAttribute('aria-selected', 'false');
-      });
-      chip.classList.add('active');
-      chip.setAttribute('aria-selected', 'true');
-
-      const filter = chip.dataset.filter;
-      track('symptoms_filter', { filter });
-
-      cards.forEach(card => {
-        if(filter === 'all' || card.dataset.category === filter){
-          card.classList.remove('hidden');
-        } else {
-          card.classList.add('hidden');
-        }
-      });
-    });
-  });
-
-  if(prevBtn && carousel){
-    prevBtn.addEventListener('click', () => {
-      carousel.scrollBy({ left: -300, behavior: reduceMotion ? 'auto' : 'smooth' });
-    });
-  }
-  if(nextBtn && carousel){
-    nextBtn.addEventListener('click', () => {
-      carousel.scrollBy({ left: 300, behavior: reduceMotion ? 'auto' : 'smooth' });
-    });
-  }
-}
-
-/* ---------- Búsqueda interactiva de FAQ ---------- */
-function initFaqSearch(){
-  const searchInput = document.getElementById('faqSearchInput');
-  const faqItems = document.querySelectorAll('.faq-item');
-  if(!searchInput || !faqItems.length) return;
-
-  searchInput.addEventListener('input', () => {
-    const query = searchInput.value.toLowerCase().trim();
-    track('faq_search', { query });
-    faqItems.forEach(item => {
-      const summaryText = (item.querySelector('summary')?.textContent || '').toLowerCase();
-      const bodyText = (item.querySelector('.faq-answer')?.textContent || '').toLowerCase();
-      const matches = !query || summaryText.includes(query) || bodyText.includes(query);
-      item.style.display = matches ? '' : 'none';
-      if(query && matches){
-        item.open = true;
-      } else if (!query) {
-        item.open = false;
-      }
-    });
+/* ---------- Landing (src/landing.js) ---------- */
+if(!APP_VIEW){
+  const digits = WHATSAPP_NUMBER.replace(/\D/g, '');
+  initLanding({
+    track, sb, backendOn:BACKEND_ON, consentVersion:CONSENT_VERSION, isTest:TEST_MODE, origin:ORIGIN,
+    chatAvailable:AGENT_ENABLED,
+    whatsappHref:whatsappUrl(WHATSAPP_NUMBER, WHATSAPP_TEXT.landing),
+    whatsappDisplay: digits.length === 11 && digits.startsWith('51') ? `+51 ${digits.slice(2,5)} ${digits.slice(5,8)} ${digits.slice(8)}` : (digits ? '+' + digits : ''),
   });
 }
-
-/* ---------- Barra flotante de acción para Mobile ---------- */
-function initMobileStickyBar(){
-  const bar = document.getElementById('mobileStickyBar');
-  if(!bar) return;
-
-  const onScroll = () => {
-    const pastHero = window.scrollY > 340;
-    const isMobile = window.innerWidth <= 820;
-    const chatInFocus = document.getElementById('conversar')?.classList.contains('focus');
-    bar.classList.toggle('visible', pastHero && isMobile && !chatInFocus);
-  };
-
-  window.addEventListener('scroll', onScroll, { passive: true });
-  window.addEventListener('resize', onScroll);
-}
-
-// Inicializar nuevos módulos interactivos
-initHeroSimulator();
-initSymptomsExplorer();
-initFaqSearch();
-initMobileStickyBar();
 
 track('page_view');
 

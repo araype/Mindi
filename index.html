@@ -2,364 +2,288 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content">
-<title>Mindi — Cuéntale a Mindi cómo te has sentido</title>
-<meta name="description" content="No tienes que adivinar sola lo que te pasa. Cuéntaselo a Mindi, y llévate un reporte claro para tu médico(a) — sin costo.">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
+<title>Mindi · Entiende tu cuerpo</title>
+<meta name="description" content="Mindi te ayuda a entender lo que sientes con un test gratuito de 5 minutos, basado en una escala que usan los ginecólogos.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Special+Gothic:wght@700&family=Signika:wght@400;600&family=Space+Mono&family=DM+Mono:wght@300&display=swap">
+<link rel="preload" as="image" href="/img/portada-800.webp" imagesrcset="/img/portada-800.webp 800w, /img/portada-1440.webp 1440w" imagesizes="100vw" fetchpriority="high">
 </head>
-<body>
+<body class="landing-view">
 
-<header class="site-header">
-  <div class="wrap">
-    <a href="#" aria-label="Mindi, inicio"><span class="brand-logo" role="img" aria-label="Mindi"></span></a>
-    <nav class="nav" aria-label="Principal">
-      <a href="#sintomas">Lo que notas</a>
-      <a href="#como-funciona">Cómo funciona</a>
-      <a href="#preguntas-frecuentes">Preguntas frecuentes</a>
-      <a href="#eventos">Eventos</a>
-    </nav>
-    <div class="header-actions">
-      <button class="btn btn-sm" type="button" data-open-chat data-track="cta_nav">Hablar con Mindi</button>
-      <button class="nav-toggle" type="button" id="navToggle" aria-expanded="false" aria-controls="mobileNav" aria-label="Abrir menú">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
-      </button>
+<div class="l-landing">
+<!-- 0. Menú fijo global (handoff 2.1 y 6.1) -->
+<div class="l-nav-wrap" id="gnav">
+  <nav class="l-nav" aria-label="Principal">
+    <a class="l-logo" href="#top">Mindi</a>
+    <div class="l-links">
+      <a class="l-link" href="#planes" data-track="nav_planes">Mindi plans</a>
+      <a class="l-link" href="#como-funciona" data-track="nav_como_funciona">¿Cómo funciona?</a>
+      <button class="l-link" type="button" data-waitlist="consultas" data-track="nav_agendar_cita"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Agendar cita</button>
+      <a class="l-link" href="/especialistas" data-waitlist="especialistas" data-track="nav_especialistas">Para especialistas</a>
+      <a class="m-btn m-btn--nav" href="/test" data-track="cta_test_nav">Haz el test →</a>
+      <button class="l-menu-btn" id="menuBtn" type="button" aria-expanded="false" aria-controls="menuPanel"><span class="bars" aria-hidden="true"><i></i><i></i></span><span class="mlabel">Menú</span></button>
     </div>
-  </div>
-  <nav class="mobile-nav" id="mobileNav" aria-label="Principal (mobile)" hidden>
-    <a href="#sintomas">Lo que notas</a>
-    <a href="#como-funciona">Cómo funciona</a>
-    <a href="#preguntas-frecuentes">Preguntas frecuentes</a>
-    <a href="#eventos">Eventos</a>
   </nav>
-</header>
+  <div class="l-panel" id="menuPanel" hidden>
+    <a href="#planes" data-track="nav_planes">Mindi plans</a>
+    <a href="#como-funciona" data-track="nav_como_funciona">¿Cómo funciona?</a>
+    <a href="/chat" data-chat-link>Pregúntale a Mindi</a>
+    <button type="button" data-waitlist="consultas" data-track="nav_agendar_cita">Agendar cita <small>Próximamente</small></button>
+    <a href="/especialistas" data-waitlist="especialistas" data-track="nav_especialistas">Para especialistas</a>
+    <a class="m-btn" href="/test" data-track="cta_test_nav">Haz el test gratis →</a>
+  </div>
+</div>
 
 <main>
-  <!-- Hero Section -->
-  <section class="hero" aria-labelledby="hero-title">
-    <div class="wrap">
-      <div class="hero-content">
-        <div class="hero-eyebrow-wrap">
-          <span class="eyebrow"><span class="eyebrow-dot"></span> Para esta etapa de cambios</span>
-        </div>
-        <h1 id="hero-title">No tienes que adivinar <em class="editorial-accent">sola</em> lo que te pasa.</h1>
-        <p class="lead">Cuéntaselo a Mindi, y llévate un reporte claro para tu médico(a) — sin costo.</p>
-        
-        <div class="hero-cta">
-          <button class="btn btn-lg" type="button" id="heroCta">
-            <span>Cuéntale a Mindi cómo te has sentido</span>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h15M13 6l6 6-6 6"/></svg>
-          </button>
-          <!-- WhatsApp del equipo: complementa al test (src/main.js le pone el enlace si hay número). -->
-          <a class="btn btn-lg btn-ghost" id="heroWa" target="_blank" rel="noopener" data-wa-origen="landing" hidden>Tengo una duda</a>
-          <!-- Chat con el agente de IA: solo con VITE_AGENT_CHAT_ENABLED (src/main.js lo muestra). -->
-          <button class="btn btn-lg btn-ghost" type="button" id="heroAgent" hidden>Hazle una pregunta a Mindi</button>
-        </div>
-        
-        <div class="hero-perks">
-          <span class="perk-item"><svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg> Toma ~5 minutos</span>
-          <span class="perk-item"><svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg> Totalmente confidencial</span>
-          <span class="perk-item"><svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg> Sin registro obligado</span>
-        </div>
+<!-- 1. Portada -->
+<header class="l-hero m-on-dark" id="top" data-nav="dark">
+  <div class="l-hero-bg"><img src="/img/portada-800.webp" srcset="/img/portada-800.webp 800w, /img/portada-1440.webp 1440w" sizes="100vw" width="1440" height="797" alt="Tres mujeres de más de 50 años riendo juntas en la playa al atardecer" fetchpriority="high"></div>
+  <div class="l-hero-body">
+    <div class="l-hero-head">
+      <div class="m-eyebrow">Perimenopausia y menopausia</div>
+      <h1 class="l-hero-title"><span>Entiende tu</span><span>cuerpo</span></h1>
+    </div>
+    <div class="l-hero-copy">
+      <p class="l-hero-sub">Mindi te ayuda a entender lo que sientes con un test gratuito de 5 minutos, basado en una escala que usan los ginecólogos.</p>
+      <div class="l-hero-ctas"><a class="m-btn" href="/test" data-track="cta_test_hero">Haz el test gratis →</a><a class="m-link" href="/chat" data-chat-link data-track="cta_chat_hero">o pregúntale a Mindi</a></div>
+    </div>
+    <div class="l-quote" id="quote" aria-roledescription="carrusel" aria-label="Lo que sienten muchas mujeres">
+      <div class="l-quote-label">Lo que sienten muchas mujeres</div>
+      <div class="l-quote-slides" aria-live="off">
+        <div class="l-qs is-on" role="group" aria-roledescription="slide" aria-label="1 de 4" data-cta="Pregúntale sobre tu peso" data-href="/chat?tema=peso" data-chat data-cta-track="cta_card_peso"><span class="m-chip">Peso</span><div class="l-qbody"><q>Trato de comer menos y sigo subiendo de peso</q><p>Tu cuerpo no te está fallando. Está cambiando. Descubre qué está pasando y qué puedes hacer, sin culpa y sin dietas extremas.</p></div></div>
+        <div class="l-qs" role="group" aria-roledescription="slide" aria-label="2 de 4" aria-hidden="true" data-cta="Hablar con Mindi" data-href="/chat?tema=trabajo" data-chat data-cta-track="cta_card_trabajo"><span class="m-chip">Trabajo</span><div class="l-qbody"><q>En el trabajo hago como si nada, pero por dentro no me siento yo</q><p>No tienes que cargarlo en silencio. Tiene explicación. Descubre qué está pasando y qué puedes hacer, sin culpa y sin contárselo a nadie.</p></div></div>
+        <div class="l-qs" role="group" aria-roledescription="slide" aria-label="3 de 4" aria-hidden="true" data-cta="Haz el test de 5 min" data-href="/test" data-cta-track="cta_card_concentracion"><span class="m-chip">Concentración</span><div class="l-qbody"><q>Últimamente me cuesta concentrarme y siento que rindo menos</q><p>No es falta de capacidad. Es una etapa. Descubre qué está pasando y qué puedes hacer, sin culpa y sin dudar de ti.</p></div></div>
+        <div class="l-qs" role="group" aria-roledescription="slide" aria-label="4 de 4" aria-hidden="true" data-cta="Haz el test de 5 min" data-href="/test" data-cta-track="cta_card_memoria"><span class="m-chip">Memoria</span><div class="l-qbody"><q>Entro a la cocina y ya no me acuerdo a qué vine</q><p>No te estás volviendo olvidadiza. Tu cuerpo está cambiando. Descubre qué está pasando y qué puedes hacer, sin culpa y sin miedo.</p></div></div>
       </div>
+      <div class="l-qbars"><button type="button" aria-label="Ver frase 1: Peso" aria-current="true" class="is-cur"><span><i></i></span></button><button type="button" aria-label="Ver frase 2: Trabajo"><span><i></i></span></button><button type="button" aria-label="Ver frase 3: Concentración"><span><i></i></span></button><button type="button" aria-label="Ver frase 4: Memoria"><span><i></i></span></button></div>
+      <div class="l-qfoot">
+        <div class="l-qctrl">
+          <button class="l-qicon" id="qprev" type="button" aria-label="Frase anterior"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button>
+          <button class="l-qicon" id="qnext" type="button" aria-label="Frase siguiente"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
+        </div>
+        <a class="m-btn m-btn--outline m-btn--sm" id="qcta" href="/chat?tema=peso" data-chat-link data-track="cta_card_peso">Pregúntale sobre tu peso</a>
+      </div>
+    </div>
+  </div>
+</header>
 
-      <!-- Interactive Hero Simulator with Modern Phone Frame -->
-      <div class="hero-visual" aria-label="Simulador interactivo de conversación con Mindi">
-        <div class="phone-frame">
-          <div class="phone-screen">
-            <!-- Modern Phone Top Bar (Dynamic Island & Status) -->
-            <div class="phone-status-bar" aria-hidden="true">
-              <span class="phone-time">9:41</span>
-              <div class="phone-island">
-                <span class="island-camera"></span>
-              </div>
-              <div class="phone-icons">
-                <svg viewBox="0 0 16 12" fill="currentColor" width="13" height="10"><path d="M1 9h2V3H1v6zm3 1h2V2H4v8zm3 1h2V0H7v11zm3 1h2V0h-2v12z"/></svg>
-                <svg viewBox="0 0 16 12" fill="currentColor" width="13" height="10"><path d="M8 3.5C5.8 3.5 3.8 4.4 2.3 5.9L1 4.6C2.8 2.8 5.3 1.7 8 1.7s5.2 1.1 7 2.9l-1.3 1.3C12.2 4.4 10.2 3.5 8 3.5zm0 3.6c-1.3 0-2.5.5-3.4 1.4L3.3 7.2C4.5 6 6.2 5.3 8 5.3s3.5.7 4.7 1.9l-1.3 1.3c-.9-.9-2.1-1.4-3.4-1.4zm0 3.6c-.7 0-1.3.3-1.8.8L8 13.1l1.8-1.6c-.5-.5-1.1-.8-1.8-.8z"/></svg>
-                <div class="phone-battery"><span class="battery-fill"></span></div>
-              </div>
+<!-- 2. Transición "No es el final" + datos -->
+<section class="l-story" id="esta-etapa" data-nav="story" aria-label="No es el final, es un tercio de tu vida">
+  <div class="l-stage">
+    <div class="l-photo" id="photo"><img id="photoImg" src="/img/datos-760.webp" srcset="/img/datos-760.webp 760w, /img/datos-1262.webp 1262w" sizes="100vw" width="1262" height="832" alt="" loading="lazy"><div class="shade" id="shade"></div></div>
+    <div class="l-lines">
+      <h2 class="l-big l-big--1" id="l1">No es el final</h2>
+      <p class="l-big l-big--2" id="l2">Es 1/3 de tu vida</p>
+    </div>
+    <div class="l-caption" id="cap">
+      <strong>Más de un tercio de la vida de una mujer ocurre después de la menopausia.</strong>
+      <span>Y merece vivirse bien.</span>
+    </div>
+    <div class="l-info m-on-dark" id="info">
+      <div class="l-info-in">
+        <div>
+          <span class="m-eyebrow">Esta etapa</span>
+          <h2><span class="ln">Que sea común <em>no</em></span><span class="ln"><em>significa</em> que tengas</span><span class="ln">que aguantarlo</span></h2>
+          <p>Calores, insomnio, dolor, cambios de ánimo. Muchas mujeres los viven en silencio porque les dijeron que era "cosa de la edad". Pero la menopausia no es el final de nada: es una etapa que puede durar décadas, y tiene explicación.</p>
+          <a class="m-btn" href="/test" data-track="cta_test_datos">Entiende lo que sientes →</a>
+        </div>
+        <div class="l-info-right">
+          <div class="l-card m-card--glass l-tl">
+            <div class="l-tl-head"><h3>Tu vida después de la menopausia</h3><span class="l-tl-chip">Mujeres peruanas · aprox.</span></div>
+            <div class="l-chart">
+              <svg viewBox="0 0 600 132" role="img" aria-label="Línea de vida de una mujer peruana: la transición empieza unos 4 años antes, la menopausia llega en promedio a los 47 y después vienen más de 30 años, más de un tercio de su vida">
+                <defs><clipPath id="grow"><rect id="growRect" x="352.5" y="0" width="0" height="132"/></clipPath></defs>
+                <rect x="0" y="56" width="592.5" height="14" rx="7" fill="#f3dbe9"/>
+                <rect x="322.5" y="56" width="30" height="14" fill="#ffb3ea"/>
+                <g clip-path="url(#grow)">
+                  <rect x="352.5" y="50" width="240" height="26" rx="13" fill="#ff3cc7"/>
+                  <text x="472.5" y="68" text-anchor="middle" font-family="Space Mono, monospace" font-size="11" fill="#fff">30+ años</text>
+                  <path d="M356 38 V30 H589 V38" fill="none" stroke="#ff3cc7" stroke-width="2"/>
+                  <text class="big3" x="472.5" y="20" text-anchor="middle">+1/3 de tu vida</text>
+                </g>
+                <circle cx="322.5" cy="63" r="5" fill="#fff" stroke="#b48aa6" stroke-width="2"/>
+                <circle cx="352.5" cy="63" r="7" fill="#fff" stroke="#ff3cc7" stroke-width="3"/>
+                <circle cx="592.5" cy="63" r="4" fill="#2a1026"/>
+                <text class="lbl" x="322.5" y="98" text-anchor="middle">Transición ~43–47</text>
+                <text class="lbl" x="352.5" y="38" text-anchor="end" dx="-12" font-weight="600">Menopausia: 47 años en promedio</text>
+                <text class="lbl" x="592.5" y="98" text-anchor="end">Esperanza de vida ~79</text>
+                <text class="yrs" x="0" y="128">0</text><text class="yrs" x="150" y="128" text-anchor="middle">20</text><text class="yrs" x="300" y="128" text-anchor="middle">40</text><text class="yrs" x="450" y="128" text-anchor="middle">60</text><text class="yrs" x="600" y="128" text-anchor="end">80 años</text>
+              </svg>
             </div>
-
-            <!-- Internal Phone App Container -->
-            <div class="sim-card" id="heroSimCard">
-              <div class="sim-top">
-                <div class="sim-brand">
-                  <span class="sim-avatar" aria-hidden="true">M</span>
-                  <div>
-                    <div class="sim-name">Mindi</div>
-                    <div class="sim-status"><span class="sim-pulse"></span> Orientación clínica</div>
-                  </div>
-                </div>
-                <!-- Topic selector tabs -->
-                <div class="sim-tabs" role="tablist" aria-label="Temas para probar">
-                  <button type="button" class="sim-tab active" data-sim-topic="sleep" role="tab" aria-selected="true">Sueño</button>
-                  <button type="button" class="sim-tab" data-sim-topic="flashes" role="tab" aria-selected="false">Bochornos</button>
-                  <button type="button" class="sim-tab" data-sim-topic="mood" role="tab" aria-selected="false">Ánimo</button>
-                </div>
-              </div>
-
-              <div class="sim-body">
-                <div class="sim-prompt-bubble">
-                  <div class="sim-bubble-title" id="simQuestion">¿Cómo has dormido últimamente?</div>
-                  <div class="sim-bubble-example" id="simExample">Por ejemplo: te cuesta conciliar el sueño, te despiertas a medianoche o sientes que no descansas.</div>
-                </div>
-
-                <div class="sim-options-label">Selecciona para probar:</div>
-                
-                <div class="sim-options" id="simOptions" role="radiogroup" aria-label="Opciones de intensidad">
-                  <!-- Dynamically populated by JS -->
-                </div>
-
-                <div class="sim-feedback-zone" id="simFeedbackZone" hidden>
-                  <div class="sim-reply-bubble">
-                    <span class="sim-reply-avatar" aria-hidden="true">M</span>
-                    <p id="simReplyText"></p>
-                  </div>
-                  <button type="button" class="btn btn-sm sim-continue-btn" id="simContinueBtn">
-                    <span>Continuar con tu evaluación</span>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h15M13 6l6 6-6 6"/></svg>
-                  </button>
-                </div>
-              </div>
-
-              <div class="sim-footer">
-                <span>Interacción guiada · Escala MRS</span>
-              </div>
-            </div>
-
-            <!-- Home indicator bar -->
-            <div class="phone-home-bar" aria-hidden="true"></div>
           </div>
+          <div class="l-stats" id="stats">
+            <div class="l-card m-card--glass l-stat"><div class="l-viz"><svg class="l-ring" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="15" fill="none" stroke="#f3cfe4" stroke-width="6"/><circle id="ringArc" cx="20" cy="20" r="15" fill="none" stroke="#ff3cc7" stroke-width="6" stroke-linecap="round" stroke-dasharray="0 94.25" transform="rotate(-90 20 20)"/></svg></div><b><em id="n1">54</em>%</b><span>de las peruanas de 48 a 49 años ya está en menopausia</span></div>
+            <div class="l-card m-card--glass l-stat"><div class="l-viz"><div class="l-sq" id="sq" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div><b><em id="n2">77</em>%</b><span>no busca ayuda médica para manejar la menopausia: casi 8 de cada 10</span></div>
+            <div class="l-card m-card--glass l-stat"><div class="l-viz"><div class="l-meter" aria-hidden="true"><i id="bar"></i></div></div><b><em id="n3">4</em> de 10</b><span>en posmenopausia tiene síntomas graves</span></div>
+          </div>
+          <div class="l-src">Línea de vida: Guía de Práctica Clínica del Climaterio, Hospital Nacional Hipólito Unanue (2024) e INEI. 54%: INEI, ENDES 2016 (cuadro 5.17). 77% y 4 de 10: Matzumura-Kasano et al., 2023.</div>
         </div>
       </div>
     </div>
-  </section>
+    <div class="l-hint" id="hint" aria-hidden="true">↓ DESLIZA</div>
+  </div>
+</section>
 
-  <!-- Clinical Trust Strip (Inspired by Midi Health & Samara) -->
-  <section class="trust-strip" aria-label="Respaldo clínico y fuentes médicas">
-    <div class="trust-marquee">
-      <div class="trust-track">
-        <!-- El contenido se repite 2 veces seguidas (la segunda con aria-hidden) para que
-             la animación pueda hacer un loop perfecto: cuando la primera copia termina de
-             salir por la izquierda, la segunda ya está exactamente donde empezó la primera. -->
-        <span class="trust-pill">
-          <span class="trust-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></span>
-          Guía Clínica HNHU 2024 <span class="trust-detail">— la fuente de todo lo que te decimos</span>
-        </span>
-        <span class="trust-pill">
-          <span class="trust-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></span>
-          Escala MRS Validada <span class="trust-detail">— la misma que usan los ginecólogos</span>
-        </span>
-        <span class="trust-pill">
-          <span class="trust-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>
-          Privacidad y Autonomía <span class="trust-detail">— sin pedirte nombre ni correo, tú decides qué contar</span>
-        </span>
-        <span class="trust-pill" aria-hidden="true">
-          <span class="trust-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></span>
-          Guía Clínica HNHU 2024 <span class="trust-detail">— la fuente de todo lo que te decimos</span>
-        </span>
-        <span class="trust-pill" aria-hidden="true">
-          <span class="trust-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></span>
-          Escala MRS Validada <span class="trust-detail">— la misma que usan los ginecólogos</span>
-        </span>
-        <span class="trust-pill" aria-hidden="true">
-          <span class="trust-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>
-          Privacidad y Autonomía <span class="trust-detail">— sin pedirte nombre ni correo, tú decides qué contar</span>
-        </span>
+<!-- 3. ¿Cómo funciona? -->
+<section class="l-how" id="como-funciona" data-nav="light" aria-labelledby="how-h">
+  <div class="l-how-stage">
+    <h2 class="m-eyebrow" id="how-h">¿Cómo funciona?</h2>
+    <div class="l-how-grid">
+      <ol class="m-steps" id="steps">
+        <li class="m-step is-active"><div class="m-step__n">01</div><h3>Cuéntale cómo te has sentido</h3><p>Respondes 11 preguntas cortas sobre tu cuerpo, tu ánimo y tu zona íntima. Toma 5 minutos, desde tu celular.</p></li>
+        <li class="m-step"><div class="m-step__n">02</div><h3>Entiende lo que te pasa</h3><p>Mindi te muestra, en palabras simples, qué tan fuertes son tus síntomas y qué áreas de tu vida están afectando.</p></li>
+        <li class="m-step"><div class="m-step__n">03</div><h3>Llévalo a tu consulta</h3><p>Te quedas con un resumen claro para conversar con tu ginecóloga o médica, sin olvidarte de nada.</p><a class="m-btn" href="/test" data-track="cta_test_como_funciona">Haz el test gratis →</a></li>
+      </ol>
+      <div class="l-phone-wrap"><div class="m-phone" aria-hidden="true"><img class="m-phone__frame" src="/img/frame.webp" width="290" height="560" alt="" loading="lazy"><div class="m-phone__screen m-chat">
+        <div class="l-scr is-on">
+          <div class="m-chat__head"><span class="m-avatar">M</span>Mindi</div>
+          <div class="m-progress"><i style="width:27%"></i></div><div class="m-meta">Pregunta 3 de 11</div>
+          <div class="m-bubble m-bubble--bot">¿Qué tanto te han molestado los bochornos o sudoraciones?<small>Por ejemplo: calor repentino en una reunión o despertar empapada.</small></div>
+          <div class="l-opts"><span style="background:var(--scale-0)">0<small>Nada</small></span><span style="background:var(--scale-1)">1<small>Leve</small></span><span style="background:var(--scale-2)">2<small>Moder.</small></span><span style="background:var(--scale-3);color:#fff;box-shadow:0 0 0 2px var(--plum)">3<small style="color:#fff">Fuerte</small></span><span style="background:var(--scale-4);color:#fff">4<small style="color:#fff">Muy f.</small></span></div>
+          <div class="m-bubble m-bubble--me">3 · Fuerte</div>
+          <div class="m-bubble m-bubble--bot">Gracias por contármelo. Sigamos con el sueño.</div>
+        </div>
+        <div class="l-scr">
+          <div class="m-chat__head"><span class="m-avatar">M</span>Tu resultado</div>
+          <div class="l-res-h">Tus síntomas hoy</div>
+          <span class="m-chip m-chip--sev">Intensidad moderada</span>
+          <div class="m-bar" style="--w:68%"><div class="m-bar__label"><span>Cuerpo</span><span>68%</span></div><div class="m-bar__track"><i></i></div></div>
+          <div class="m-bar" style="--w:52%"><div class="m-bar__label"><span>Ánimo</span><span>52%</span></div><div class="m-bar__track"><i></i></div></div>
+          <div class="m-bar" style="--w:30%"><div class="m-bar__label"><span>Vida íntima</span><span>30%</span></div><div class="m-bar__track"><i></i></div></div>
+          <div class="l-note">Lo que más te afecta son los bochornos y el sueño. Es frecuente en esta etapa y tiene manejo.</div>
+        </div>
+        <div class="l-scr">
+          <div class="m-chat__head"><span class="m-avatar">M</span>Tu reporte</div>
+          <div class="l-doc"><b>Reporte para tu consulta</b>
+            <div class="l-row"><span>Escala MRS</span><em>Moderada</em></div>
+            <div class="l-row"><span>Síntoma principal</span><em>Bochornos</em></div>
+            <div class="l-row"><span>Banderas rojas</span><em>Ninguna</em></div>
+            <div class="l"></div><div class="l" style="width:80%"></div><div class="l" style="width:60%"></div>
+          </div>
+          <div class="l-note">Preguntas para tu médica: ¿qué opciones tengo para los bochornos? ¿Cada cuánto debo controlarme?</div>
+          <div class="l-cta-s">Descargar PDF</div>
+          <div class="l-cta-o">Compartir con mi médica</div>
+        </div>
+      </div></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- 4. ¿Aún no te sientes lista para el test? -->
+<section class="l-ready" id="pregunta" data-nav="light" aria-labelledby="ready-h">
+  <div class="l-ready-in">
+    <h2 id="ready-h">¿Aún no te sientes lista para el test?</h2>
+    <div class="l-ready-grid">
+      <div class="l-chat-col">
+        <div class="m-phone"><img class="m-phone__frame" src="/img/frame.webp" width="290" height="560" alt="" loading="lazy"><div class="m-phone__screen">
+          <div class="l-demo m-chat m-chat--dark" role="log" aria-label="Ejemplo de conversación con Mindi">
+            <div class="m-chat__head"><span aria-hidden="true">←</span><span class="m-avatar">M</span><div><b>Mindi</b><span class="m-chat__status" id="demoStatus">en línea</span></div></div>
+            <div class="l-msgs" id="msgs"><span class="l-day">Hoy</span></div>
+            <div class="l-demo-in" aria-hidden="true"><span>Escribe tu duda…</span><i>➤</i></div>
+          </div>
+        </div></div>
+        <button class="l-replay" id="replay" type="button" hidden>↻ VER DE NUEVO</button>
+      </div>
+      <div class="l-opt-list">
+        <div class="l-opt"><h3>Habla con Mindi antes</h3><p>Sin vergüenza y sin apuros. Mindi te responde en simple y te orienta para que sepas cuándo conversar con una especialista.</p><a class="m-btn m-btn--outline" href="/chat" data-chat-link data-track="cta_chat_pregunta">Pregúntale a Mindi →</a></div>
+        <div class="l-opt"><h3>Preguntas frecuentes</h3><div class="m-faq" id="faq">
+          <details><summary>¿El test es gratis?</summary><p>Sí. Toma unos 5 minutos y al final recibes tu reporte para descargar.</p></details>
+          <details><summary>¿Mindi reemplaza a mi médico?</summary><p>No. Mindi te ayuda a entender lo que sientes y a llegar mejor preparada a tu consulta, pero no da diagnósticos ni tratamientos.</p></details>
+          <details><summary>¿Sirve si todavía menstrúo?</summary><p>Sí. Muchos síntomas empiezan en la perimenopausia, cuando la regla todavía viene pero se vuelve irregular.</p></details>
+          <details><summary>¿A qué edad empieza la menopausia?</summary><p>En el Perú llega en promedio a los 47 años. Se confirma cuando pasan 12 meses seguidos sin regla.</p></details>
+          <details><summary>¿Qué pasa con mis datos?</summary><p>Solo los usamos para darte tu resultado y acompañarte. Puedes revisar los detalles en nuestros <a href="/terminos">términos y condiciones</a>.</p></details>
+        </div></div>
       </div>
     </div>
-  </section>
+  </div>
+</section>
 
-  <!-- Interactive Symptoms Explorer Section -->
-  <section class="section" id="sintomas" aria-labelledby="sym-title">
-    <div class="wrap">
-      <div class="section-head-split">
-        <div class="section-head">
-          <h2 id="sym-title">Lo que muchas mujeres notan y no siempre saben nombrar</h2>
-          <p>Los cambios hormonales se manifiestan de forma única en cada cuerpo. Selecciona el síntoma que más resuene contigo para empezar.</p>
-        </div>
-
-        <!-- Filter tabs for symptoms -->
-        <div class="symptom-filters" role="tablist" aria-label="Filtrar síntomas por categoría">
-          <button type="button" class="filter-chip active" data-filter="all" role="tab" aria-selected="true">Todos (6)</button>
-          <button type="button" class="filter-chip" data-filter="somatico" role="tab" aria-selected="false">Cuerpo y descanso</button>
-          <button type="button" class="filter-chip" data-filter="psicologico" role="tab" aria-selected="false">Ánimo y mente</button>
-          <button type="button" class="filter-chip" data-filter="urogenital" role="tab" aria-selected="false">Cambios íntimos</button>
-        </div>
-      </div>
-
-      <div class="symptoms-carousel-container">
-        <div class="symptoms-wrap">
-          <div class="symptoms" id="symptoms" tabindex="0" aria-label="Carrusel de síntomas">
-            <button type="button" class="sym-card c-peach" data-category="somatico" data-open-chat data-symptom="bochornos">
-              <div class="sym-card-header">
-                <span class="sym-category-tag">Somático</span>
-                <span class="sym-arrow" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span>
-              </div>
-              <div class="sym-card-body">
-                <h3>Bochornos y sudoración</h3>
-                <p>Calor repentino e intenso en la cara, cuello o pecho, a menudo acompañado de sudoración nocturna.</p>
-              </div>
-              <div class="sym-card-footer">
-                <span class="go">Hablar de esto con Mindi</span>
-              </div>
-            </button>
-
-            <button type="button" class="sym-card c-blush" data-category="somatico" data-open-chat data-symptom="sueno">
-              <div class="sym-card-header">
-                <span class="sym-category-tag">Descanso</span>
-                <span class="sym-arrow" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span>
-              </div>
-              <div class="sym-card-body">
-                <h3>Sueño interrumpido</h3>
-                <p>Dificultad para conciliar el sueño, despertares repetidos a medianoche o sensación de agotamiento matutino.</p>
-              </div>
-              <div class="sym-card-footer">
-                <span class="go">Hablar de esto con Mindi</span>
-              </div>
-            </button>
-
-            <button type="button" class="sym-card c-sage" data-category="psicologico" data-open-chat data-symptom="animo">
-              <div class="sym-card-header">
-                <span class="sym-category-tag">Psicológico</span>
-                <span class="sym-arrow" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span>
-              </div>
-              <div class="sym-card-body">
-                <h3>Ánimo e irritabilidad</h3>
-                <p>Mayor reactividad, tristeza repentina, ansiedad o tensión interna sin un motivo evidente.</p>
-              </div>
-              <div class="sym-card-footer">
-                <span class="go">Hablar de esto con Mindi</span>
-              </div>
-            </button>
-
-            <button type="button" class="sym-card c-cream" data-category="psicologico" data-open-chat data-symptom="cansancio">
-              <div class="sym-card-header">
-                <span class="sym-category-tag">Energía</span>
-                <span class="sym-arrow" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span>
-              </div>
-              <div class="sym-card-body">
-                <h3>Cansancio y memoria</h3>
-                <p>Agotamiento mental, pequeños lapsos de memoria cotidiana o lentitud para concentrarte en el trabajo.</p>
-              </div>
-              <div class="sym-card-footer">
-                <span class="go">Hablar de esto con Mindi</span>
-              </div>
-            </button>
-
-            <button type="button" class="sym-card c-rose" data-category="urogenital" data-open-chat data-symptom="intimo">
-              <div class="sym-card-header">
-                <span class="sym-category-tag">Urogenital</span>
-                <span class="sym-arrow" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span>
-              </div>
-              <div class="sym-card-body">
-                <h3>Cambios íntimos</h3>
-                <p>Sequedad, molestia o variaciones en el deseo sexual. Son sumamente comunes y cuentan con alternativas seguras.</p>
-              </div>
-              <div class="sym-card-footer">
-                <span class="go">Hablar de esto con Mindi</span>
-              </div>
-            </button>
-
-            <button type="button" class="sym-card c-sand" data-category="somatico" data-open-chat data-symptom="dolores">
-              <div class="sym-card-header">
-                <span class="sym-category-tag">Físico</span>
-                <span class="sym-arrow" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span>
-              </div>
-              <div class="sym-card-body">
-                <h3>Dolores y palpitaciones</h3>
-                <p>Rigidez en articulaciones, molestias musculares al despertar o latidos perceptibles sin esfuerzo físico.</p>
-              </div>
-              <div class="sym-card-footer">
-                <span class="go">Hablar de esto con Mindi</span>
-              </div>
-            </button>
-          </div>
-        </div>
-
-        <!-- Carousel navigation arrows for desktop -->
-        <div class="carousel-nav">
-          <button type="button" class="carousel-btn prev" id="carouselPrev" aria-label="Deslizar a la izquierda">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
-          </button>
-          <button type="button" class="carousel-btn next" id="carouselNext" aria-label="Deslizar a la derecha">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
-          </button>
-        </div>
-      </div>
+<!-- 5. Planes -->
+<section class="l-plans" id="planes" data-nav="light" aria-labelledby="plans-h">
+  <div class="l-plans-in">
+    <h2 class="m-h2" id="plans-h">Elige cómo te acompaña Mindi</h2>
+    <div class="l-pgrid" id="pgrid">
+      <article class="m-plan m-plan--free l-reveal is-pending" aria-label="Mindi Free">
+        <div class="m-plan__who">Para empezar</div><h3 class="m-plan__name">Mindi Free</h3>
+        <p class="m-plan__desc">Entiende qué te pasa y resuelve tus primeras dudas.</p>
+        <div class="m-plan__price" style="margin-top:22px">S/ 0</div>
+        <ul class="m-plan__feat">
+          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#C0128C" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg><span>Tests de síntomas (escala MRS)</span></li>
+          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#C0128C" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg><span>Reporte descargable para tu médico</span></li>
+          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#C0128C" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg><span>Chat con Mindi solo en horarios de atención</span></li>
+          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#C0128C" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg><span>Acceso a tips y contenido en nuestra comunidad</span></li>
+        </ul>
+        <a class="m-btn" href="/test" data-track="cta_plan_free">Haz el test gratis →</a>
+      </article>
+      <article class="m-plan m-plan--plus m-on-dark l-reveal is-pending" aria-label="Mindi Plus">
+        <div class="m-plan__who">Para acompañarte</div><h3 class="m-plan__name">Mindi Plus</h3>
+        <p class="m-plan__desc">Sigue tu evolución mes a mes sin repetir tu historia.</p>
+        <div class="m-plan__from">Desde</div><div class="m-plan__price">S/ 29.90</div>
+        <ul class="m-plan__feat">
+          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg><span>Todo lo de Free</span></li>
+          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg><span>Chat 24/7 que recuerda tus resultados</span></li>
+          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg><span>Re-test mensual con reporte de evolución</span></li>
+          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg><span>Recordatorios de controles y hábitos</span></li>
+          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg><span>Acceso a comunidad y charlas con expertas</span></li>
+          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg><span>Descuento en consultas y clínicas asociadas</span></li>
+        </ul>
+        <button class="m-btn m-btn--white" type="button" data-waitlist="plus" data-track="waitlist_plus">Quiero acceso anticipado →</button>
+      </article>
+      <article class="m-plan m-plan--ent m-on-dark l-reveal is-pending" aria-label="Mindi Enterprise">
+        <div class="m-plan__who">Para empresas</div><h3 class="m-plan__name">Mindi Enterprise</h3>
+        <p class="m-plan__desc">Acompaña a tus colaboradoras en una etapa de la que casi nadie habla en el trabajo.</p>
+        <div class="m-plan__from">Desde</div><div class="m-plan__price">S/ 15</div><div class="m-plan__per">por colaboradora</div>
+        <ul class="m-plan__feat">
+          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg><span>Mindi Plus para todas tus colaboradoras</span></li>
+          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg><span>Orientación para usar la red de tu seguro</span></li>
+          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg><span>Recordatorios de chequeos preventivos</span></li>
+          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg><span>Reporte anónimo del bienestar de tu equipo</span></li>
+          <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg><span>Charlas y talleres con especialistas</span></li>
+        </ul>
+        <a class="m-btn m-btn--outline" href="/empresas" data-waitlist="empresas" data-track="demo_enterprise">Agenda una demo →</a>
+      </article>
     </div>
-  </section>
+    <div class="l-pdots" id="pdots" aria-label="Elegir plan"><button type="button" aria-label="Mindi Free"></button><button type="button" aria-label="Mindi Plus" aria-current="true"></button><button type="button" aria-label="Mindi Enterprise"></button></div>
+  </div>
+</section>
 
-  <!-- Architectural Steps Section (Samara inspired) -->
-  <section class="section section-bordered" id="como-funciona" aria-labelledby="how-title">
-    <div class="wrap">
-      <div class="section-head">
-        <p class="section-subtitle">Claridad sin rodeos</p>
-        <h2 id="how-title">Así te acompaña Mindi</h2>
-        <p>Una conversación estructurada, sin tecnicismos que asusten ni juicios sobre lo que sientes.</p>
-      </div>
+<!-- 6. Cierre -->
+<section class="l-closing m-on-dark is-pending" id="cierre" data-nav="dark" aria-label="Mindi">
+  <h2 class="l-wm" aria-label="Mindi"><span style="transition-delay:0ms" aria-hidden="true">M</span><span style="transition-delay:70ms" aria-hidden="true">i</span><span style="transition-delay:140ms" aria-hidden="true">n</span><span style="transition-delay:210ms" aria-hidden="true">d</span><span style="transition-delay:280ms" aria-hidden="true">i</span></h2>
+  <p class="l-tag"><span>The bridge across the menopause</span><span>gap in Peru and LATAM</span></p>
+  <a class="m-btn m-btn--white" href="/test" data-track="cta_test_cierre">Haz el test gratis →</a>
+</section>
+</main>
 
-      <div class="steps-grid">
-        <div class="step-card">
-          <span class="step-num">01</span>
-          <div class="step-content">
-            <h3>Repasamos juntas</h3>
-            <p>Me cuentas cómo te has sentido a través de preguntas sencillas. Puedes responder con calma y saltarte lo que prefieras no compartir.</p>
-          </div>
-        </div>
-
-        <div class="step-card">
-          <span class="step-num">02</span>
-          <div class="step-content">
-            <h3>Traduzco lo que notas</h3>
-            <p>Convertimos el lenguaje clínico a explicaciones claras y humanas. Entenderás si lo que sientes es esperable en esta etapa y su nivel de carga.</p>
-          </div>
-        </div>
-
-        <div class="step-card">
-          <span class="step-num">03</span>
-          <div class="step-content">
-            <h3>Llegas preparada a tu consulta</h3>
-            <p>Recibes un reporte confidencial con tus resultados y preguntas sugeridas para tu médico(a), para tomar decisiones informadas sobre tu salud.</p>
-          </div>
-        </div>
-      </div>
+<!-- 7. Footer -->
+<footer class="l-foot" data-nav="light">
+  <div class="l-foot-in">
+    <div class="l-fgrid">
+      <div><div class="l-flogo">Mindi<i>.</i></div><p>Te ayudamos a entender tus síntomas de perimenopausia y menopausia, para que llegues mejor preparada a tu médico.</p></div>
+      <div><h4>Escríbenos</h4><ul>
+        <li data-wa-item hidden><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg><a data-wa-link data-wa-origen="landing" target="_blank" rel="noopener">WhatsApp</a></li>
+        <li><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg><a href="mailto:mindifem@gmail.com">mindifem@gmail.com</a></li>
+        <li><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18V5l10-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="16" cy="16" r="3"/></svg><a href="https://www.tiktok.com/@mindifem" target="_blank" rel="noopener">TikTok @mindifem</a></li>
+      </ul></div>
+      <div><h4>Mindi</h4><ul>
+        <li><a href="/test">Haz el test</a></li>
+        <li><a href="/chat" data-chat-link>Pregúntale a Mindi</a></li>
+        <li><a href="/terminos">Términos y condiciones</a></li>
+        <li><a href="/privacidad">Política de privacidad</a></li>
+      </ul></div>
     </div>
-  </section>
+    <div class="l-fbottom"><span>Mindi brinda información y orientación general; no sustituye la consulta médica.</span><span>© 2026 Mindi · Hecho en Perú</span></div>
+  </div>
+</footer>
 
-  <!-- Community / Events Section (Redesigned Minimalist) -->
-  <section class="section events-section" id="eventos" aria-labelledby="events-title">
-    <div class="wrap">
-      <div class="events-card">
-        <div class="events-content">
-          <span class="eyebrow"><span class="eyebrow-dot"></span> Próximamente</span>
-          <h2 id="events-title">Un espacio para conversar juntas</h2>
-          <p>Estamos organizando conversatorios íntimos donde puedas escuchar y compartir vivencias con otras mujeres que atraviesan esta misma etapa. Para sentirte comprendida, no solo informada.</p>
-          
-          <div id="eventsSignup" class="events-signup">
-            <button class="btn btn-secondary-brand" type="button" id="eventsJoinBtn" data-track="cta_eventos">
-              <span>Separar mi cupo en lista de espera</span>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h15M13 6l6 6-6 6"/></svg>
-            </button>
-            <small class="events-note">Cupos limitados para el primer conversatorio · Sin costo · Te avisamos apenas tengamos fecha confirmada.</small>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
+<!-- Listas de espera: Plus, consultas, empresas y especialistas (el contenido lo arma src/landing.js) -->
+<dialog class="l-dialog" id="waitlist" aria-labelledby="waitlistTitle"></dialog>
+</div>
 
-  <!-- Manifesto Band (Refined Wine Palette) -->
-  <section class="band" aria-label="Manifiesto Mindi">
-    <div class="wrap">
-      <div class="band-inner">
-        <h2>Ver a la mujer, <em class="band-em">no solo al síntoma.</em></h2>
-        <p>Cada experiencia es única. Aquí no hay prisas ni prescripciones impuestas: te acompañamos a comprender tu cuerpo para que tomes el control de tus decisiones.</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- Interactive Chat Conversation Section -->
+<!-- Test y chat con IA: se muestran solo en /test, /chat o #conversar (Fase 3: rediseño) -->
   <section class="chat-section" id="conversar" aria-labelledby="chat-title">
     <div class="wrap">
       <div class="chat-intro">
@@ -386,130 +310,13 @@
           <div class="chat-start" id="chatStart">
             <h3>Hola, soy Mindi</h3>
             <p>Entiende tus síntomas y prepara tu consulta.<br>Toma unos 5 minutos.</p>
-            <p class="consent-text">Tus respuestas son datos de salud: las usamos solo para darte tu resultado y nunca las vendemos. Al continuar, aceptas los <a href="/terminos.html" target="_blank" rel="noopener">Términos y condiciones</a> y la <a href="/privacidad.html" target="_blank" rel="noopener">Política de privacidad</a>.</p>
+            <p class="consent-text">Tus respuestas son datos de salud: las usamos solo para darte tu resultado y nunca las vendemos. Al continuar, aceptas los <a href="/terminos" target="_blank" rel="noopener">Términos y condiciones</a> y la <a href="/privacidad" target="_blank" rel="noopener">Política de privacidad</a>.</p>
             <button class="btn" type="button" id="startBtn" data-track="cta_chat">Acepto y empiezo</button>
           </div>
         </div>
       </div>
     </div>
   </section>
-
-  <!-- Interactive FAQ Section (Search + Accordions, Samara style) -->
-  <section class="section" id="preguntas-frecuentes" aria-labelledby="faq-title">
-    <div class="wrap">
-      <div class="section-head">
-        <p class="section-subtitle">Resolviendo dudas</p>
-        <h2 id="faq-title">Preguntas frecuentes</h2>
-        <p>Respuestas claras sobre la base clínica, la privacidad y el uso de Mindi.</p>
-      </div>
-
-      <!-- Interactive FAQ Quick Filter -->
-      <div class="faq-search-box">
-        <div class="faq-search-input-wrap">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="faq-search-icon" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input type="search" id="faqSearchInput" placeholder="Buscar preguntas (ej. climaterio, médico, privacidad, escala MRS)..." aria-label="Buscar en preguntas frecuentes">
-        </div>
-      </div>
-
-      <div class="faq-list" id="faqList">
-        <details class="faq-item">
-          <summary>¿Qué es el climaterio?</summary>
-          <div class="faq-answer">
-            <p>Es la etapa de transición biológica que va desde los años previos a la menopausia (perimenopausia) hasta varios años después de ella. Involucra cambios hormonales, físicos, emocionales y metabólicos, y no se reduce únicamente al cese de la menstruación.<span class="cite">Fuente: Guía HNHU (RD N° 211-2024-DG/HNHU), sección 5.1.2.</span></p>
-          </div>
-        </details>
-
-        <details class="faq-item">
-          <summary>¿Es lo mismo que la menopausia?</summary>
-          <div class="faq-answer">
-            <p>No exactamente. La menopausia es un hito puntual: se define como 12 meses consecutivos sin regla. El climaterio es todo el proceso de transición gradual que ocurre antes, durante y después de ese momento.<span class="cite">Fuente: Guía HNHU (RD N° 211-2024-DG/HNHU), sección 5.1.1.</span></p>
-          </div>
-        </details>
-
-        <details class="faq-item">
-          <summary>¿Esto reemplaza una consulta médica?</summary>
-          <div class="faq-answer">
-            <p>No. Mindi ofrece orientación educativa y estructuración de síntomas, pero no emite diagnósticos médicos ni prescribe tratamientos farmacológicos. Su objetivo es prepararte para que aproveches mejor tu cita con tu ginecólogo(a) o médico(a) tratante.</p>
-          </div>
-        </details>
-
-        <details class="faq-item">
-          <summary>¿Cómo calculan mi resultado?</summary>
-          <div class="faq-answer">
-            <p>Utilizamos la Escala de Puntuación en Menopausia (MRS por sus siglas en inglés), el instrumento de evaluación clínica estandarizado internacionalmente y recomendado en el Perú. Evalúa 11 síntomas agrupados en tres dimensiones: somática, psicológica y urogenital.<span class="cite">Fuente: Guía HNHU (RD N° 211-2024-DG/HNHU), Anexo 1.</span></p>
-          </div>
-        </details>
-
-        <details class="faq-item">
-          <summary>¿Es normal sentir varios síntomas a la vez?</summary>
-          <div class="faq-answer">
-            <p>Sí, es muy habitual. A veces cada síntoma parece leve por separado, pero la acumulación simultánea (como dormir mal sumado a cambios de humor y dolores musculares) produce un impacto significativo en la calidad de vida. Por eso la escala evalúa la carga combinada.</p>
-          </div>
-        </details>
-
-        <details class="faq-item">
-          <summary>¿A qué edad empieza esta transición?</summary>
-          <div class="faq-answer">
-            <p>Varía considerablemente de mujer a mujer. En Perú, la edad promedio de la menopausia se sitúa en los 47 años, pero los primeros síntomas del climaterio pueden presentarse desde los 40 años o antes. Cada cuerpo tiene su propia cronología.<span class="cite">Fuente: Guía HNHU (RD N° 211-2024-DG/HNHU), sección 5.4.</span></p>
-          </div>
-        </details>
-
-        <details class="faq-item">
-          <summary>¿Mis respuestas son privadas?</summary>
-          <div class="faq-answer">
-            <p>Sí. Puedes hacer el test sin darnos tu nombre ni tu correo, y al final descargas tu reporte. El correo solo te lo pedimos si quieres recibir una copia. Tus respuestas son datos de salud: las usamos solo para darte tu resultado, nunca las vendemos y no las usamos para publicidad. Si dejas tu correo, lo guardamos en una tabla separada de tus respuestas. Los detalles están en la <a href="/privacidad.html">Política de privacidad</a>.</p>
-          </div>
-        </details>
-      </div>
-    </div>
-  </section>
-</main>
-
-<!-- Sticky Quick-Action Bar for Mobile UX -->
-<div class="mobile-sticky-bar" id="mobileStickyBar" aria-hidden="true">
-  <div class="sticky-info">
-    <span class="sticky-title">Mindi</span>
-    <span class="sticky-desc">Orientación clínica · 5 min</span>
-  </div>
-  <button class="btn btn-sm" type="button" data-open-chat data-track="cta_sticky">Hablar con Mindi</button>
-</div>
-
-<footer class="site-footer">
-  <div class="wrap">
-    <div class="footer-grid">
-      <div class="footer-brand">
-        <span class="footer-word">Mindi</span>
-        <p>Un espacio sereno para entender los cambios de tu cuerpo a tu propio ritmo, con respaldo clínico y sin prejuicios.</p>
-      </div>
-      <nav class="footer-col" aria-label="Explorar">
-        <h3>Explorar</h3>
-        <a href="#sintomas">Lo que notas</a>
-        <a href="#como-funciona">Cómo funciona</a>
-        <a href="#preguntas-frecuentes">Preguntas frecuentes</a>
-        <a href="#eventos">Eventos</a>
-        <a href="#conversar" data-open-chat data-track="cta_footer">Hablar con Mindi</a>
-      </nav>
-      <div class="footer-col" aria-label="Confianza">
-        <h3>Confianza médica</h3>
-        <a href="https://doi.org/10.33421/inmp.2020204" target="_blank" rel="noopener">Guía de Práctica Clínica HNHU 2024</a>
-        <span>Escala MRS estandarizada</span>
-        <a href="/privacidad.html">Política de privacidad</a>
-        <a href="/terminos.html">Términos y condiciones</a>
-      </div>
-    </div>
-
-    <div class="footer-notice">
-      <p><strong>Aviso médico importante:</strong> Mindi proporciona orientación informativa fundamentada y no sustituye la consulta médica, el diagnóstico profesional ni el tratamiento individualizado. Si experimentas síntomas agudos, dolor torácico o sangrado inesperado, acude de inmediato a un centro de salud o servicio de urgencias.</p>
-    </div>
-
-    <p class="footer-sources">La escala de síntomas, umbrales de puntuación y recomendaciones citan la <em>Guía de Práctica Clínica para Diagnóstico y Tratamiento del Climaterio</em>, Hospital Nacional Hipólito Unanue (Resolución Directoral N° 211-2024-DG/HNHU, 2024) y Ayala-Peralta FD. <em>Rev Peru Investig Matern Perinat.</em> 2020;9(2):34-41. <a href="https://doi.org/10.33421/inmp.2020204" target="_blank" rel="noopener">doi.org/10.33421/inmp.2020204</a>.</p>
-
-    <div class="footer-bottom">
-      <span>© 2026 Mindi. Todos los derechos reservados.</span>
-      <span>Diseñado con cuidado, respeto y rigor clínico.</span>
-    </div>
-  </div>
-</footer>
 
 <script type="module" src="/src/main.js"></script>
 </body>

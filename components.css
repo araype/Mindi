@@ -5,23 +5,26 @@
    celular fijo de "¿Cómo funciona?") se arman en la landing (Fase 2).
    ================================================================== */
 
-/* ---------- 5.1 Botones ---------- */
+/* ---------- 5.1 Botones ----------
+   Contraste (decisión del equipo): el texto blanco sobre magenta va en negrita y a 19 px o más
+   (texto grande, 3:1); el texto de los botones contorno usa --magenta-text (5,7:1). */
 .m-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:var(--tap-min);
   padding:16px 28px;border-radius:var(--radius-pill);border:2px solid transparent;
-  font-family:var(--font-display);font-weight:700;font-size:16px;line-height:1.1;text-decoration:none;text-align:center;
+  font-family:var(--font-display);font-weight:700;font-size:var(--fs-btn);line-height:1.1;text-decoration:none;text-align:center;
   cursor:pointer;background:var(--magenta-btn);color:#fff;
   transition:background-color var(--duration-fast) ease,color var(--duration-fast) ease,filter var(--duration-fast) ease}
 .m-btn:hover{color:#fff;filter:brightness(1.05)}
 .m-btn:focus-visible{outline:3px solid var(--focus-ring);outline-offset:3px}
 .m-btn[disabled],.m-btn[aria-disabled="true"]{opacity:.5;cursor:not-allowed;filter:none}
 
-.m-btn--outline{background:transparent;border-color:var(--magenta-btn);color:var(--magenta-deep)}
+.m-btn--outline{background:transparent;border-color:var(--magenta-btn);color:var(--magenta-text)}
 .m-btn--outline:hover{background:var(--magenta-btn);color:#fff;filter:none}
 
 .m-btn--white{background:#fff;color:var(--magenta-on-white)}
 .m-btn--white:hover{color:var(--magenta-on-white)}
 
-.m-btn--nav{padding:12px 22px;font-size:15px}
+.m-btn--nav{padding:11px 20px}
+/* Solo para botones contorno o blancos: el magenta sólido nunca baja de 19 px */
 .m-btn--sm{padding:11px 20px;font-size:15px}
 .m-btn--block{display:flex;width:100%}
 

@@ -1,4 +1,5 @@
-import './landing.css';
+import './ds.css';
+import './site.css';
 import './legal.css';
 
 /* Términos y Política de privacidad: lo que habla del chat con IA (agente de Mindi, OpenAI,

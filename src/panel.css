@@ -1,19 +1,19 @@
-/* Panel interno de Mindi — mismos tonos que la landing (landing.css), más los colores de
+/* Panel interno de Mindi — identidad del rediseño (tokens/: ciruela y magenta), más los colores de
    gráfico. Paletas de gráfico validadas para daltonismo (categórica: azul/naranja/aqua;
    divergente: azul ↔ gris ↔ rojo). */
 :root {
   color-scheme: light;
-  --bg: #F3F1E8;
+  --bg: #FFF8FC;
   --surface: #FFFFFF;
-  --ink: #1B1B19;
-  --ink-soft: #5F5F57;
-  --ink-subtle: #7A7870;
-  --border: #DDDDD1;
-  --track: #EFEDE4;
-  --brand: #6E3A4E;          /* ciruela Mindi: barras del embudo (una sola serie) */
-  --action: #D33D17;
-  --action-hover: #A82F11;
-  --focus: #6E3A4E;
+  --ink: #2A1026;
+  --ink-soft: #6A4560;
+  --ink-subtle: #6A4560;
+  --border: #F3CFE4;
+  --track: #FDEBF6;
+  --brand: #2A1026;          /* ciruela Mindi: barras del embudo (una sola serie) */
+  --action: #C0128C;         /* magenta para texto/fondo con texto blanco (5,7:1) */
+  --action-hover: #2A1026;
+  --focus: #2A1026;
   --on-action: #FFFFFF;
 
   --cat-1: #2a78d6;          /* correo */
@@ -29,7 +29,8 @@
   --critical: #d03b3b;       /* señal de alerta (estado, siempre con etiqueta) */
   --test-bg: #F6E9C9; --test-border: #DCB671; --test-text: #6B4308;
 
-  --font: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font: 'Signika', 'Segoe UI', system-ui, sans-serif;
+  --font-display: 'Special Gothic', 'Archivo', 'Arial Black', system-ui, sans-serif;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
@@ -117,7 +118,8 @@ body {
 h1 {
   margin: 0;
   font-size: clamp(24px, 4vw, 32px);
-  font-weight: 600;
+  font-family: var(--font-display);
+  font-weight: 700;
   line-height: 1.15;
   text-wrap: balance;
 }

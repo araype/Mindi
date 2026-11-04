@@ -1,4 +1,11 @@
 {
+  "cleanUrls": true,
+  "rewrites": [
+    { "source": "/test", "destination": "/index.html" },
+    { "source": "/chat", "destination": "/index.html" },
+    { "source": "/empresas", "destination": "/index.html" },
+    { "source": "/especialistas", "destination": "/index.html" }
+  ],
   "functions": {
     "api/agent.js": { "maxDuration": 30 }
   }
