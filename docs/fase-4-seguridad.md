@@ -103,6 +103,22 @@ Hoy la política dice que el PDF se conserva 2 años. Propuesta:
 Si se aprueba: una tarea diaria con `pg_cron` para las tablas, una función programada para Storage
 (los archivos no se pueden borrar con SQL) y el cambio en la sección 7 de la política de privacidad.
 
+## E2. El día del lanzamiento (Production)
+
+Hoy la vista previa (`mindi-rediseno.vercel.app`) ya tiene todo; producción sigue con el sitio anterior.
+
+- [ ] **`VITE_AGENT_CHAT_ENABLED=true` en Production** (hoy solo está en Preview). Sin ella, el sitio
+      publicado no muestra "Pregúntale a Mindi" ni abre `/chat`: los enlaces llevan a WhatsApp.
+- [ ] `VITE_TEST_MODE=false` en Production (ya está así; revisar que no cambie).
+- [ ] `GCP_SA_KEY` en Production y Preview, y Cloud Run privado (paso C.7).
+- [ ] Desplegar el sitio nuevo: `vercel --prod` desde `rediseno-landing` (o desde la rama fusionada).
+      Las `VITE_` se leen al construir: cualquier cambio en ellas pide volver a desplegar.
+- [ ] Después de ese despliegue: `SEND_REPORT_SECRET` en Supabase (paso C.6) y borrar
+      `VITE_SUPABASE_URL` y `VITE_SUPABASE_PUBLISHABLE_KEY` de Vercel. **No antes:** el sitio que está hoy en
+      producción todavía las usa.
+- [ ] Con el dominio listo: `SITE_URL=https://mindifem.com` en Supabase, `https://mindifem.com` y
+      `https://www.mindifem.com` en `ALLOWED_ORIGINS` (Production) y `mindifem.com` en Turnstile.
+
 ## F. Antes de lanzar (handoff 11.10)
 
 - [x] La clave publicable no puede leer `sessions`, `leads`, `events`, `reports`, `interest_signups`,
