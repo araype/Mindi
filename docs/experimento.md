@@ -55,3 +55,10 @@ Cada evento de `events` lleva `props.flujo` desde cierre-v2. Los eventos sin `fl
   cualquier momento y vale desde la próxima pregunta (`chat_share` al aceptar, `chat_share_change` en cada cambio).
 - Se corrigió que "Empecemos" se enviaba al agente como pregunta (desde el despliegue de saludos de esta tarde):
   esos chats tienen un primer mensaje "Empecemos" que no escribió la usuaria.
+
+## Casilla única y chat sin "Empecemos" (5 nov. 2026, noche)
+
+- Casilla única de investigación al inicio del test: cubre respuestas y preguntas al chat (`consent_text_version`
+  `inicio-v2` en las preguntas que llegan así). Si la marca, la casilla del chat aparece marcada y puede desmarcarla.
+- Chat: una línea bajo el saludo con "Más información"; sin botón "Empecemos". `agent_consent` se registra con la
+  primera pregunta o la primera sugerencia, así que **la tasa de aceptación cuenta a quienes escriben**, no a quienes abren.
