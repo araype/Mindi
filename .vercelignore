@@ -1,0 +1,12 @@
+# Lo que `vercel` (CLI) no debe subir: el CLI sube la carpeta tal cual, no lo que está en git.
+.env*
+!.env.example
+*.txt
+!public/fonts/pdf/OFL-*.txt
+docs/capturas*/
+fotos landing rediseño/
+frame.png
+mindi-landing_1.html
+uploads/
+dist/
+node_modules/
