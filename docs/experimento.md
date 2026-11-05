@@ -28,3 +28,12 @@ Cada evento de `events` lleva `props.flujo` desde cierre-v2. Los eventos sin `fl
   (el enlace de 30 días sigue siendo `report_share` con `link`, `copy` o `manual`).
 - **Abandono resultado → metas** = 1 − `goals` / `result`.
 - Nuevo: `result_detail_open` (`seccion`: `significado`, `areas`, `reporte`).
+
+## Saludos y chat claro (5 nov. 2026, tarde)
+
+- **Chat:** modo claro con la paleta del test. Saludo según cómo llega (resultado, alerta de evaluación, alerta de
+  emergencia, general o tema) y, debajo, el aviso de IA en letra pequeña con "Empecemos". Desde el resultado (no en
+  emergencia) hay dos sugerencias que aceptan el aviso y envían la pregunta. `agent_consent` se registra igual;
+  nuevo `chat_suggestion` (`q`: `resultado` o `sentirme_mejor`). **La tasa de aceptación del chat puede subir.**
+- **Inicio del test:** bienvenida nueva y botón "Empezar" (antes "Acepto y empiezo"); el aviso del 106 pasa a
+  la tarjeta de inicio, debajo del botón. El texto de consentimiento no cambió. Desde el chat: "Hola de nuevo".

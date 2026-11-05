@@ -218,30 +218,11 @@ body.no-scroll{overflow:hidden}
 .face-star{position:absolute;top:-4px;right:-6px;line-height:0}
 .face-label{max-width:58px;font-size:12px;line-height:1.3;color:var(--plum-soft);text-align:center}
 
-/* ---------- Chat con IA: tema oscuro (10.5), en /chat ---------- */
-.chat-ai .chat-section,.chat-ai .chat-section.focus{background:var(--chat-bg)}
-.chat-ai .chat-shell{background:var(--chat-bg);border-color:var(--chat-header);color:#fff}
-.chat-ai .chat-top{background:var(--chat-header);border-bottom:0;color:#fff}
-.chat-ai .chat-top-title{color:#fff}
-.chat-ai .chat-top-sub{color:var(--chat-muted)}
-.chat-ai .chat-exit{background:transparent;border-color:rgba(255,255,255,.35);color:#fff}
-.chat-ai .chat-exit:hover{border-color:#fff}
+/* ---------- Chat con IA (/chat), modo claro ---------- */
+/* Desde el 5 nov. 2026 el chat con IA usa la misma paleta clara del test; solo se ocultan la barra de
+   progreso y la sección (no hay preguntas que contar). */
 .chat-ai .progress,.chat-ai .chat-meta{display:none}
-.chat-ai .chat{background:var(--chat-bg)}
-.chat-ai .bot .bubble{background:var(--bubble-bot);border:0;border-radius:10px;border-top-left-radius:3px;color:#fff}
-.chat-ai .user .bubble{background:var(--bubble-user);border-radius:10px;border-top-right-radius:3px}
-.chat-ai .typing{background:var(--bubble-bot);border:0;border-radius:10px;border-top-left-radius:3px}
-.chat-ai .typing span{background:var(--chat-muted)}
-.chat-ai .card{background:var(--bubble-bot);border-color:var(--bubble-bot);color:#fff}
-.chat-ai .card.notice{border-left-color:var(--magenta-btn)}
-.chat-ai .card p a{color:#fff}
-.chat-ai .chip.primary{background:var(--magenta-btn);border-color:var(--magenta-btn);font-family:var(--font-display);font-weight:700;font-size:var(--fs-btn)}
-.chat-ai .chip.primary:hover:not(:disabled){background:var(--magenta-deep);border-color:var(--magenta-deep)}
-.chat-ai .inputRow input{background:var(--chat-input);border-color:transparent;color:#fff}
-.chat-ai .inputRow input::placeholder{color:var(--chat-muted)}
-.chat-ai .inputRow input:focus{border-color:#fff;box-shadow:none}
-.chat-ai .btn-ghost{color:#fff;border-color:rgba(255,255,255,.5)}
-.chat-ai :focus-visible{outline-color:var(--focus-ring-on-dark)}
+.chat-ai .chip.primary{font-family:var(--font-display);font-weight:700;font-size:var(--fs-btn)}
 .bubble.agent-reply{white-space:normal}
 .bubble.agent-reply p{margin:0}
 .bubble.agent-reply p + p,.bubble.agent-reply p + ul,.bubble.agent-reply ul + p{margin-top:8px}
@@ -269,7 +250,6 @@ body.no-scroll{overflow:hidden}
 /* Nivel 2: casilla para compartir las preguntas (oculta hasta aprobar la política) */
 .share-opt{display:flex;gap:10px;align-items:flex-start;margin-top:12px;font-size:14px;line-height:1.45;cursor:pointer}
 .share-opt input{width:20px;height:20px;margin:1px 0 0;flex:none;accent-color:var(--magenta-btn)}
-.chat-ai .share-opt{color:var(--chat-muted)}
 
 /* cierre-v2 (5 nov. 2026): resultado con un mensaje principal y reporte con un botón principal */
 .card .marked-title{margin:12px 0 2px;font-weight:600}
@@ -290,3 +270,9 @@ body.no-scroll{overflow:hidden}
 /* Caritas de satisfacción: los tonos --s0…--s4 se perdieron con la paleta nueva (Fase 3) y se veían negras. */
 .face-scale{--s0-bg:#FDEBF6;--s0-border:#C0128C;--s1-bg:#FDEBF6;--s1-border:#C0128C;--s2-bg:#FDEBF6;--s2-border:#C0128C;
   --s3-bg:#F6E6F1;--s3-border:#8C6A82;--s4-bg:#F3EEF1;--s4-border:#6B5A66}
+/* Chat: aviso de IA bajo el saludo, en letra pequeña y siempre visible */
+.ai-notice-row{display:block}
+.ai-notice{margin:2px 0 4px 46px;max-width:320px;font-size:12.5px;line-height:1.45;color:var(--plum-soft)}
+.ai-notice-row .share-opt{margin-left:46px;max-width:320px;color:var(--plum-soft)}
+/* Inicio del test: aviso de emergencias bajo el botón */
+.chat-start .start-emergency{margin:10px 0 0;font-size:13.5px;color:var(--plum-soft);text-align:center}

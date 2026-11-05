@@ -232,3 +232,15 @@ test('warm: GET app-info (carga el agente sin llamar al modelo)', async () => {
   assert.equal(calls[0].method, 'GET');
   assert.equal(calls[0].body, undefined);
 });
+
+test('saludo del chat según cómo llega (5 nov. 2026)', async () => {
+  const { chatGreeting, GREETING, CHAT_TOPICS, RESULT_SUGGESTIONS } = await import('../src/agente.js');
+  const r = { total: 20, somatico: 8, psicologico: 6, urogenital: 6, senal_alerta: false };
+  assert.deepEqual(chatGreeting(r, null, null), { text: GREETING.resultado, suggestions: RESULT_SUGGESTIONS });
+  assert.deepEqual(chatGreeting({ ...r, senal_alerta: true }, 'evaluacion', null), { text: GREETING.evaluacion, suggestions: RESULT_SUGGESTIONS });
+  // Emergencia: sin sugerencias; y si no se sabe el tipo de alerta, el más prudente.
+  for (const t of ['emergencia', null]) assert.deepEqual(chatGreeting({ ...r, senal_alerta: true }, t, null), { text: GREETING.emergencia, suggestions: [] });
+  assert.match(GREETING.emergencia, /106/);
+  assert.deepEqual(chatGreeting(null, null, null), { text: GREETING.landing, suggestions: [] });
+  assert.deepEqual(chatGreeting(null, null, 'peso'), { text: CHAT_TOPICS.peso, suggestions: [] });
+});

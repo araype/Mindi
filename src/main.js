@@ -11,7 +11,7 @@ import { prioritizedSelfCare, SELF_CARE_SOURCE } from '../supabase/functions/_sh
 import { whyNotes, WHY_TITLE } from '../supabase/functions/_shared/notas.js';
 import { stageFilter, STAGE_EXIT } from './etapa.js';
 import { whatsappUrl, WHATSAPP_TEXT, channelUrl } from './whatsapp.js';
-import { createAgentClient, agentHtml, AI_NOTICE, GREETING, CHAT_TOPICS, chatTopic, ERROR_TEXT, LIMIT_TEXT, SHARE_QUESTIONS_TEXT, SHARE_QUESTIONS_VERSION } from './agente.js';
+import { createAgentClient, agentHtml, AI_NOTICE, chatGreeting, START_LABEL, chatTopic, ERROR_TEXT, LIMIT_TEXT, SHARE_QUESTIONS_TEXT, SHARE_QUESTIONS_VERSION } from './agente.js';
 import { glossaryMore } from './glosario.js';
 import { initLanding } from './landing.js';
 import { mountTurnstile } from './turnstile.js';
@@ -715,6 +715,7 @@ function openChatShell(){
   syncFocus();
 }
 
+const START_WELCOME_FROM_CHAT = 'Este test te ayuda a ver cuánto te están afectando tus síntomas y te da un reporte para tu médico. Son 11 preguntas cortas.';
 async function start(){
   if(started) return;
   started = true;
@@ -722,9 +723,8 @@ async function start(){
   openChatShell();
   setSection('Bienvenida');
   setProgress(1);
-  // La bienvenida y el consentimiento ya se vieron en la tarjeta de inicio (index.html):
-  // aquí solo queda el aviso de emergencias, en una línea, y la primera pregunta.
-  await botSay(['Si es urgente, llama al 106.']);
+  // La bienvenida, el consentimiento y el aviso de emergencias ya se vieron en la tarjeta de inicio
+  // (index.html): aquí va directo la primera pregunta.
   askAge();
 }
 
@@ -1265,6 +1265,7 @@ function setupShare(btn){
 /* Del resultado al chat con IA (10.5.1, paso 6): /chat recibe los 4 puntajes y la señal de alerta
    por sessionStorage (solo esta pestaña; sin respuestas una por una ni datos de contacto). */
 const RESULT_STORE = 'mindi_resultado';
+const ALERT_STORE = 'mindi_alerta';
 function chatButton(withResult){
   if(!AGENT_ENABLED) return '';
   const label = withResult ? 'Pregúntale a Mindi sobre tu resultado' : 'Pregúntale a Mindi';
@@ -1276,8 +1277,11 @@ document.addEventListener('click', (e)=>{
   const withResult = b.dataset.toChat === 'resultado';
   track('test_to_chat', {source:b.dataset.toChat});
   try{
-    if(withResult) sessionStorage.setItem(RESULT_STORE, JSON.stringify(agentMrsResult(state.scores, hasFlag())));
-    else sessionStorage.removeItem(RESULT_STORE);
+    if(withResult){
+      sessionStorage.setItem(RESULT_STORE, JSON.stringify(agentMrsResult(state.scores, hasFlag())));
+      // Solo para el saludo del chat (no va al agente): emergencia (rf2) o evaluación.
+      sessionStorage.setItem(ALERT_STORE, hasFlag() ? (state.redFlags.includes('rf2') ? 'emergencia' : 'evaluacion') : '');
+    } else { sessionStorage.removeItem(RESULT_STORE); sessionStorage.removeItem(ALERT_STORE); }
   }catch{}
   location.href = '/chat';
 });
@@ -1501,6 +1505,8 @@ function storedResult(){
   }catch{ return null; }
 }
 
+function storedAlertType(){ try{ return sessionStorage.getItem(ALERT_STORE) || null; }catch{ return null; } }
+
 function openAiChat(){
   aiMode = true;
   document.body.classList.add('chat-ai');
@@ -1522,16 +1528,28 @@ function openAiChat(){
   // Nivel 2: casilla sin marcar, solo si está activado (hasta aprobar la política, no se muestra).
   const share = CHAT_RESEARCH_ENABLED
     ? `<label class="opt share-opt"><input type="checkbox" id="chatShare"><span>${SHARE_QUESTIONS_TEXT}</span></label>` : '';
-  revealCard(`<p>${AI_NOTICE}</p>${share}`, 'notice').then(()=>{
-    renderChips([{label:'Entendido', primary:true}], ()=>{
-      track('agent_consent', {source:chatSource});
-      const box = document.getElementById('chatShare');
-      if(box){
-        if(box.checked) agentClient.setContext({...ctx, compartir:true, consent_text_version:SHARE_QUESTIONS_VERSION});
-        box.disabled = true;
-        track('chat_share', {captured: box.checked});
-      }
-      botSay([topic ? CHAT_TOPICS[topic] : GREETING[chatSource]]).then(renderQuestionInput);
+  // Saludo primero; debajo, el aviso de IA en letra pequeña y "Empecemos" (consentimiento explícito,
+  // Ley 29733). Tocar una sugerencia también acepta el aviso y envía esa pregunta (5 nov. 2026).
+  const greeting = chatGreeting(chatResult, storedAlertType(), topic);
+  const accept = ()=>{
+    track('agent_consent', {source:chatSource});
+    const box = document.getElementById('chatShare');
+    if(box){
+      if(box.checked) agentClient.setContext({...ctx, compartir:true, consent_text_version:SHARE_QUESTIONS_VERSION});
+      box.disabled = true;
+      track('chat_share', {captured: box.checked});
+    }
+  };
+  botSay([greeting.text]).then(()=>{
+    const row = document.createElement('div');
+    row.className = 'row bot ai-notice-row';
+    row.innerHTML = `<p class="ai-notice">${AI_NOTICE}</p>${share}`;
+    chat.appendChild(row);
+    const options = [{label:START_LABEL, primary:true, value:null}, ...greeting.suggestions.map(q=>({label:q, value:q}))];
+    renderChips(options, (q)=>{
+      accept();
+      if(q){ track('chat_suggestion', {q: greeting.suggestions.indexOf(q) === 0 ? 'resultado' : 'sentirme_mejor'}); askAgent(q, {echo:false}); }
+      else renderQuestionInput();
     });
   });
 }
@@ -1582,8 +1600,8 @@ function agentFallback(text){
 }
 
 let agentAnswered = false; // hasta la primera respuesta, el aviso de espera
-async function askAgent(text){
-  addBubble(text.slice(0, 1000), 'user');
+async function askAgent(text, {echo = true} = {}){
+  if(echo) addBubble(text.slice(0, 1000), 'user');
   clearComposer();
   if(agentClient.limitReached){ agentFallback(LIMIT_TEXT); return renderQuestionInput(); }
   showTyping(agentAnswered ? '' : FIRST_WAIT_TEXT);
@@ -1615,6 +1633,11 @@ document.getElementById('startBtn').addEventListener('click', ()=>{
   if(!started) track('consent_accept',{version:CONSENT_VERSION});
   start();
 });
+/* Llega desde el chat (?origen=chat): bienvenida de reencuentro. */
+if(TEST_ORIGEN === 'chat'){
+  const p = document.querySelector('#chatStart .start-welcome');
+  if(p){ p.textContent = START_WELCOME_FROM_CHAT; document.querySelector('#chatStart h3').textContent = 'Hola de nuevo'; }
+}
 if(APP_VIEW){
   document.body.classList.remove('landing-view');
   document.body.classList.add('app-view');

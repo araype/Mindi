@@ -7,10 +7,29 @@
 
 /* Aviso antes de la primera pregunta (anexo de los Términos). */
 export const AI_NOTICE = 'Mindi responde con inteligencia artificial: te orienta, pero no reemplaza a tu médico y puede equivocarse. Tus mensajes se procesan con un proveedor externo de IA para generar las respuestas. Si tienes una emergencia, llama al 106.';
+/* Saludo según cómo llega (5 nov. 2026). Con señal de alerta, el de emergencia (dolor de pecho o falta de
+   aire en el test) o el de evaluación. El de emergencia no lleva botones de sugerencia. */
 export const GREETING = {
-  resultado: 'Ya tengo tu resultado del test. ¿Qué te gustaría saber?',
-  landing: 'Cuéntame tu duda sobre la perimenopausia o la menopausia.',
+  resultado: 'Hola, soy Mindi. Ya tengo tu resultado del test: puedo explicarte qué significa o ayudarte con cualquier otra duda. ¿Por dónde quieres empezar?',
+  evaluacion: 'Hola, soy Mindi. Ya tengo tu resultado del test. Recuerda que marcaste una señal que conviene revisar pronto con tu médico. Puedo explicarte tu resultado o ayudarte con otra duda.',
+  emergencia: 'Hola, soy Mindi. Marcaste una señal que necesita atención médica hoy. Si estás ahora con dolor de pecho o falta de aire, llama al 106 o acude a emergencias. Cuando estés bien, aquí estaré para explicarte tu resultado.',
+  landing: 'Hola, soy Mindi. Puedo ayudarte a entender lo que estás sintiendo en la perimenopausia o la menopausia. ¿Qué te gustaría preguntarme?',
 };
+/* Botones de sugerencia: solo cuando llega desde el resultado (y no en el saludo de emergencia).
+   Tocar uno acepta el aviso de IA y envía la pregunta en el mismo toque. */
+export const RESULT_SUGGESTIONS = ['¿Qué significa mi resultado?', '¿Qué puedo hacer para sentirme mejor?'];
+export const START_LABEL = 'Empecemos';
+/** chatResult (o null), tipo de alerta guardado ('emergencia' | 'evaluacion' | null), tema → { text, suggestions } */
+export function chatGreeting(result, alertType, topic) {
+  if (topic && CHAT_TOPICS[topic]) return { text: CHAT_TOPICS[topic], suggestions: [] };
+  if (!result) return { text: GREETING.landing, suggestions: [] };
+  if (result.senal_alerta) {
+    // Sin el tipo (p. ej. un resultado guardado antes de este cambio), el más prudente: emergencia.
+    if (alertType !== 'evaluacion') return { text: GREETING.emergencia, suggestions: [] };
+    return { text: GREETING.evaluacion, suggestions: RESULT_SUGGESTIONS };
+  }
+  return { text: GREETING.resultado, suggestions: RESULT_SUGGESTIONS };
+}
 /* Temas con los que se puede abrir /chat desde la landing (/chat?tema=peso). Lista cerrada: cualquier
    otro valor se ignora y se usa el saludo general, para que nadie pueda poner texto desde la URL.
    Al agente solo le llega la etiqueta (tema_inicial), nunca texto libre. */

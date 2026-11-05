@@ -20,7 +20,7 @@ test('cada paso del test está definido una sola vez', () => {
 test('el test tiene una sola entrada, después del consentimiento; nunca dentro del chat con IA', () => {
   const startBtn = main.slice(main.indexOf("getElementById('startBtn').addEventListener"));
   assert.match(startBtn.slice(0, 300), /track\('consent_accept'[\s\S]*start\(\);/);
-  assert.equal(count(/\bstart\(\);/g), 1); // solo el botón "Acepto y empiezo"
+  assert.equal(count(/\bstart\(\);/g), 1); // solo el botón "Empezar"
   assert.doesNotMatch(main, /startTestFromAgent|Hacer mi test aquí/);
 });
 
