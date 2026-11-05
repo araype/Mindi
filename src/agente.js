@@ -26,7 +26,7 @@ export const SHARE_QUESTIONS_VERSION = 'chat-v1';
 export const ERROR_TEXT = 'Ahora no puedo responder. Intenta de nuevo en unos minutos, o escríbele al equipo de Mindi.';
 export const LIMIT_TEXT = 'Llegaste al límite de esta conversación. Si tienes más dudas, escríbele al equipo de Mindi.';
 /* Si el agente no responde en este tiempo, se trata como falla: aparece el botón de WhatsApp. */
-export const REPLY_TIMEOUT_MS = 30000;
+export const REPLY_TIMEOUT_MS = 60000;
 export const MAX_MESSAGES = 30;
 
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -87,6 +87,8 @@ export function createAgentClient({ newId, fetchImpl = (...a) => fetch(...a), ti
     /** { nivel?: 'A'|'B'|'C'|'alert', desde_tema?: bool, is_test?: bool, compartir?: bool, consent_text_version?: string } */
     setContext(c) { context = { ...(c || {}) }; },
     get limitReached() { return sent >= MAX_MESSAGES; },
+    /** Al abrir el chat: despierta al agente en segundo plano. Nunca falla ni bloquea. */
+    warm() { api({ action: 'warm' }).catch(() => {}); },
     /** → { text, area, action } (action: 'recommend_test' o null). Lanza un Error con .status si falla. */
     async ask(text) {
       sent++;

@@ -46,3 +46,11 @@ se creó el **5 de noviembre de 2026**. **Próxima rotación: 3 de febrero de 20
 
 Después del lanzamiento: cambiar la clave por Workload Identity Federation con el OIDC de Vercel (sin
 claves guardadas) y quitar este recordatorio.
+
+## Chat: arranque en frío del agente (5 nov. 2026)
+
+- Hoy: timeout de 55 s, aviso de espera en el primer mensaje y `warm` (GET `app-info`) al abrir `/chat`.
+- **Evaluar `--min-instances=1`** en `mindi-agent` cuando el chat tenga uso constante (≈ USD 10–15/mes):
+  elimina la espera del primer mensaje. Revisar en Cloud Run cuántas veces se apaga y cuánto tarda.
+- Mejoras del agente (evals 5 nov.): **J1 (prioridad alta)**: mencionar el resultado del test ante
+  "¿por qué me siento así?"; E2: preguntar por cuál síntoma empezar cuando trae dos.

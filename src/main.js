@@ -373,11 +373,13 @@ function addCard(html, kind){
   requestAnimationFrame(()=> requestAnimationFrame(()=> c.classList.add('is-shown')));
   return c;
 }
-function showTyping(){
+const FIRST_WAIT_TEXT = 'Mindi está pensando… la primera respuesta puede tardar unos segundos.';
+function showTyping(note){
   const row = document.createElement('div');
   row.className = 'row bot'; row.id = 'typingRow';
-  row.setAttribute('aria-hidden','true');
-  row.innerHTML = '<div class="typing"><span></span><span></span><span></span></div>';
+  if(note){ row.setAttribute('role','status'); } else { row.setAttribute('aria-hidden','true'); }
+  row.innerHTML = '<div class="typing"><span></span><span></span><span></span></div>' +
+    (note ? `<p class="typing-note">${note}</p>` : '');
   chat.appendChild(row); scrollBottom();
   setStatus(true);
 }
@@ -1405,6 +1407,7 @@ function openAiChat(){
   setStatus(false);
   agentClient.setResult(chatResult);
   agentClient.setTopic(topic);
+  agentClient.warm();
   track('agent_open', {source:chatSource});
   track('chat_open', {tema: topic || 'ninguno'});
   // Etiquetas para chat_topics: nivel del test (si vino del resultado) y si llegó por ?tema=.
@@ -1473,13 +1476,15 @@ function agentFallback(text){
   addCard(`<p>${text}</p>` + (whatsappButton('agente') ? `<div class="card-actions">${whatsappButton('agente')}</div>` : ''), '');
 }
 
+let agentAnswered = false; // hasta la primera respuesta, el aviso de espera
 async function askAgent(text){
   addBubble(text.slice(0, 1000), 'user');
   clearComposer();
   if(agentClient.limitReached){ agentFallback(LIMIT_TEXT); return renderQuestionInput(); }
-  showTyping();
+  showTyping(agentAnswered ? '' : FIRST_WAIT_TEXT);
   try{
     const reply = await agentClient.ask(text.slice(0, 1000));
+    agentAnswered = true;
     hideTyping();
     addAgentBubble(reply.text);
     track('agent_message', {source:chatSource, area:reply.area || 'otro'});

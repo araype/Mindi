@@ -2,6 +2,7 @@
 //   { action: 'start', session, resultado_mrs?, tema_inicial? } → { ok: true }
 //     tema_inicial: solo 'peso' o 'trabajo' (chatTopic); cualquier otro valor se ignora.
 //   { action: 'message', session, text }          → { text, area, action: 'recommend_test' | null }
+//   { action: 'warm' }                             → { ok: true }  (al abrir /chat: despierta al agente)
 // La URL del agente va en AGENT_URL (variable del servidor, sin prefijo VITE_: no llega al navegador).
 
 import { validSession, cleanResultado, cleanText, callAgent, chatTopic } from './_lib/agente.js';
@@ -35,6 +36,10 @@ export default route(async (req, res) => {
   if (!(await limit('agent', clientIp(req), ...LIMITS.agent)).ok) return send(res, 429, { error: 'rate_limited' });
   const body = readJson(req);
   const { action, session } = body;
+  if (action === 'warm') {
+    try { await callAgent({ agentUrl: process.env.AGENT_URL, action: 'warm' }); } catch { /* solo es un aviso */ }
+    return res.status(200).json({ ok: true });
+  }
   if (!validSession(session)) return res.status(400).json({ error: 'bad_session' });
 
   let args;

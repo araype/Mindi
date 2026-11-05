@@ -223,3 +223,12 @@ test('nivel 1 y 2 en /api/agent: guarda la etiqueta sin texto; la pregunta solo 
     Object.assign(process.env, saved);
   }
 });
+
+test('warm: GET app-info (carga el agente sin llamar al modelo)', async () => {
+  const calls = [];
+  const f = async (url, init) => { calls.push({ url, method: init.method || 'GET', body: init.body }); return json(200, {}); };
+  assert.deepEqual(await callAgent({ agentUrl: 'https://a.test/', action: 'warm' }, f), { ok: true });
+  assert.equal(calls[0].url, 'https://a.test/apps/mindi_agent/app-info');
+  assert.equal(calls[0].method, 'GET');
+  assert.equal(calls[0].body, undefined);
+});

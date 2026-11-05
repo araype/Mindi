@@ -85,7 +85,7 @@ export function extractReply(events) {
 }
 
 /** Llama al agente. fetchImpl permite probarlo sin red. Lanza Error('agent_unavailable') si falla. */
-export async function callAgent({ agentUrl, action, session, resultado, tema, text }, fetchImpl = fetch, timeoutMs = 25000, retryDelayMs = 1000, auth = agentAuthorization) {
+export async function callAgent({ agentUrl, action, session, resultado, tema, text }, fetchImpl = fetch, timeoutMs = 55000, retryDelayMs = 1000, auth = agentAuthorization) {
   const base = String(agentUrl || '').replace(/\/$/, '');
   if (!base) throw new Error('agent_not_configured');
   // Cloud Run privado (11.5): ID token de la cuenta de servicio, si GCP_SA_KEY está configurada.
@@ -112,6 +112,14 @@ export async function callAgent({ agentUrl, action, session, resultado, tema, te
     return once(path, body);
   };
   try {
+    if (action === 'warm') {
+      // Despierta Cloud Run y carga el agente (sin llamar al modelo) para que el primer mensaje no espere.
+      const r = await fetchImpl(`${base}/apps/${APP_NAME}/app-info`, {
+        headers: authorization ? { Authorization: authorization } : {}, signal: ctrl.signal,
+      });
+      if (!r.ok) throw new Error('agent_unavailable');
+      return { ok: true };
+    }
     if (action === 'start') {
       const state = { ...(resultado ? { resultado_mrs: resultado } : {}), ...(tema ? { tema_inicial: tema } : {}) };
       const r = await post(`/apps/${APP_NAME}/users/${session}/sessions`, { session_id: session, state });
