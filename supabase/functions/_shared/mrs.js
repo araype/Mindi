@@ -121,7 +121,7 @@ export function levelMessage(scores) {
     return {
       band: 'B',
       badge: 'Conviene evaluarlo con tu médico · Guía HNHU',
-      title: 'Sería útil que converses esto con tu ginecólogo(a)',
+      title: 'Sería útil que converses esto con tu ginecólogo',
       paragraphs,
     };
   }
@@ -153,12 +153,12 @@ export function computeLevel(scores) {
 }
 
 /** Recomendación de ir al médico, lo primero que se ve después del título del resultado
- *  (chat, correo y PDF). TEXTOS PENDIENTES DE VALIDAR con una especialista: se editan solo aquí.
+ *  (chat, correo y PDF). TEXTOS PENDIENTES DE VALIDAR con un especialista: se editan solo aquí.
  *  'alert' (marcó una señal de alerta) repite la indicación del aviso de seguridad, para que
  *  el bloque no diga "en tu próximo control" justo después de "agenda una cita pronto". */
 export const DOCTOR_RECOMMENDATION = {
   A: 'Puedes comentarlo en tu próximo control ginecológico.',
-  B: 'Te recomendamos agendar una consulta con tu ginecóloga u obstetra en las próximas semanas. Lleva tu reporte.',
+  B: 'Te recomendamos agendar una consulta con tu ginecólogo u obstetra en las próximas semanas. Lleva tu reporte.',
   C: 'Te recomendamos consultar pronto con un especialista. Lleva tu reporte.',
   alert: 'Por las señales que marcaste, agenda una cita ginecológica lo antes posible. Lleva tu reporte.',
 };

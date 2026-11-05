@@ -12,7 +12,7 @@ import { SUBSCALES, CUTS } from './mrs.js';
 export const SELF_CARE_SPECIFIC = [
   { ids: ['p3'], t: 'Para los bochornos', d: 'ropa en capas de fibras naturales, evitar bebidas muy calientes, café, alcohol y comidas muy condimentadas cuando puedas, y respirar lento y profundo en el momento del calor.',
     short: 'Bochornos: ropa en capas y menos café, alcohol y picante.' },
-  { ids: ['p4'], t: 'Para las palpitaciones', d: 'evita la cafeína y el alcohol en exceso — pueden intensificar la sensación. Si son muy frecuentes, coméntalo con tu médico(a).',
+  { ids: ['p4'], t: 'Para las palpitaciones', d: 'evita la cafeína y el alcohol en exceso — pueden intensificar la sensación. Si son muy frecuentes, coméntalo con tu médico.',
     short: 'Palpitaciones: menos cafeína y alcohol.' },
   { ids: ['p5'], t: 'Para las molestias musculares', d: 'estiramientos suaves y calor local pueden ayudar con la rigidez — el ejercicio regular también protege las articulaciones a largo plazo.',
     short: 'Músculos: estiramientos suaves y calor local.' },
@@ -33,7 +33,7 @@ export const SELF_CARE_UNIVERSAL = [
     short: 'Comida: legumbres, frutas, verduras y pescado.' },
   { t: 'Para el cuerpo en general', d: 'unos 150 minutos a la semana de actividad moderada (caminar rápido, nadar, bailar) — ayuda con el sueño, el ánimo y los huesos a la vez.',
     short: 'Muévete: 150 minutos a la semana, a paso moderado.' },
-  { t: 'Para los huesos', d: '1,200 mg de calcio al día (dieta o suplementos) y al menos 800 UI de vitamina D — coméntalo con tu médico(a) antes de tomar suplementos.',
+  { t: 'Para los huesos', d: '1,200 mg de calcio al día (dieta o suplementos) y al menos 800 UI de vitamina D — coméntalo con tu médico antes de tomar suplementos.',
     short: 'Huesos: calcio y vitamina D; consulta antes de suplementos.' },
 ];
 export const SELF_CARE_SOURCE = 'Guía de Práctica Clínica para Diagnóstico y Tratamiento del Climaterio, Hospital Nacional Hipólito Unanue (RD N° 211-2024-DG/HNHU), sección 6.4.1 · dato inicial: Ayala-Peralta, 2020.';

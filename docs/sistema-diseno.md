@@ -17,6 +17,7 @@ Los valores viven en `tokens/` y son la única fuente para todo el sitio.
 | `src/ds.css` | Entrada del sitio: tokens + base + componentes (sin fuentes) |
 | `styles.css` | Entrada del paquete de diseño (`guidelines/`, `components/`, `ui_kits/`) |
 | `sistema.html` | Muestrario de componentes, solo en `npm run dev` (no se publica) |
+| `guidelines/`, `components/`, `ui_kits/web/` | Paquete de referencia para Claude Design; se arma con `npm run build:ds` (ver README) |
 
 ## Fuentes en cada página
 
@@ -39,7 +40,8 @@ Y en su JS: `import './ds.css';`
 | `m-card`, `m-card--glass` | 5.4 y 10.4 |
 | `m-steps`, `m-step` (`.is-active`) | 5.5 |
 | `m-phone`, `m-phone__frame`, `m-phone__screen` | 5.6 (marco en `/img/frame.webp`) |
-| `m-chat`, `m-bubble--bot`, `m-bubble--me`, `m-typing`, `m-scale`, `m-progress`, `m-meta`, `m-bar` | 10.1 y 10.2 (test, tema claro) |
+| `m-chat`, `m-bubble--bot`, `m-bubble--me`, `m-typing`, `m-progress`, `m-meta`, `m-bar` | 10.1 y 10.2 (test, tema claro) |
+| `m-scale--list` (lista vertical: número en su color + frase de la pregunta) | 10.1, escala del test real; `m-scale` (fila) solo en la maqueta del celular |
 | `m-chat--dark`, `m-msg--user`, `m-msg--bot`, `m-chat-input` | 5.7 y 10.5 (chat con IA, tema oscuro) |
 | `m-plan`, `m-plan--plus`, `m-plan--ent` | 5.8 |
 | `m-faq` | 5.9 |
@@ -47,6 +49,7 @@ Y en su JS: `import './ds.css';`
 | `m-notice--emergency`, `m-notice--eval` | 10.3 (sin rojo intenso) |
 
 Reglas: magenta brillante solo en títulos grandes, botones y acentos; en texto menor a 18 px sobre fondo claro, `--magenta-text`.
+Texto blanco sobre magenta: en botones a 19 px en negrita; si no, sobre `--magenta-text` o `--scale-4`.
 Nunca negro puro para texto: `--plum`. Foco visible: 3 px ciruela sobre claro, blanco sobre oscuro (`.m-on-dark`).
 
 ## Imágenes

@@ -446,7 +446,7 @@ function revealCardWithPause(introMsg, html, kind, isLast = false, continueText 
 async function showResultsCardSequence(){
   const msg = levelMessage(state.scores);
   await revealCardWithPause(null,                                         levelCard(msg), '',      false, '¿Y qué hago con esto?');
-  await revealCardWithPause('Preguntas para tu médico(a):',                consultCard(),       '',      false, 'Muy útil, ¿algo más?');
+  await revealCardWithPause('Preguntas para tu médico:',                consultCard(),       '',      false, 'Muy útil, ¿algo más?');
   // Las recomendaciones de autocuidado y el aviso "solo orientación" ya no van aquí: están en
   // "Tu reporte" (ver reportFullHtml), al final del chat, igual que en el PDF y el correo.
 }
@@ -786,7 +786,7 @@ function askCycle(){
 function stageNote(){
   const age = state.age, cycle = state.cycle;
   if(cycle === 'Me hicieron una histerectomía'){
-    return 'Como te hicieron una histerectomía, no se puede ubicar tu etapa por los cambios del ciclo — eso se conversa mejor con tu médico(a), tomando en cuenta tus síntomas.';
+    return 'Como te hicieron una histerectomía, no se puede ubicar tu etapa por los cambios del ciclo — eso se conversa mejor con tu médico, tomando en cuenta tus síntomas.';
   }
   if(cycle === 'Más de 12 meses sin regla'){
     return 'Según la definición clínica (12 meses seguidos sin regla), ya estarías en la etapa de postmenopausia.';
@@ -800,7 +800,7 @@ function stageNote(){
   if(age === 'Menor de 40' || age === '40 a 45'){
     return 'Tu ciclo sigue regular. La premenopausia suele iniciar entre los 35 y 45 años — es probable que estés en esa etapa previa, o recién empezando la transición.';
   }
-  return 'Tu ciclo sigue regular, aunque desde los 45 años es común que otros síntomas empiecen antes que los cambios en la regla. Vale la pena comentarlo con tu médico(a) igual.';
+  return 'Tu ciclo sigue regular, aunque desde los 45 años es común que otros síntomas empiecen antes que los cambios en la regla. Vale la pena comentarlo con tu médico igual.';
 }
 const PERU_AGE_NOTE = 'En Perú, la edad promedio de la menopausia es 47 años — cada cuerpo tiene su propio ritmo, así que esto es orientativo.';
 
@@ -818,7 +818,7 @@ const STAGE_EXIT_CARD = {
     body:'Las preguntas y el puntaje de Mindi miden los cambios de la transición a la menopausia, que suelen empezar después de los 40. Con un ciclo regular antes de esa edad no aplican, así que no te mostraré un puntaje.'},
   [STAGE_EXIT.under40Irregular]: {kind:'notice',
     title:'Te recomendamos consultar con un médico',
-    body:'Antes de los 40, los cambios en la regla deben evaluarse con tu ginecóloga u obstetra, para encontrar la causa. Por eso no te mostraré un puntaje: las preguntas de Mindi están pensadas para mujeres desde los 40.'},
+    body:'Antes de los 40, los cambios en la regla deben evaluarse con tu ginecólogo u obstetra, para encontrar la causa. Por eso no te mostraré un puntaje: las preguntas de Mindi están pensadas para mujeres desde los 40.'},
 };
 function showStageExit(segment){
   setSection('Sobre tu etapa');
@@ -1011,14 +1011,14 @@ function levelCard(msg){
 }
 
 function consultCard(){
-  return `<h3>¿Qué preguntarle a tu médico(a)?</h3>` + consultBody();
+  return `<h3>¿Qué preguntarle a tu médico?</h3>` + consultBody();
 }
 
 /* Recomendaciones de autocuidado del reporte (lista completa, desde
    supabase/functions/_shared/autocuidado.js, igual que send-report). */
 function selfCareBody(){
   const rows = selfCareItems(state.answers).map(([t,d])=>`<li><strong>${t}:</strong> ${d}</li>`).join('');
-  return `<p class="card-note">No reemplazan un tratamiento si tu médico(a) lo indica — son medidas seguras para cualquier momento de esta etapa.</p>` +
+  return `<p class="card-note">No reemplazan un tratamiento si tu médico lo indica — son medidas seguras para cualquier momento de esta etapa.</p>` +
     `<ul class="card-list">${rows}</ul>` +
     `<span class="cite">Fuente: ${SELF_CARE_SOURCE}</span>`;
 }
@@ -1031,7 +1031,7 @@ function consultBody(){
   if(state.obesity === 'Sí') pts.push('Tienes indicación médica de obesidad: la guía sugiere preferir estrógeno transdérmico o en dosis bajas.');
   if(state.familyBreastCa === 'Sí') pts.push('Antecedente familiar de cáncer de mama: la guía indica que sí puedes usar terapia hormonal sistémica, pero sugiere considerar un tamizaje genético.');
   if(state.migraine === MIGRAINE_AURA) pts.push('Migraña con aura: la guía sugiere estradiol transdérmico continuo en vez de la vía oral.');
-  if(state.currentTreatment && state.currentTreatment.startsWith('Sí')) pts.push('Ya usas un tratamiento: cuéntaselo a tu médico(a) para evaluar ajustarlo en vez de partir de cero.');
+  if(state.currentTreatment && state.currentTreatment.startsWith('Sí')) pts.push('Ya usas un tratamiento: cuéntaselo a tu médico para evaluar ajustarlo en vez de partir de cero.');
 
   const generic = [
     '¿Qué opciones de tratamiento, hormonales y no hormonales, tendrían sentido para mi caso?',
@@ -1041,7 +1041,7 @@ function consultBody(){
     `<ul class="card-list">${generic.map(g=>`<li>${g}</li>`).join('')}</ul>`;
   if(pts.length){
     html += `<p style="margin-top:10px;font-weight:600;">También ten en cuenta:</p><ul class="card-list">${pts.map(p=>`<li>${p}</li>`).join('')}</ul>` +
-      `<span class="cite">Estas sugerencias son de la guía (Figura 6 y 7) — la decisión final siempre es de tu médico(a), evaluando tu caso completo.</span>`;
+      `<span class="cite">Estas sugerencias son de la guía (Figura 6 y 7) — la decisión final siempre es de tu médico, evaluando tu caso completo.</span>`;
   }
   return html;
 }
@@ -1075,7 +1075,7 @@ function showSafetyMessage(){
         '<br><br>Esto no reemplaza la valoración de un profesional de salud.', 'alert-emergency');
     } else {
       await revealCard(
-        '<h3>No estás sola en esto</h3>Marcaste algo que vale la pena conversar con tu médico(a) antes de considerar cualquier tratamiento. Es un paso de cuidado, no una emergencia. Te recomendamos agendar una cita ginecológica en los próximos días para revisarlo con calma.' +
+        '<h3>No estás sola en esto</h3>Marcaste algo que vale la pena conversar con tu médico antes de considerar cualquier tratamiento. Es un paso de cuidado, no una emergencia. Te recomendamos agendar una cita ginecológica en los próximos días para revisarlo con calma.' +
         '<br><br>Esto no reemplaza la valoración de un profesional de salud.', 'alert-eval');
     }
     track('result',{level:'alert', emergency:hasEmergency});
@@ -1160,13 +1160,13 @@ function whySection(){
 function reportFullHtml(){
   const msg = levelMessage(state.scores);
   const alertNote = hasFlag()
-    ? `<p class="card-note"><strong>Marcaste una señal de alerta.</strong> Conviene revisarla con tu médico(a) antes de considerar cualquier tratamiento.</p>` : '';
+    ? `<p class="card-note"><strong>Marcaste una señal de alerta.</strong> Conviene revisarla con tu médico antes de considerar cualquier tratamiento.</p>` : '';
   return `<div class="report-full">` +
     `<section>${alertNote}${levelCard(msg)}</section>` +
     `<section><h3>Sobre tu etapa</h3><p>${stageNote()}</p><span class="cite">${PERU_AGE_NOTE} Fuente: Guía HNHU (RD N° 211-2024-DG/HNHU), secciones 5.4 y 6.2.1.</span></section>` +
     whySection() +
     `<section><h3>Recomendaciones de autocuidado</h3>${selfCareBody()}</section>` +
-    `<section><h3>Preguntas para tu médica</h3>${consultBody()}</section>` +
+    `<section><h3>Preguntas para tu médico</h3>${consultBody()}</section>` +
     `<section><h3>Tus 11 respuestas</h3>${reportAnswersList()}</section>` +
     `<p class="topics-disclaimer">${DISCLAIMER}</p>` +
     `</div>`;
@@ -1181,37 +1181,52 @@ function reportSummary(){
   return `<dl class="report-summary">` +
     `<div><dt>Escala MRS</dt><dd>${state.scores.total} de 44</dd></div>` +
     `<div><dt>Síntoma principal</dt><dd>${top ? top.short : 'Ninguno'}</dd></div>` +
-    `<div><dt>Banderas rojas</dt><dd>${flags ? `Sí (${flags})` : 'Ninguna'}</dd></div>` +
+    `<div><dt>Banderas rojas</dt><dd>${flags ? `${flags} ${flags === 1 ? 'señal' : 'señales'} de alerta` : 'Ninguna'}</dd></div>` +
     `</dl>`;
 }
 
-/* "Compartir con mi médica": comparte el PDF como archivo si el celular lo permite; si no, el
-   enlace; si tampoco, lo copia. El archivo se descarga apenas está listo, porque Safari solo deja
-   compartir justo después del toque (sin esperas de red en medio). */
+/* "Compartir con mi médico" (decisión del 4 nov.): comparte o copia el enlace a /reporte, que vence
+   a los 30 días, no el PDF de 24 horas. El enlace se pide a send-report recién al tocar el botón
+   (SQL 018): si nadie comparte, no se guarda ninguna copia. Si el navegador no deja abrir el menú
+   de compartir después de esperar la red, se copia el enlace; si tampoco, se muestra para copiarlo. */
 const SHARE_TITLE = 'Mi reporte de Mindi';
-function setupShare(btn, url){
-  let file = null;
-  if(navigator.canShare){
-    fetch(url).then(r=> r.ok ? r.blob() : null).then(b=>{
-      if(!b) return;
-      const f = new File([b], 'reporte-mindi.pdf', {type:'application/pdf'});
-      if(navigator.canShare({files:[f]})) file = f;
-    }).catch(()=>{});
-  }
+const SHARE_COPIED = 'Copiamos el enlace a tu reporte. Vence en 30 días.';
+function requestShareLink(){
+  return (state.sessionSaved || Promise.resolve()).then(()=>
+    fetch(`${SUPABASE_URL}/functions/v1/send-report`, {
+      method:'POST',
+      headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY},
+      body:JSON.stringify({session_id:SESSION_ID, share:true}),
+    })
+  ).then(r=>r.json()).then(res=> res && res.ok && res.url ? res.url : null).catch(()=> null);
+}
+function setupShare(btn){
+  if(!BACKEND_ON) return;
+  let link = null;
   btn.hidden = false;
+  const note = (html)=>{
+    let p = btn.nextElementSibling;
+    if(!p || !p.classList.contains('report-share-ok')){ p = document.createElement('p'); p.className = 'report-share-ok'; p.setAttribute('role','status'); btn.after(p); }
+    p.innerHTML = html;
+  };
   btn.addEventListener('click', async ()=>{
     track('report_share_click');
+    btn.setAttribute('aria-busy','true');
+    link = link || await requestShareLink();
+    btn.removeAttribute('aria-busy');
+    if(!link){ track('report_share_failed', {error:'link'}); return note('No pudimos crear el enlace. Inténtalo de nuevo en un momento.'); }
     try{
-      if(file){ await navigator.share({files:[file], title:SHARE_TITLE}); return track('report_share', {method:'file'}); }
-      if(navigator.share){ await navigator.share({title:SHARE_TITLE, url}); return track('report_share', {method:'link'}); }
-      await navigator.clipboard.writeText(url);
-      track('report_share', {method:'copy'});
-      if(!btn.nextElementSibling || !btn.nextElementSibling.classList.contains('report-share-ok'))
-        btn.insertAdjacentHTML('afterend', '<p class="report-share-ok" role="status">Copiamos el enlace a tu PDF. Vence en 24 horas.</p>');
+      if(navigator.share){ await navigator.share({title:SHARE_TITLE, url:link}); return track('report_share', {method:'link'}); }
     }catch(e){
       if(e && e.name === 'AbortError') return; // cerró el menú de compartir
-      track('report_share_failed', {error:(e && e.name) || 'unknown'});
-      window.open(url, '_blank', 'noopener');
+    }
+    try{
+      await navigator.clipboard.writeText(link);
+      track('report_share', {method:'copy'});
+      note(SHARE_COPIED);
+    }catch{
+      track('report_share', {method:'manual'});
+      note(`Copia este enlace a tu reporte. Vence en 30 días.<br><a href="${link}" target="_blank" rel="noopener">${link}</a>`);
     }
   });
 }
@@ -1246,12 +1261,13 @@ function showReport(){
     `<h3>Reporte para tu consulta</h3><p class="card-note">Todo lo que vimos, para llevarlo a tu consulta.</p>` +
     reportSummary() +
     `<div class="report-actions"><a class="btn" id="${id}" aria-disabled="true">Preparando tu PDF…</a>` +
-    `<button type="button" class="btn btn-ghost" id="${id}s" hidden>Compartir con mi médica</button>` +
+    `<button type="button" class="btn btn-ghost" id="${id}s" hidden>Compartir con mi médico</button>` +
     chatButton(true) +
     `${whatsappButton('resultado', 'Tengo una duda sobre mi resultado')}</div>` +
     inApp + reportFullHtml(), 'report'
   ).then(()=>{
     track('report_shown', {in_app: IN_APP_BROWSER});
+    setupShare(document.getElementById(id + 's'));
     requestDownloadOnly().then(url=>{
       const btn = document.getElementById(id);
       if(!btn) return;
@@ -1260,7 +1276,6 @@ function showReport(){
         btn.removeAttribute('aria-disabled');
         btn.textContent = 'Descargar PDF';
         btn.addEventListener('click', ()=> track('report_download', {in_app: IN_APP_BROWSER}));
-        setupShare(document.getElementById(id + 's'), url);
       } else {
         btn.textContent = 'No se pudo preparar el PDF';
         btn.insertAdjacentHTML('afterend', '<p class="card-note">Déjanos tu correo abajo y te enviamos una copia.</p>');

@@ -71,6 +71,7 @@
 /* ---------- 10.1 Chat del test (claro) ---------- */
 .m-chat{background:var(--test-bg);color:var(--plum);font-family:var(--font-body)}
 .m-chat__head{display:flex;align-items:center;gap:10px;font-family:var(--font-display);font-weight:700;font-size:16px;color:var(--plum)}
+.m-chat__body{display:flex;flex-direction:column;gap:10px;padding:14px}
 .m-avatar{flex:none;width:32px;height:32px;border-radius:50%;background:var(--magenta-btn);color:#fff;display:grid;place-items:center;
   font-family:var(--font-display);font-weight:700;font-size:14px}
 .m-progress{height:5px;border-radius:3px;background:var(--line-soft);overflow:hidden}
@@ -102,6 +103,19 @@
 .m-scale button:nth-child(n+4) small{color:#fff}
 .m-scale button[aria-pressed="true"]{box-shadow:0 0 0 2px var(--plum)}
 .m-scale button:focus-visible{outline:3px solid var(--plum);outline-offset:2px}
+/* Escala del test real (decisión del 4 nov.): lista vertical, número en su color + frase propia de
+   la pregunta. La fila de arriba (.m-scale) queda para la maqueta del celular de la landing. */
+.m-scale--list{display:flex;flex-direction:column;gap:6px}
+.m-scale--list button{width:100%;min-height:var(--tap-min);display:flex;flex-direction:row;align-items:center;justify-content:flex-start;gap:12px;padding:8px 14px 8px 8px;
+  border:1.5px solid var(--line-soft);border-radius:14px;background:#fff;color:var(--plum);font-family:var(--font-body);font-weight:400;font-size:15px;text-align:left}
+.m-scale--list button:nth-child(n){background:#fff;color:var(--plum)}
+.m-scale--list button:hover{border-color:var(--magenta-btn)}
+.m-scale--list b{flex:none;width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-family:var(--font-display);font-weight:700;font-size:18px;color:var(--plum)}
+.m-scale--list button:nth-child(1) b{background:var(--scale-0)}
+.m-scale--list button:nth-child(2) b{background:var(--scale-1)}
+.m-scale--list button:nth-child(3) b{background:var(--scale-2)}
+.m-scale--list button:nth-child(4) b{background:var(--scale-3);color:#fff}
+.m-scale--list button:nth-child(5) b{background:var(--scale-4);color:#fff}
 
 /* Barras del resultado (10.2): se llenan al aparecer */
 .m-bar{display:flex;flex-direction:column;gap:6px;font-size:15px;color:var(--plum)}

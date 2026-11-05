@@ -35,3 +35,13 @@ test('rutas cortas: vercel.json reescribe /test, /chat, /empresas y /especialist
   const sources = v.rewrites.map((r) => r.source);
   for (const p of ['/test', '/chat', ...Object.keys(WAITLIST_ROUTES)]) assert.ok(sources.includes(p), p);
 });
+
+test('lenguaje genérico para profesionales de la salud (punto 8): sin formas en femenino ni "(a)"', async () => {
+  const files = ['../index.html', '../terminos.html', '../privacidad.html', '../src/main.js', '../src/landing.js',
+    '../supabase/functions/_shared/mrs.js', '../supabase/functions/_shared/notas.js', '../supabase/functions/_shared/autocuidado.js',
+    '../supabase/functions/send-report/index.ts'];
+  for (const f of files) {
+    const s = await readFile(new URL(f, import.meta.url), 'utf8');
+    assert.doesNotMatch(s, /tu médica|mi médica|la médica|doctora|ginecóloga|psicóloga|una especialista|médico\(a\)|ginecólogo\(a\)/, f);
+  }
+});

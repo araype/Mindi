@@ -51,3 +51,12 @@ test('al terminar el test o la salida del filtro se ofrece ir al chat con IA', (
   assert.match(main, /channelInvite\('final'\)\)\.then\(\(\)=> afterGuided\(true\)\)/);
   assert.equal(count(/channelInvite\('filtro'\)\)\.then\(\(\)=> afterGuided\(false\)\)/g), 2);
 });
+
+test('reporte: banderas rojas en palabras y "Compartir con mi médico" comparte /reporte (30 días), no el PDF', () => {
+  assert.match(main, /señal' : 'señales'\} de alerta/);
+  const share = main.slice(main.indexOf('function requestShareLink('), main.indexOf('/* Del resultado al chat con IA'));
+  assert.match(share, /share:true/);
+  assert.doesNotMatch(share, /pdfUrl|files:/);
+  assert.match(main, /Copiamos el enlace a tu reporte\. Vence en 30 días\./);
+  assert.match(main, />Compartir con mi médico</);
+});

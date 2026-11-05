@@ -1,0 +1,21 @@
+<!-- @dsCard group="Marca" viewport="700x260" name="Contraste y accesibilidad" subtitle="Blanco sobre magenta solo a 19 px en negrita; lo demás, 4,5:1" -->
+<meta charset="utf-8">
+<link rel="stylesheet" href="../styles.css">
+<style>
+  body{margin:0;background:#fff;color:var(--plum);font-family:var(--font-body)}
+  .w{padding:20px;display:grid;grid-template-columns:1fr 1fr;gap:12px 20px;font-size:14px}
+  .x{display:flex;align-items:center;gap:10px}
+  .x span{border-radius:10px;padding:8px 12px;font-weight:600}
+  ul{grid-column:1/-1;margin:4px 0 0;padding-left:18px;line-height:1.55;color:var(--body-text)}
+</style>
+<div class="w">
+  <div class="x"><span class="m-btn" style="pointer-events:none">Haz el test →</span> 3,1:1 · solo 19 px negrita</div>
+  <div class="x"><span style="background:var(--magenta-text);color:#fff">3 · Me cuesta…</span> 5,7:1 · burbuja y nivel 3</div>
+  <div class="x"><span style="background:var(--scale-4);color:#fff">4</span> 8,9:1 · nivel 4</div>
+  <div class="x"><span style="color:var(--magenta-text);border:2px solid var(--magenta-btn)">Contorno</span> 5,7:1</div>
+  <ul>
+    <li>Texto mínimo de 14 px; ejemplos bajo cada pregunta, 12 px. Área táctil de 44 px.</li>
+    <li>Foco visible de 3 px: ciruela sobre claro, blanco sobre oscuro. <code>prefers-reduced-motion</code> apaga las animaciones.</li>
+    <li>El color nunca va solo: estado con texto ("Conviene comentarlo") o ícono.</li>
+  </ul>
+</div>

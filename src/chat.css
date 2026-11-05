@@ -192,7 +192,9 @@ body.no-scroll{overflow:hidden}
 .card .report-actions{margin:10px 0 4px;display:flex;flex-direction:column;gap:8px}
 .card .report-actions .btn{width:100%}
 .card .report-inapp{margin:8px 0 0;font-size:14px;line-height:1.45;color:var(--plum-soft)}
-.report-share-ok{font-size:14px;color:var(--ok-text);font-weight:600}
+.report-share-ok{font-size:14px;color:var(--ok-text);font-weight:600;overflow-wrap:anywhere}
+.report-share-ok a{color:var(--magenta-text)}
+.btn[aria-busy="true"]{opacity:.7;cursor:progress}
 .report-full{margin-top:16px}
 .report-full section{padding:14px 0;border-top:1.5px solid var(--line-soft)}
 .report-full section:first-child{border-top:0;padding-top:0}

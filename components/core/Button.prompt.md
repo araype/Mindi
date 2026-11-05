@@ -1,8 +1,9 @@
-Pill-shaped call-to-action button used across Mindi, in a warm terracotta or plum-rose fill.
+Botón pill de Mindi (`m-btn`, handoff 5.1).
 
 ```jsx
-<Button variant="primary" size="m">Empezar mi acompañamiento</Button>
-<Button variant="outline">Más tarde</Button>
+<Button href="/test">Haz el test gratis →</Button>
+<Button variant="outline">Pregúntale a Mindi</Button>
+<Button variant="white">Quiero acceso anticipado</Button>
 ```
 
-Variants: `primary` (dark terracotta `--action-primary`, AA-safe with white text — never the lighter decorative `--brand-accent`), `secondary` (plum-rose fill), `outline` (bordered), `ghost` (text only). Sizes: `s`, `m`, `l` — all ≥44px tall. Press state shrinks slightly instead of darkening. Real `<button>`, native focus-visible ring, disabled via `aria-disabled` + `disabled`.
+El texto blanco sobre magenta va en Special Gothic 700 a 19 px (`--fs-btn`): así cumple 3:1 como texto grande. El contorno usa `--magenta-text`. Un solo botón primario por pantalla.

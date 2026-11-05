@@ -239,7 +239,7 @@ export function initLanding({ track, sb, backendOn, consentVersion, isTest, orig
     ['b', '¡Hola! ¿Qué tal? Estoy aquí para resolver tus dudas.', '12:49'],
     ['u', '¿Es normal tener bochornos a los 47?', '12:50'],
     ['b', 'Sí, es muy común. A esa edad muchas mujeres empiezan la perimenopausia y los bochornos son de las primeras señales. No estás sola en esto.', '12:50'],
-    ['b', 'Para saber cuánto te están afectando, te recomiendo hacer el test. Son 11 preguntas y al final tienes un reporte para llevar a tu médica.', '12:51'],
+    ['b', 'Para saber cuánto te están afectando, te recomiendo hacer el test. Son 11 preguntas y al final tienes un reporte para llevar a tu médico.', '12:51'],
     ['c', 'Haz el test de 5 min →', '/test'],
     ['u', '¡Listo, lo hago!', '12:51'],
   ];

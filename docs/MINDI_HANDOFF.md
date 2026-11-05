@@ -145,7 +145,7 @@ No tiene botones. **Recomendación:** agregar **Haz el test gratis →** (blanco
   --wordmark:      #FDEEF4; /* "Mindi" gigante del cierre */
 
   /* Escala de síntomas 0–4 (test) */
-  --scale-0: #FDE7F4; --scale-1: #FBCFE9; --scale-2: #F9A8DB; --scale-3: #FF3CC7; --scale-4: #E01AA5;
+  --scale-0: #FDE7F4; --scale-1: #FBCFE9; --scale-2: #F9A8DB; --scale-3: #C0128C; --scale-4: #8C0C66;
 
   /* Chat oscuro */
   --chat-bg: #1B0F19; --chat-header: #2A1026; --bubble-user: #A3207F; --bubble-bot: #3A2236;
@@ -158,7 +158,8 @@ No tiene botones. **Recomendación:** agregar **Haz el test gratis →** (blanco
 **Reglas de uso**
 
 - Magenta brillante solo para títulos grandes, botones y acentos. En texto menor a 18 px sobre fondos claros, usar `--magenta-text`.  
-- **Contraste (decisión tomada):** el texto blanco sobre botones magenta va en negrita y a 19 px o más, para que cuente como texto grande (mínimo 3:1). El texto de los botones contorno y de los niveles 3 y 4 de la escala usa `--magenta-text` (5,7:1).  
+- **Contraste (decisión tomada):** el texto blanco sobre botones magenta va en negrita y a 19 px o más, para que cuente como texto grande (mínimo 3:1). El texto de los botones contorno usa `--magenta-text` (5,7:1).
+- **Escala y burbuja de la usuaria (decisión del 4 nov.):** los niveles 3 y 4 de la escala llevan el fondo oscurecido (`--scale-3: #C0128C`, 5,7:1, y `--scale-4: #8C0C66`, 8,9:1) con texto blanco, para que también las etiquetas pequeñas cumplan 4,5:1. La burbuja de la usuaria en el test usa `#C0128C` con texto blanco (no `--magenta-btn`, que con texto blanco da 3,1:1). La etiqueta del nivel 2 va en `--plum`.  
 - No usar negro puro para texto: usar `--plum`.  
 - Sobre fotos, el texto va siempre sobre un degradado ciruela, no sobre la foto directa.
 
@@ -292,6 +293,7 @@ Sombra estándar: `0 22px 44px rgba(20,4,18,.32)` sobre fotos; `0 26px 50px rgba
 - Fórmula de las tarjetas: **quitar la culpa → darle otro sentido → "Descubre qué está pasando y qué puedes hacer, sin \_\_\_ y sin \_\_\_."**  
 - Sobre el peso: hablar de "entender lo que pasa", nunca de "bajar de peso".  
 - Las frases de la portada son ilustrativas: no firmarlas como testimonios. Los testimonios reales solo con autorización escrita.
+- **Profesionales de la salud en genérico:** hay médicos y médicas, así que se dice "tu médico" o, si cabe, "tu especialista" (no marca género): "Compartir con mi médico", "Preguntas para tu médico", "tu ginecólogo o médico", "un especialista". No se usan "tu médica", "tu doctora", "la ginecóloga" ni "médico(a)". Lo que se refiere a la usuaria sí va en femenino ("preparada", "sola").
 
 **Textos clave**
 
@@ -344,8 +346,8 @@ Referencia: pantalla 1 de "¿Cómo funciona?" en el prototipo.
 | Cabecera | Avatar circular magenta con "M" blanca \+ "Mindi" en Special Gothic 700 |
 | Progreso | Barra de 5 px (`--line-soft` de fondo, `--magenta-btn` de relleno) \+ texto mono "PREGUNTA 3 DE 11" |
 | Burbuja de Mindi | Fondo blanco, borde 1,5 px `#F6C9E6`, radio `16px 16px 16px 4px`, texto `--plum`. Ejemplo cotidiano debajo en `--plum-soft`, 11,5–13 px |
-| Burbuja de la usuaria | Fondo `--magenta-btn`, texto blanco, radio `16px 16px 4px 16px`, alineada a la derecha. Muestra el número y la etiqueta elegidos ("3 · Fuerte") |
-| Escala 0–4 | 5 botones en fila con color progresivo (`--scale-0` a `--scale-4`), número grande en Special Gothic \+ etiqueta pequeña (Nada, Leve, Moderado, Fuerte, Muy fuerte). Los niveles 3 y 4 con texto blanco. Seleccionado: anillo de 2 px `--plum`. Área táctil mínima de 44 px |
+| Burbuja de la usuaria | Fondo `#C0128C` (`--magenta-text`), texto blanco, radio `16px 16px 4px 16px`, alineada a la derecha. Repite "número · frase" de lo que eligió (ej.: "3 · Me cuesta seguir lo que hacía") |
+| Escala 0–4 | Lista vertical de 5 opciones (decisión del 4 nov.): cada una con el número en Special Gothic sobre su color de la escala (`--scale-0` a `--scale-4`; 3 y 4 con texto blanco) y la frase propia de esa pregunta (ej., en bochornos: "Me interrumpen un poco"). El puntaje guardado sigue siendo 0–4 y el reporte muestra la etiqueta oficial (Nada, Leve, Moderado, Fuerte, Muy fuerte). Área táctil mínima de 44 px |
 | Mensajes de transición | Misma burbuja de Mindi, tono empático y corto ("Gracias por contármelo. Sigamos con el sueño.") |
 | Animación | Cada mensaje entra con un "pop" suave (0,28 s) y los mensajes de Mindi van precedidos por el indicador de 3 puntos |
 | Tipografía | Signika para los mensajes, Special Gothic para números y botones, Space Mono para metadatos |
@@ -371,8 +373,8 @@ Mantener las dos variantes ya definidas (emergencia real vs. evaluación antes d
 Referencia: pantalla 3 de "¿Cómo funciona?".
 
 - Tarjeta blanca con borde `--line` y filas "Escala MRS / Síntoma principal / Banderas rojas" con el valor en `--magenta-text`.  
-- Bloque "Preguntas para tu médica".  
-- Botón primario **Descargar PDF** y botón contorno **Compartir con mi médica**.  
+- Bloque "Preguntas para tu médico".  
+- Botón primario **Descargar PDF** y botón contorno **Compartir con mi médico**.  
 - El PDF descargable usa la misma paleta y tipografía (logo Mindi, magenta solo en acentos, texto `--plum`).
 
 ### 10.5 Chat con IA ("Pregúntale a Mindi")
@@ -391,7 +393,7 @@ El chat con IA primero **resuelve la duda** de la usuaria y luego la **invita a 
 | Paso | Comportamiento |
 | :---- | :---- |
 | 1 | La usuaria pregunta; Mindi responde su duda primero, en lenguaje simple. |
-| 2 | Cuando la conversación trata de síntomas (o tras 1–2 respuestas), Mindi recomienda el test con un mensaje corto que explique el beneficio: *"Para saber cuánto te están afectando, te recomiendo hacer el test. Son 11 preguntas y al final tienes un reporte para llevar a tu médica."* |
+| 2 | Cuando la conversación trata de síntomas (o tras 1–2 respuestas), Mindi recomienda el test con un mensaje corto que explique el beneficio: *"Para saber cuánto te están afectando, te recomiendo hacer el test. Son 11 preguntas y al final tienes un reporte para llevar a tu médico."* |
 | 3 | Justo debajo, un **botón dentro del chat** (no un enlace de texto): **Haz el test de 5 min →** en magenta, que abre `/test?origen=chat` en una **sesión nueva**. |
 | 4 | Mindi recomienda el test **como máximo dos veces por conversación**. Si la usuaria no quiere, sigue respondiendo sus dudas sin insistir. |
 | 5 | Si la usuaria ya hizo el test (hay una sesión con resultado), Mindi no lo recomienda de nuevo: usa sus puntajes para responder. |

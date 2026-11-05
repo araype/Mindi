@@ -1,9 +1,10 @@
 ---
 name: mindi-design
-description: Use this skill to generate well-branded interfaces and assets for Mindi, either for production or throwaway prototypes/mocks/etc. Contains essential design guidelines, colors, type, fonts, assets, and UI kit components for prototyping.
+description: Usa esta skill para diseñar interfaces y piezas con la identidad de Mindi (magenta, Special Gothic, Signika, Space Mono, DM Mono), ya sea código de producción o prototipos. Trae tokens, componentes m-, reglas de contraste y voz, y las pantallas del flujo (test, resultado, aviso, chat con IA).
 user-invocable: true
 ---
 
-Read the README.md file within this skill, and explore the other available files.
-If creating visual artifacts (slides, mocks, throwaway prototypes, etc), copy assets out and create static HTML files for the user to view. If working on production code, you can copy assets and read the rules here to become an expert in designing with this brand.
-If the user invokes this skill without any other guidance, ask them what they want to build or design, ask some questions, and act as an expert designer who outputs HTML artifacts _or_ production code, depending on the need.
+1. Lee `README.md` (es corto) y `docs/sistema-diseno.md`.
+2. Usa solo los tokens de `tokens/` (con `var()`) y las clases `m-` de `components.css`. No inventes colores ni fuentes.
+3. Para textos, datos y decisiones, la fuente es `docs/MINDI_HANDOFF.md`. No inventes textos clínicos: los del test y los avisos viven en `supabase/functions/_shared/`.
+4. Para mostrar algo visual, arma HTML estático que enlace `styles.css`. Para producción, sigue `src/ds.css` y las reglas del README.

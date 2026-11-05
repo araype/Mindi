@@ -5,6 +5,8 @@
 //   - con { download_only: true } en el body, arma el PDF y devuelve un enlace firmado para
 //     descargarlo. Es lo que ve toda usuaria al terminar, deje o no su correo. El PDF queda en
 //     Storage (download/<session_id>.pdf). No toca las tablas `leads` ni `reports`.
+//   - con { share: true }, guarda una copia sin nombre ni contacto en `report_shares` (SQL 018) y
+//     devuelve el enlace /reporte?t=<token>, que vence a los 30 días ("Compartir con mi médico").
 //   - sin download_only, envía una copia por correo, vía Resend, al contacto guardado en `leads`
 //     (solo si dejó su correo). Ya no se envía por WhatsApp: los enlaces que ya se enviaron por
 //     ese canal (tabla `reports`, channel 'link') siguen abriendo en reporte.html.
@@ -123,7 +125,7 @@ const CONSULT_GENERIC = [
   '¿Qué opciones de tratamiento, hormonales y no hormonales, tendrían sentido para mi caso?',
   '¿Me corresponde algún examen de rutina de esta etapa (hormonal, mamografía, densitometría)?',
 ];
-const CONSULT_SOURCE = 'Estas sugerencias son de la guía (Figura 6 y 7) — la decisión final siempre es de tu médico(a), evaluando tu caso completo.';
+const CONSULT_SOURCE = 'Estas sugerencias son de la guía (Figura 6 y 7) — la decisión final siempre es de tu médico, evaluando tu caso completo.';
 
 const PSICOLOGICO_NOTE = 'Tu puntaje en la parte emocional pesa bastante en el conjunto. Cerca del 30% de las mujeres de 45 a 64 años presenta síntomas depresivos en esta etapa — no estás sola en eso. Vale la pena comentarlo también con un profesional de salud mental.';
 const PSICOLOGICO_SOURCE = 'Fuente: Guía HNHU (RD N° 211-2024-DG/HNHU), sección 6.4.1.2.';
@@ -136,7 +138,7 @@ const STAGE_SOURCE = 'Fuente: Guía HNHU (RD N° 211-2024-DG/HNHU), secciones 5.
 function stageNote(session: Record<string, any>): string {
   const age = session.age_range, cycle = session.cycle;
   if (cycle === 'Me hicieron una histerectomía') {
-    return 'Como te hicieron una histerectomía, no se puede ubicar tu etapa por los cambios del ciclo — eso se conversa mejor con tu médico(a), tomando en cuenta tus síntomas.';
+    return 'Como te hicieron una histerectomía, no se puede ubicar tu etapa por los cambios del ciclo — eso se conversa mejor con tu médico, tomando en cuenta tus síntomas.';
   }
   if (cycle === 'Más de 12 meses sin regla') {
     return 'Según la definición clínica (12 meses seguidos sin regla), ya estarías en la etapa de postmenopausia.';
@@ -150,7 +152,7 @@ function stageNote(session: Record<string, any>): string {
   if (age === 'Menor de 40' || age === '40 a 45') {
     return 'Tu ciclo sigue regular. La premenopausia suele iniciar entre los 35 y 45 años — es probable que estés en esa etapa previa, o recién empezando la transición.';
   }
-  return 'Tu ciclo sigue regular, aunque desde los 45 años es común que otros síntomas empiecen antes que los cambios en la regla. Vale la pena comentarlo con tu médico(a) igual.';
+  return 'Tu ciclo sigue regular, aunque desde los 45 años es común que otros síntomas empiecen antes que los cambios en la regla. Vale la pena comentarlo con tu médico igual.';
 }
 
 /** Puntos de contexto (tabaquismo, obesidad, etc.) según Figura 6/7 de la guía — mismo cálculo que src/main.js (consultCard). */
@@ -160,7 +162,7 @@ function contextPoints(session: Record<string, any>): string[] {
   if (session.obesity === 'Sí') pts.push('Tienes indicación médica de obesidad: la guía sugiere preferir estrógeno transdérmico o en dosis bajas.');
   if (session.family_breast_ca === 'Sí') pts.push('Antecedente familiar de cáncer de mama: la guía indica que sí puedes usar terapia hormonal sistémica, pero sugiere considerar un tamizaje genético.');
   if (session.migraine && String(session.migraine).startsWith('Sí, con aura')) pts.push('Migraña con aura: la guía sugiere estradiol transdérmico continuo en vez de la vía oral.');
-  if (session.current_treatment && String(session.current_treatment).startsWith('Sí')) pts.push('Ya usas un tratamiento: cuéntaselo a tu médico(a) para evaluar ajustarlo en vez de partir de cero.');
+  if (session.current_treatment && String(session.current_treatment).startsWith('Sí')) pts.push('Ya usas un tratamiento: cuéntaselo a tu médico para evaluar ajustarlo en vez de partir de cero.');
   return pts;
 }
 
@@ -186,7 +188,7 @@ function meterBar(pct: number, color: string) {
 function selfCareFragment(session: Record<string, any>) {
   const rows = selfCareItems(session).map(([t, d]) => `<li style="margin:6px 0;"><b>${t}:</b> ${d}</li>`).join('');
   return `<h2 style="${H2}margin:24px 0 4px;">Algunas cosas que pueden ayudarte</h2>
-    <p style="color:${C.plumSoft};font-size:13px;margin:0 0 8px;">No reemplazan un tratamiento si tu médico(a) lo indica — son medidas seguras para cualquier momento de esta etapa.</p>
+    <p style="color:${C.plumSoft};font-size:13px;margin:0 0 8px;">No reemplazan un tratamiento si tu médico lo indica — son medidas seguras para cualquier momento de esta etapa.</p>
     <ul style="padding-left:20px;margin:0;">${rows}</ul>
     <p style="color:${C.plumSoft};font-size:12px;margin-top:10px;">Fuente: ${SELF_CARE_SOURCE}</p>`;
 }
@@ -194,7 +196,7 @@ function selfCareFragment(session: Record<string, any>) {
 /* "Para tu consulta": preguntas siempre útiles + los puntos de contexto ya calculados.
    Mismo contenido que src/main.js (consultCard) — mantener sincronizado. */
 function consultFragment(pts: string[]) {
-  let html = `<h2 style="${H2}margin:24px 0 8px;">Preguntas para tu médica</h2>` +
+  let html = `<h2 style="${H2}margin:24px 0 8px;">Preguntas para tu médico</h2>` +
     `<p style="color:${C.plumSoft};font-size:13px;margin:0 0 8px;">Puedes llevar contigo lo que viste arriba (tu puntaje por áreas) y, si quieres, estas preguntas:</p>` +
     `<ul style="padding-left:20px;margin:0;">${CONSULT_GENERIC.map((g) => `<li style="margin:4px 0;">${g}</li>`).join('')}</ul>`;
   if (pts.length) {
@@ -224,7 +226,9 @@ function badgeHtml(text: string) {
 }
 
 /** Fragmento HTML con estilos en línea (para que se vea bien tanto en el correo como en la página del enlace). */
-function buildFragment(session: Record<string, any>, lead: Record<string, any>) {
+/* opts.shared: la copia para "Compartir con mi médico" (/reporte), que la ve otra persona: sin
+   el pie del correo ("Recibiste esto porque dejaste tu contacto"). Nunca lleva nombre. */
+function buildFragment(session: Record<string, any>, lead: Record<string, any>, opts: { shared?: boolean } = {}) {
   const name = lead.name ? esc(lead.name) : '';
   const greeting = name ? `Hola, ${name}.` : 'Hola.';
   const isAlert = session.level === 'alert';
@@ -238,7 +242,7 @@ function buildFragment(session: Record<string, any>, lead: Record<string, any>) 
     const lvl = levelMessage(sessionScores(session));
     opening = `
       <h1 style="font-family:${FONT_DISPLAY};font-weight:700;color:${C.plum};font-size:26px;margin:0 0 12px;">Un paso de cuidado</h1>
-      <p>${greeting} Marcaste algo que conviene revisar con tu médico(a).</p>
+      <p>${greeting} Marcaste algo que conviene revisar con tu médico.</p>
       ${emergency ? `<div style="background:${C.testBg};border:1.5px solid ${C.plum};border-left-width:5px;color:${C.plum};padding:14px 16px;border-radius:12px;font-weight:600;margin:16px 0;">${EMERGENCY_NOW}</div>` : ''}
       <p>Para el resto de señales que marcaste, agenda una cita ginecológica lo antes posible.</p>
       <p style="color:${C.plumSoft};font-size:13px;">Esto no reemplaza la valoración de un profesional de salud.</p>
@@ -274,7 +278,7 @@ function buildFragment(session: Record<string, any>, lead: Record<string, any>) 
   const docRow = (l: string, r: string) => `<div style="padding:5px 0;border-bottom:1px solid ${C.lineSoft};">${row2col(`<span style="font-size:14px;">${l}</span>`, `<span style="font-size:14px;color:${C.plum};">${r}</span>`)}</div>`;
   const doctorHtml = `
     <div style="border:1.5px solid ${C.line};border-radius:14px;padding:14px 16px;margin-top:20px;">
-      <h2 style="${H2}font-size:17px;margin:0 0 4px;">Para tu médico(a): puntaje MRS</h2>
+      <h2 style="${H2}font-size:17px;margin:0 0 4px;">Para tu médico: puntaje MRS</h2>
       <p style="color:${C.plumSoft};font-size:12px;margin:0 0 8px;">Menopause Rating Scale, 11 ítems de 0 a 4.</p>
       ${docRow('<b>Puntaje total</b>', `<b>${doc.total}</b>`)}
       ${doc.areas.map((a) => docRow(a.label, `${a.value}<br><span style="font-size:12px;color:${C.plumSoft};">${a.tag}</span>`)).join('')}
@@ -310,7 +314,7 @@ function buildFragment(session: Record<string, any>, lead: Record<string, any>) 
     ${selfCareFragment(session)}
     ${consultFragment(pts)}
     <p style="color:${C.plumSoft};font-size:13px;margin-top:16px;">Esto es solo orientación informativa. Solo un profesional de salud puede evaluarte con exámenes clínicos.</p>
-    ${footer()}`;
+    ${opts.shared ? '' : footer()}`;
 }
 
 function footer() {
@@ -463,7 +467,7 @@ async function buildPdf(session: Record<string, any>, lead: Record<string, any>)
   if (isAlert) {
     const emergency = (session.red_flags || []).includes('rf2');
     heading('Un paso de cuidado', 16);
-    para(`${greeting} Marcaste algo que conviene revisar con tu médico(a).`);
+    para(`${greeting} Marcaste algo que conviene revisar con tu médico.`);
     if (emergency) {
       para(EMERGENCY_NOW, { f: bold, color: PDF_COLOR.ink }); // emergencia: acento ciruela (10.3)
     }
@@ -529,7 +533,7 @@ async function buildPdf(session: Record<string, any>, lead: Record<string, any>)
     {
       const doc = doctorRows(session);
       ensure(doc.skipped ? 230 : 200); // el bloque va completo en una página, no partido
-      heading('Para tu médico(a): puntaje MRS');
+      heading('Para tu médico: puntaje MRS');
       para('Menopause Rating Scale, 11 ítems de 0 a 4.', { size: 8.5, color: PDF_COLOR.inkSoft, gap: 6 });
       const docRow = (l: string, r: string, sub?: string, strong = false) => {
         ensure(sub ? 28 : 16);
@@ -559,11 +563,11 @@ async function buildPdf(session: Record<string, any>, lead: Record<string, any>)
     }
 
     heading('Algunas cosas que pueden ayudarte');
-    para('No reemplazan un tratamiento si tu médico(a) lo indica — son medidas seguras para cualquier momento de esta etapa.', { size: 8.5, color: PDF_COLOR.inkSoft, gap: 8 });
+    para('No reemplazan un tratamiento si tu médico lo indica — son medidas seguras para cualquier momento de esta etapa.', { size: 8.5, color: PDF_COLOR.inkSoft, gap: 8 });
     for (const [t, d] of selfCareItems(session)) bulletBlock(t, d);
     para(`Fuente: ${SELF_CARE_SOURCE}`, { size: 7.5, color: PDF_COLOR.inkSoft, gap: 10 });
 
-    heading('Preguntas para tu médica');
+    heading('Preguntas para tu médico');
     para('Puedes llevar contigo lo que viste arriba (tu puntaje por áreas) y, si quieres, estas preguntas:', { size: 9, color: PDF_COLOR.inkSoft, gap: 6 });
     for (const g of CONSULT_GENERIC) bulletText(g);
     const pts = contextPoints(session);
@@ -589,11 +593,13 @@ Deno.serve(async (req) => {
   let session_id: string | undefined;
   let bodyName: string | undefined;
   let downloadOnly = false;
+  let share = false;
   try {
     const body = await req.json();
     session_id = body.session_id;
     bodyName = typeof body.name === 'string' ? body.name.slice(0, 80) : undefined;
     downloadOnly = !!body.download_only;
+    share = !!body.share;
   } catch {
     // cuerpo vacío o inválido
   }
@@ -607,6 +613,21 @@ Deno.serve(async (req) => {
   // nada que enviar ni a quién). Solo se arma el PDF (con el apodo que haya escrito, si
   // escribió alguno — nunca se persiste) y se sube a Storage con un enlace firmado corto,
   // de un solo uso práctico. El resto del reporte es idéntico al de correo/WhatsApp.
+  // "Compartir con mi médico": una copia del reporte, sin nombre ni contacto, en /reporte?t=<token>,
+  // que vence a los 30 días (SQL 018). Solo se crea cuando la usuaria toca el botón. Si ya hay
+  // una vigente para esta sesión, se devuelve la misma; si venció, se crea otra con token nuevo.
+  if (share) {
+    const { data: prev } = await supabase.from('report_shares').select('token,expires_at').eq('session_id', session_id).maybeSingle();
+    if (prev && new Date(prev.expires_at) > new Date()) {
+      return json({ ok: true, channel: 'share', url: `${SITE_URL}/reporte?t=${prev.token}`, expires_at: prev.expires_at });
+    }
+    const html = buildFragment(session, {}, { shared: true });
+    const row = { session_id, html, token: crypto.randomUUID(), created_at: new Date().toISOString(), expires_at: new Date(Date.now() + 30 * 864e5).toISOString() };
+    const { data: saved, error: shErr } = await supabase.from('report_shares').upsert(row, { onConflict: 'session_id' }).select('token,expires_at').single();
+    if (shErr || !saved) return json({ error: (shErr && shErr.message) || 'No se pudo crear el enlace' }, 500);
+    return json({ ok: true, channel: 'share', url: `${SITE_URL}/reporte?t=${saved.token}`, expires_at: saved.expires_at });
+  }
+
   if (downloadOnly) {
     let pdfBytes: Uint8Array;
     try {
