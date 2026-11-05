@@ -43,7 +43,7 @@ body.landing-view{background:var(--paper);color:var(--plum)}
 @media (max-width:380px){ .l-menu-btn .mlabel{display:none} .l-menu-btn{padding:10px 12px} .l-nav .m-btn--nav{padding:10px 14px} }
 
 /* ---------- 1. Portada ---------- */
-.l-hero{position:relative;min-height:min(820px,100vh);display:flex;flex-direction:column;color:#fff;overflow:hidden;background:#3a1834;padding-top:76px}
+.l-hero{position:relative;min-height:min(820px,100vh);min-height:min(820px,100svh);display:flex;flex-direction:column;color:#fff;overflow:hidden;background:#3a1834;padding-top:76px}
 .l-hero-bg{position:absolute;inset:0}
 .l-hero-bg img{width:100%;height:100%;object-fit:cover;object-position:62% 40%;display:block}
 .l-hero-bg::after{content:"";position:absolute;inset:0;background:var(--overlay);opacity:var(--overlay-opacity)}
@@ -95,9 +95,9 @@ body.landing-view{background:var(--paper);color:var(--plum)}
 
 /* ---------- 2. "No es el final" + datos (6.3 y 6.4) ---------- */
 .l-story{position:relative;height:560vh;background:var(--paper)}
-.l-stage{position:sticky;top:0;height:100vh;overflow:hidden}
+.l-stage{position:sticky;top:0;height:100vh;height:100svh;overflow:hidden}
 .l-photo{position:absolute;inset:0;clip-path:inset(46% 18% 46% 18% round 18px);will-change:clip-path;background:#6b3a4f}
-.l-photo img{position:absolute;inset:-4%;width:108%;height:108%;object-fit:cover;object-position:62% 35%;transform:scale(1.15);will-change:transform}
+.l-photo img{position:absolute;inset:-4%;width:108%;height:108%;max-width:none;object-fit:cover;object-position:62% 35%;transform:scale(1.15);will-change:transform}
 .l-photo .shade{position:absolute;inset:0;background:var(--plum);opacity:0}
 .l-lines{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;align-items:center;pointer-events:none;padding-inline:var(--gutter)}
 .l-big{font-family:var(--font-display);font-weight:700;text-transform:uppercase;letter-spacing:-.03em;line-height:.9;font-size:clamp(44px,10.5vw,148px);margin:0;text-align:center;text-wrap:balance;will-change:transform}
@@ -160,7 +160,7 @@ body.landing-view{background:var(--paper);color:var(--plum)}
 
 /* ---------- 3. ¿Cómo funciona? (6.5) ---------- */
 .l-how{position:relative;height:330vh;background:var(--paper)}
-.l-how-stage{position:sticky;top:0;height:100vh;display:flex;flex-direction:column;justify-content:center;padding-inline:var(--gutter)}
+.l-how-stage{position:sticky;top:0;height:100vh;height:100svh;display:flex;flex-direction:column;justify-content:center;padding-inline:var(--gutter)}
 .l-how .m-eyebrow{justify-content:center;margin:0 auto clamp(20px,4vh,44px);font-size:14px}
 .l-how-grid{width:100%;max-width:1040px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:clamp(24px,6vw,96px);align-items:center}
 .l-how .m-step .m-btn{margin-top:18px}
@@ -328,4 +328,43 @@ body:not(.app-view) #conversar{display:none}
 @media (max-width:380px){
   .l-scr:has(.l-opts--list){gap:5px}
   .l-opts--list{gap:2px}.l-opts--list span{padding:1px 6px 1px 2px}.l-opts--list b{width:18px;height:18px}
+}
+
+/* ---------- Móvil (< 768 px, 5 nov. 2026): scroll nativo, sin secciones fijas ni pasos por tramos ----------
+   Datos: título, foto y tarjetas en flujo normal; cada tarjeta aparece con un fade corto al entrar ~15 %.
+   ¿Cómo funciona?: los 3 pasos uno debajo de otro, cada uno con su pantalla (.l-how-m, armado en landing.js). */
+.l-how-m{display:none}
+@media (max-width:767px){
+  .l-story{height:auto}
+  .l-stage{position:relative;height:auto;overflow:hidden}
+  .l-photo{clip-path:none!important}
+  .l-photo img{transform:none!important}
+  .l-photo .shade{opacity:.8!important}
+  .l-lines{position:relative;z-index:1;background:var(--paper);padding:14svh var(--gutter) 10svh;gap:8px}
+  .l-big{transform:none!important;opacity:1!important}
+  .l-big--1{color:var(--plum)!important}
+  .l-caption{position:relative;z-index:1;left:auto;bottom:auto;opacity:1!important;transform:none!important;max-width:none;padding:40px var(--gutter) 0}
+  .l-info{position:relative;z-index:1;opacity:1!important;transform:none!important;pointer-events:auto;padding-block:28px 56px}
+  .l-info p{display:block}.l-info .m-eyebrow{display:inline-flex}
+  .l-hint{display:none}
+  .l-info-right{gap:12px}
+  .l-how{height:auto}
+  .l-how-stage{position:relative;height:auto;padding-block:72px 40px}
+  .l-how-grid{display:none}
+  .l-how-m{display:flex;flex-direction:column;gap:44px;list-style:none;margin:0;padding:0}
+  .l-how-item{display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px}
+  .l-how-n{font-family:var(--font-mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--plum-soft);margin:0}
+  .l-how-item .m-phone{width:min(220px,60vw);max-height:none}
+  .l-how-item .l-scr{opacity:1;transform:none;transition:none}
+  .l-how-item h3{margin:4px 0 6px}
+  .l-how-item p{font-size:15px;margin:0}
+  .l-how-item .m-btn{margin-top:14px}
+  /* Aparición corta: ≤ 300 ms, sin retrasos mayores a 100 ms. Solo con JS y sin movimiento reducido. */
+  .js-rv .m-rv{opacity:0;transform:translateY(12px);transition:opacity .28s ease,transform .28s ease}
+  .js-rv .m-rv.is-in{opacity:1;transform:none}
+  .js-rv .l-stats .m-rv:nth-child(2){transition-delay:40ms}
+  .js-rv .l-stats .m-rv:nth-child(3){transition-delay:70ms}
+}
+@media (max-width:767px) and (prefers-reduced-motion:reduce){
+  .js-rv .m-rv{opacity:1;transform:none;transition:none}
 }

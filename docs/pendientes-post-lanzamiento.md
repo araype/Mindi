@@ -66,3 +66,26 @@ agregarle `source: 'Fuente: Guía HNHU (…), sección …'` y desplegar el siti
 Idea: que el agente reescriba cada pregunta sin datos personales ("¿Cómo dormir mejor con bochornos?") y guardar esa
 versión de todas las conversaciones. **No implementar** hasta consultar con un abogado de protección de datos (Ley 29733):
 deriva de información de salud. Si se aprueba, agregar una línea en la política antes de activarla.
+
+## Etiquetas por pregunta del chat (nivel 1): después del lanzamiento (aprobado el 5 nov. 2026)
+
+Sin texto y sin consentimiento extra. Requiere SQL `023` (tres columnas en `chat_topics`), cambiar el agente
+(`clasificar_tema` en `mindi_agent/agent.py`), una evaluación corta antes de desplegarlo y la línea de la política.
+
+| Etiqueta | Valores | Quién la pone |
+|---|---|---|
+| `necesidad` | `entender`, `que_hacer`, `es_normal`, `ir_al_medico`, `emocional`, `otro` | el agente |
+| `respuesta` | `orienta` (respondió), `deriva` (recomendó consultar o a un profesional), `alarma` (el mensaje fijo de señales de alarma) | el agente |
+| `origen` | `sugerencia`, `escrita` | la web (sabe qué botón tocó) |
+
+Instrucción propuesta para el agente:
+
+> "En cada mensaje de la usuaria llama una vez a clasificar_tema con: el tema; la necesidad (entender = quiere saber
+> por qué pasa algo; que_hacer = busca qué hacer o cómo aliviarlo; es_normal = pregunta si lo que le pasa es normal;
+> ir_al_medico = pregunta si debe consultar o a quién; emocional = expresa cómo se siente más que preguntar; otro); y
+> la respuesta que darás (orienta, deriva si recomiendas consultar a un profesional, alarma si das el mensaje fijo de
+> señales de alarma). Llámala antes de escribir y no la menciones."
+
+Línea de la política (nivel 1): "…el tema de cada pregunta, el tipo de necesidad (por ejemplo, entender algo o saber
+si es normal), si Mindi te orientó o te recomendó consultar, si usaste una sugerencia, el área que respondió, el nivel
+de tu test y la fecha. No guardamos el texto de tus preguntas ni nada que te identifique."

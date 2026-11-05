@@ -86,7 +86,10 @@ export function initLanding({ track, api, mountTurnstile, backendOn, consentVers
     const y = nav.offsetHeight / 2;
     let mode = 'dark';
     for (const s of navSecs) { const r = s.getBoundingClientRect(); if (r.top <= y && r.bottom > y) { mode = s.dataset.nav; break; } }
-    if (mode === 'story') mode = document.body.dataset.storyDark === '1' ? 'dark' : 'light';
+    if (mode === 'story') {
+      if (isMobile()) { const lr = $('l1').closest('.l-lines').getBoundingClientRect(); mode = lr.bottom > y ? 'light' : 'dark'; }
+      else mode = document.body.dataset.storyDark === '1' ? 'dark' : 'light';
+    }
     nav.classList.toggle('is-light', mode === 'light');
     nav.classList.toggle('is-scrolled', mode === 'dark' && window.scrollY > 40);
   }
@@ -162,6 +165,9 @@ export function initLanding({ track, api, mountTurnstile, backendOn, consentVers
   const mix = (a, b, t) => a + (b - a) * t;
   const rgb = (c1, c2, t) => `rgb(${c1.map((v, i) => Math.round(mix(v, c2[i], t))).join(',')})`;
   const narrow = () => window.innerWidth <= 760;
+  // Móvil (< 768 px): scroll nativo; nada se calcula por posición dentro de las secciones (ver site.css).
+  const mobileMQ = window.matchMedia('(max-width: 767px)');
+  const isMobile = () => mobileMQ.matches;
   function dataFinal() {
     S.grow.setAttribute('width', '240');
     S.ring.setAttribute('stroke-dasharray', '50.9 94.25');
@@ -225,13 +231,66 @@ export function initLanding({ track, api, mountTurnstile, backendOn, consentVers
     let ticking = false;
     const onScroll = () => {
       if (ticking) return; ticking = true;
-      requestAnimationFrame(() => { storyFrame(); howFrame(); navMode(); ticking = false; });
+      requestAnimationFrame(() => { if (!isMobile()) { storyFrame(); howFrame(); } navMode(); ticking = false; });
     };
     window.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', onScroll);
-    storyFrame(); howFrame();
+    if (!isMobile()) { storyFrame(); howFrame(); }
   }
   if (reduce) { window.addEventListener('scroll', navMode, { passive: true }); }
+
+  /* ---------- Móvil: pasos en flujo vertical (cada uno con su pantalla) y aparición de las tarjetas ---------- */
+  (function buildHowMobile() {
+    const phone = how.querySelector('.l-phone-wrap .m-phone');
+    const list = document.createElement('ol');
+    list.className = 'l-how-m';
+    steps.forEach((step, i) => {
+      const li = document.createElement('li');
+      li.className = 'l-how-item m-rv';
+      const n = document.createElement('p'); n.className = 'l-how-n'; n.textContent = `Paso ${i + 1} de ${steps.length}`;
+      const ph = phone.cloneNode(true);
+      ph.querySelectorAll('.l-scr').forEach((sc, k) => { if (k !== i) sc.remove(); else sc.classList.add('is-on'); });
+      const body = document.createElement('div');
+      [...step.children].forEach((c) => { if (!c.classList.contains('m-step__n')) body.appendChild(c.cloneNode(true)); });
+      li.append(n, ph, body);
+      list.appendChild(li);
+    });
+    how.querySelector('.l-how-grid').after(list);
+  })();
+  // Números, anillo, cuadritos y barra: de 0 a su valor en 700 ms cuando la tarjeta aparece (el texto ya se ve).
+  function countUp(card) {
+    const t0 = performance.now(), D = reduce ? 0 : 700;
+    const idx = [...S.stats.children].indexOf(card);
+    const step = (now) => {
+      const k = D ? ease(Math.min(1, (now - t0) / D)) : 1;
+      if (card.classList.contains('l-tl')) S.grow.setAttribute('width', (240 * k).toFixed(1));
+      if (idx === 0) { S.ring.setAttribute('stroke-dasharray', `${(94.25 * 0.54 * k).toFixed(2)} 94.25`); S.n1.textContent = Math.round(54 * k); }
+      if (idx === 1) { const lit = Math.round(8 * k); S.sqs.forEach((x, q) => { x.classList.toggle('is-on', q < lit && q < 7); x.classList.toggle('is-part', q === 7 && lit >= 8); }); S.n2.textContent = Math.round(77 * k); }
+      if (idx === 2) { S.bar.style.width = `${41.5 * k}%`; S.n3.textContent = Math.round(4 * k); }
+      if (k < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }
+  function setupMobile() {
+    if (!isMobile()) return;
+    [...S.stats.children].forEach((c) => { c.style.opacity = ''; c.style.transform = ''; });
+    S.info.style.opacity = ''; S.info.style.transform = '';
+    dataFinal();
+    const cards = [document.querySelector('.l-tl'), ...S.stats.children];
+    const items = [...cards, ...how.querySelectorAll('.l-how-item')];
+    if (reduce || !('IntersectionObserver' in window)) { items.forEach((el) => el.classList.add('is-in')); return; }
+    items.forEach((el) => el.classList.add('m-rv'));
+    document.documentElement.classList.add('js-rv');
+    const io = new IntersectionObserver((es) => es.forEach((e) => {
+      if (!e.isIntersecting) return;
+      e.target.classList.add('is-in');
+      if (cards.includes(e.target)) countUp(e.target);
+      io.unobserve(e.target);
+    }), { threshold: 0.15, rootMargin: '0px 0px 12% 0px' }); // un poco antes de entrar: visible antes de la mitad
+    items.forEach((el) => io.observe(el));
+  }
+  setupMobile();
+  mobileMQ.addEventListener && mobileMQ.addEventListener('change', () => { if (isMobile()) setupMobile(); else { storyFrame(); howFrame(); } });
   navMode();
 
   /* ---------- 6.6 Chat en vivo (prototipo docs/mindi-landing.html) ---------- */
