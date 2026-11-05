@@ -1,8 +1,7 @@
 /* Panel interno: lee la vista `funnel` a través de la Edge Function `funnel-stats`
    (la vista está cerrada para la clave pública). La clave del panel vive solo en el
    localStorage de este navegador. */
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
-const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || '';
+// Los números llegan por /api/stats (servidor): el navegador no tiene claves de Supabase.
 const KEY_STORE = 'mindi_panel_key';
 const TESTER_STORE = 'mindi_tester'; // mismo que src/main.js: marca este navegador como del equipo
 const FILTER_STORE = 'mindi_panel_filters';
@@ -94,15 +93,14 @@ function showGate(error){
 async function load(){
   const key = getKey();
   if(!key){ showStatus(''); showGate(); return; }
-  if(!SUPABASE_URL || !SUPABASE_KEY){ showStatus('Falta configurar VITE_SUPABASE_URL y VITE_SUPABASE_PUBLISHABLE_KEY.'); return; }
 
   const btn = $('refreshBtn');
   btn.disabled = true;
   showStatus(dash.hidden ? 'Cargando…' : '');
   try {
-    const r = await fetch(`${SUPABASE_URL}/functions/v1/funnel-stats`, {
+    const r = await fetch('/api/stats', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY, 'x-admin-key': key },
+      headers: { 'Content-Type': 'application/json', 'x-admin-key': key },
       body: JSON.stringify({ since: sinceFor(filters.period), include_test: filters.includeTest, view: tab, origin: filters.origin === 'all' ? null : filters.origin }),
     });
     if(r.status === 401){ setKey(''); showStatus(''); showGate('Esa clave no coincide con ADMIN_KEY (o ADMIN_KEY aún no está configurada en Supabase).'); return; }

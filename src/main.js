@@ -13,14 +13,13 @@ import { whatsappUrl, WHATSAPP_TEXT, channelUrl } from './whatsapp.js';
 import { createAgentClient, agentHtml, AI_NOTICE, GREETING, ERROR_TEXT, LIMIT_TEXT } from './agente.js';
 import { glossaryMore } from './glosario.js';
 import { initLanding } from './landing.js';
+import { mountTurnstile } from './turnstile.js';
 
-/* ---------- Medición (hooks listos para conectar a analítica real) ---------- */
-/* ---------- Backend (Supabase vía REST, solo INSERT con la clave pública) ----------
-   Los valores vienen de .env (VITE_*). Vacío = modo prototipo (no envía nada). */
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
-const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || '';
+/* ---------- Backend: todo pasa por /api (funciones de Vercel, handoff 11.1) ----------
+   El navegador nunca habla con Supabase ni tiene sus claves: /api valida, limita y guarda.
+   VITE_BACKEND=off: modo prototipo (no envía nada). */
 const CONSENT_VERSION = import.meta.env.VITE_CONSENT_VERSION || 'v1';
-const BACKEND_ON = !!(SUPABASE_URL && SUPABASE_KEY);
+const BACKEND_ON = import.meta.env.VITE_BACKEND !== 'off';
 /* Marca cada sesión como de prueba. VITE_TEST_MODE es el interruptor general (en
    producción ya está en false: cuenta como real por defecto). Aparte, ?test=<lo que sea>
    en la URL fuerza is_test:true para ESA sesión sin importar VITE_TEST_MODE — es el link
@@ -82,15 +81,14 @@ const ORIGIN = (()=>{
   return o;
 })();
 
-function sb(table, row){
-  if(!BACKEND_ON) return Promise.resolve(false);
-  return fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
-    method:'POST',
-    headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY,'Prefer':'return=minimal'},
-    body:JSON.stringify(row),
-    keepalive:true,
-  }).then(r=>r.ok).catch(()=>false);
+/** POST /api/<ruta> → { ok, status, body } o null si no hubo conexión (o backend apagado). */
+function api(path, body){
+  if(!BACKEND_ON) return Promise.resolve(null);
+  return fetch(`/api/${path}`, {
+    method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body), keepalive:true,
+  }).then(async r=>({ok:r.ok, status:r.status, body: r.status === 204 ? null : await r.json().catch(()=>null)})).catch(()=>null);
 }
+const apiOk = (r)=> !!(r && r.ok);
 
 window.dataLayer = window.dataLayer || [];
 /* Si el test se abrió desde el botón del chat con IA (/test?origen=chat, handoff 10.5.1), sus eventos
@@ -104,7 +102,7 @@ function track(event, props){
   const base = {is_test:TEST_MODE};
   if(TEST_PARAM) base.tester = TEST_PARAM;
   if(ORIGIN) base.origin = ORIGIN;
-  sb('events', {session_id:SESSION_ID, name:event, props:Object.assign(base, props||{})});
+  api('track', {session_id:SESSION_ID, name:event, props:Object.assign(base, props||{})});
 }
 
 /* WhatsApp del equipo: complementa al test. Cada clic registra whatsapp_click {origen}
@@ -137,64 +135,44 @@ function channelInvite(desde){
     `para recibir tips de bienestar cada semana.</p>`, 'calm', 400);
 }
 
-function saveSession(level){
-  const s = state.scores;
-  state.sessionSaved = sb('sessions', {
+/* Respuestas del test → /api/session. El servidor recalcula el puntaje y el nivel (11.3). */
+function saveSession(){
+  state.sessionSaved = api('session', {
     id:SESSION_ID,
     age_range:state.age, cycle:state.cycle,
     smoking:state.smoking, obesity:state.obesity, family_breast_ca:state.familyBreastCa,
     migraine:state.migraine, current_treatment:state.currentTreatment,
-    answers:state.answers,
-    score_somatico:s.somatico, score_psicologico:s.psicologico, score_urogenital:s.urogenital, score_total:s.total,
-    level, red_flags:state.redFlags, skipped_intimate:state.skippedIntimate,
+    answers:state.answers, red_flags:state.redFlags,
     is_test:TEST_MODE,
-  });
+  }).then(apiOk);
   state.sessionSaved.then(ok=>{ if(ok) releaseSessionId(); });
 }
-function saveLead(news){
-  if(!state.contact) return Promise.resolve();
-  const lead = {session_id:SESSION_ID, name:state.name || null, contact:state.contact, consent:true, consent_text_version:CONSENT_VERSION, is_test:TEST_MODE};
-  // Espera a que la sesión exista (clave foránea) antes de guardar el contacto. Si la columna
-  // opt_news aún no existe (015 sin correr), se reintenta sin ella: nunca se pierde el correo.
-  return (state.sessionSaved || Promise.resolve()).then(()=>
-    sb('leads', {...lead, opt_news:!!news}).then(ok => ok || sb('leads', lead)));
-}
-/* Casilla de investigación: una fila sin nombre ni contacto (research_consents, SQL 015). */
-function saveResearchConsent(){
-  return (state.sessionSaved || Promise.resolve()).then(()=>
-    sb('research_consents', {session_id:SESSION_ID, consent_text_version:CONSENT_VERSION, is_test:TEST_MODE}));
-}
 
-/* Pide a la Edge Function `send-report` que envíe una copia del reporte por correo.
-   Se llama solo después de que la sesión y el lead ya quedaron guardados en Supabase,
-   porque la función los lee de ahí (nunca recibe respuestas ni contacto por este canal). */
-function requestReport(){
-  if(!BACKEND_ON) return;
-  fetch(`${SUPABASE_URL}/functions/v1/send-report`, {
-    method:'POST',
-    headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY},
-    body:JSON.stringify({session_id:SESSION_ID}),
-  }).then(r=>r.json()).then(res=>{
-    if(res && res.ok) track('report_sent', {channel:res.channel});
-    else track('report_failed', {error: (res && res.error) || 'unknown'});
-  }).catch(()=> track('report_failed', {error:'network'}));
+/* Copia por correo y casillas opcionales → /api/lead, que guarda el correo cifrado, la casilla de
+   investigación (sin nombre ni contacto) y pide el envío a send-report. Espera a que la sesión
+   exista (clave foránea). */
+function sendLead({email, news, research, turnstile}){
+  return (state.sessionSaved || Promise.resolve()).then(()=> api('lead', {
+    session_id:SESSION_ID, email:email || undefined, name: email ? (state.name || undefined) : undefined,
+    news:!!news, research:!!research, consent_text_version:CONSENT_VERSION, is_test:TEST_MODE, turnstile,
+  })).then(r=>{
+    if(!email) return;
+    const b = r && r.body;
+    if(b && b.report === 'sent') track('report_sent', {channel:b.channel || 'email'});
+    else track('report_failed', {error: !r ? 'network' : (b && (b.report || b.error)) || String(r.status)});
+  });
 }
 
 /* El PDF que toda usuaria puede descargar al terminar (con el apodo que haya escrito, si
    escribió alguno). No guarda lead ni fila en `reports`. → Promise<url del PDF | null>. */
 function requestDownloadOnly(){
-  if(!BACKEND_ON) return Promise.resolve(null);
   return (state.sessionSaved || Promise.resolve()).then(()=>
-    fetch(`${SUPABASE_URL}/functions/v1/send-report`, {
-      method:'POST',
-      headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY},
-      body:JSON.stringify({session_id:SESSION_ID, name: state.name || undefined, download_only:true}),
-    })
-  ).then(r=>r.json()).then(res=>{
-    if(res && res.ok && res.pdfUrl){ track('report_sent', {channel:'download'}); return res.pdfUrl; }
-    track('report_failed', {error:(res && res.error) || 'unknown', channel:'download'});
+    api('report', {action:'download', session_id:SESSION_ID, name: state.name || undefined})
+  ).then(r=>{
+    if(r && r.ok && r.body && r.body.pdfUrl){ track('report_sent', {channel:'download'}); return r.body.pdfUrl; }
+    track('report_failed', {error: r ? (r.body && r.body.error) || String(r.status) : 'network', channel:'download'});
     return null;
-  }).catch(()=>{ track('report_failed', {error:'network', channel:'download'}); return null; });
+  });
 }
 
 function computeLevel(){ return mrsLevel(state.scores); }
@@ -808,7 +786,7 @@ const PERU_AGE_NOTE = 'En Perú, la edad promedio de la menopausia es 47 años �
 function afterStageQuestions(){
   const exit = stageFilter(state.age, state.cycle);
   if(exit === STAGE_EXIT.continue) return startDomain('somatico');
-  track('stage_filter_exit', {segment:exit});
+  track('stage_filter_exit');
   showStageExit(exit);
 }
 
@@ -830,9 +808,13 @@ function showStageExit(segment){
 
 /* Lista de interés de quienes salen por el filtro: solo correo + segmento (tabla
    interest_signups, SQL 015). No hay sesión ni respuestas de salud guardadas. */
+/* Turnstile del chat (11.3): va fuera del composer, que se vacía al responder. */
+const tsBox = document.getElementById('tsBox');
+
 function askInterest(segment){
   setSection('Lista de interés');
   botSay([{text:'¿Quieres que te avisemos cuando Mindi tenga algo para tu etapa?', cls:'question'}]).then(()=>{
+    const interestCaptcha = mountTurnstile(tsBox);
     renderTextInput('correo@ejemplo.com', {
       inputType:'email',
       skipLabel:'No, gracias',
@@ -842,11 +824,12 @@ function askInterest(segment){
     }, (val)=>{
       setProgress(TOTAL_STEPS);
       if(val){
-        sb('interest_signups', {contact:val, segment, consent:true, consent_text_version:CONSENT_VERSION, is_test:TEST_MODE});
-        track('interest_signup', {segment});
+        interestCaptcha.token().then(turnstile=>{ interestCaptcha.remove(); return api('waitlist', {segment, email:val, consent_text_version:CONSENT_VERSION, is_test:TEST_MODE, turnstile}); });
+        track('interest_signup');
         botSay(['Listo, te avisaremos. Cuídate.']).then(()=> channelInvite('filtro')).then(()=> afterGuided(false));
       } else {
-        track('interest_skip', {segment});
+        interestCaptcha.remove();
+        track('interest_skip');
         botSay(['Está bien. Cuídate mucho.']).then(()=> channelInvite('filtro')).then(()=> afterGuided(false));
       }
     });
@@ -945,8 +928,8 @@ function askRedFlags(){
     renderMultiSelect(RED_FLAGS, (selected)=>{
       state.redFlags = selected;
       computeScores();
-      saveSession(hasFlag() ? 'alert' : computeLevel());
-      track('redflags_answered',{any: selected.length>0 && !selected.includes('none')});
+      saveSession();
+      track('redflags_answered');
       if(hasFlag()) showSafetyMessage(); else showResultsTopics();
     }, 'none');
   });
@@ -1054,7 +1037,7 @@ function showResultsTopics(){
 
   botSay(['Esto es lo que noto:']).then(async ()=>{
     await showResultsCardSequence();
-    track('result',{level});
+    track('result');
     continueToGoals();
   });
 }
@@ -1078,7 +1061,7 @@ function showSafetyMessage(){
         '<h3>No estás sola en esto</h3>Marcaste algo que vale la pena conversar con tu médico antes de considerar cualquier tratamiento. Es un paso de cuidado, no una emergencia. Te recomendamos agendar una cita ginecológica en los próximos días para revisarlo con calma.' +
         '<br><br>Esto no reemplaza la valoración de un profesional de salud.', 'alert-eval');
     }
-    track('result',{level:'alert', emergency:hasEmergency});
+    track('result'); // sin nivel ni señales: la analítica no lleva datos de salud (11.8)
     await botSay(['Y esto noto en tus síntomas:']);
 
     const level = computeLevel();
@@ -1113,7 +1096,7 @@ function askGoals(){
     renderMultiSelect(options, (selected)=>{
       const labels = selected.map(id => GOAL_OPTIONS[+id.slice(1)]);
       state.goals = labels;
-      track('goals', {selected:labels});
+      track('goals');
       askName();
     });
   });
@@ -1192,13 +1175,8 @@ function reportSummary(){
 const SHARE_TITLE = 'Mi reporte de Mindi';
 const SHARE_COPIED = 'Copiamos el enlace a tu reporte. Vence en 30 días.';
 function requestShareLink(){
-  return (state.sessionSaved || Promise.resolve()).then(()=>
-    fetch(`${SUPABASE_URL}/functions/v1/send-report`, {
-      method:'POST',
-      headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY},
-      body:JSON.stringify({session_id:SESSION_ID, share:true}),
-    })
-  ).then(r=>r.json()).then(res=> res && res.ok && res.url ? res.url : null).catch(()=> null);
+  return (state.sessionSaved || Promise.resolve()).then(()=> api('report', {action:'share', session_id:SESSION_ID}))
+    .then(r=> r && r.ok && r.body && r.body.url ? r.body.url : null);
 }
 function setupShare(btn){
   if(!BACKEND_ON) return;
@@ -1301,6 +1279,7 @@ function askEmailCopy(){
       `<label class="opt"><input type="checkbox" name="research"><span>(Opcional) Acepto que mis respuestas, sin mi nombre ni mi contacto, se usen para mejorar Mindi y para estudios sobre la menopausia.</span></label>` +
       `<div class="chips suggestRow"><button type="button" class="chip quiet" data-skip>No, gracias</button></div>`;
     composer.appendChild(form);
+    const captcha = mountTurnstile(tsBox);
     const input = form.elements.email;
     const showErr = (text)=>{
       let err = form.querySelector('.hint.err');
@@ -1308,27 +1287,30 @@ function askEmailCopy(){
       err.textContent = text;
       scrollBottom();
     };
-    const finish = (email)=>{
+    const finish = (email, turnstile)=>{
       const news = !!email && form.elements.news.checked;
       const research = form.elements.research.checked;
+      captcha.remove();
       addBubble(email || 'No, gracias', 'user');
       clearComposer();
       advance();
       state.contact = email || null;
       track('lead', {captured: !!email, news, research});
-      if(research) saveResearchConsent();
+      if(email || research) sendLead({email, news, research, turnstile});
       if(email){
-        saveLead(news).then(requestReport);
         botSay(['Listo, te llegará en unos minutos.']).then(askSatisfaction);
       } else {
         askSatisfaction();
       }
     };
-    form.onsubmit = (e)=>{
+    form.onsubmit = async (e)=>{
       e.preventDefault();
       const v = input.value.trim();
       if(!validEmail(v)) return showErr(v ? 'Revisa el correo, o elige "No, gracias".' : 'Escribe tu correo, o elige "No, gracias".');
-      finish(v);
+      const btn = form.querySelector('.sendBtn');
+      btn.disabled = true;
+      const token = await captcha.token(); // casi siempre ya está listo: Turnstile corre al aparecer el formulario
+      finish(v, token);
     };
     form.querySelector('[data-skip]').onclick = ()=>{
       if(form.elements.news.checked) return showErr('Para recibir avisos, escribe tu correo.');
@@ -1509,7 +1491,7 @@ if(APP_VIEW){
 if(!APP_VIEW){
   const digits = WHATSAPP_NUMBER.replace(/\D/g, '');
   initLanding({
-    track, sb, backendOn:BACKEND_ON, consentVersion:CONSENT_VERSION, isTest:TEST_MODE, origin:ORIGIN,
+    track, api, mountTurnstile, backendOn:BACKEND_ON, consentVersion:CONSENT_VERSION, isTest:TEST_MODE, origin:ORIGIN,
     chatAvailable:AGENT_ENABLED,
     whatsappHref:whatsappUrl(WHATSAPP_NUMBER, WHATSAPP_TEXT.landing),
     whatsappDisplay: digits.length === 11 && digits.startsWith('51') ? `+51 ${digits.slice(2,5)} ${digits.slice(5,8)} ${digits.slice(8)}` : (digits ? '+' + digits : ''),

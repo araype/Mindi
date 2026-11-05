@@ -7,7 +7,8 @@
 //     Storage (download/<session_id>.pdf). No toca las tablas `leads` ni `reports`.
 //   - con { share: true }, guarda una copia sin nombre ni contacto en `report_shares` (SQL 018) y
 //     devuelve el enlace /reporte?t=<token>, que vence a los 30 días ("Compartir con mi médico").
-//   - sin download_only, envía una copia por correo, vía Resend, al contacto guardado en `leads`
+//   - sin download_only, envía por correo (Resend) un resumen breve y el enlace a /reporte (30 días)
+//     al contacto guardado en `leads` (cifrado desde la Fase 4: ver decryptContact)
 //     (solo si dejó su correo). Ya no se envía por WhatsApp: los enlaces que ya se enviaron por
 //     ese canal (tabla `reports`, channel 'link') siguen abriendo en reporte.html.
 //
@@ -25,7 +26,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
 import { PDFDocument, StandardFonts, rgb } from 'https://esm.sh/pdf-lib@1.17.1';
 import fontkit from 'https://esm.sh/@pdf-lib/fontkit@1.1.1';
-import { encodeBase64 } from 'https://deno.land/std@0.224.0/encoding/base64.ts';
+import { decodeBase64 } from 'https://deno.land/std@0.224.0/encoding/base64.ts';
 // Puntaje MRS, cortes de la Guía HNHU y textos del resultado: el mismo módulo que usa el chat.
 import {
   levelMessage, AREAS as MRS_AREAS, areaStatus, AREA_TAG, CUTS, CUTS_SOURCE,
@@ -38,6 +39,13 @@ import { selfCareItems as sharedSelfCareItems, SELF_CARE_SOURCE } from '../_shar
 import { whyNotes, WHY_TITLE } from '../_shared/notas.js';
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') ?? '';
+/* Fase 4: solo el servidor de la web (/api, en Vercel) llama a esta función, con este secreto en la
+   cabecera x-mindi-secret. Configurar el mismo valor aquí (supabase secrets set) y en Vercel. */
+const SEND_REPORT_SECRET = Deno.env.get('SEND_REPORT_SECRET') ?? '';
+/* Clave del correo cifrado en `leads` (AES-256-GCM, la misma LEADS_ENC_KEY de Vercel). */
+const LEADS_ENC_KEY = Deno.env.get('LEADS_ENC_KEY') ?? '';
+/* El enlace a /reporte del correo y de "Compartir con mi médico" vence a los 30 días (SQL 019). */
+const LINK_DAYS = 30;
 const RESEND_FROM = Deno.env.get('RESEND_FROM') ?? 'Mindi <onboarding@resend.dev>';
 const SITE_URL = (Deno.env.get('SITE_URL') ?? 'http://localhost:5173').replace(/\/$/, '');
 
@@ -317,6 +325,35 @@ function buildFragment(session: Record<string, any>, lead: Record<string, any>, 
     ${opts.shared ? '' : footer()}`;
 }
 
+/** Correo cifrado por /api/lead ("v1:<iv>:<cifrado+tag>", base64) → texto. Las filas anteriores
+ *  a la Fase 4 no están cifradas y se devuelven tal cual. */
+async function decryptContact(value: string): Promise<string> {
+  if (!String(value).startsWith('v1:')) return value;
+  if (!LEADS_ENC_KEY) throw new Error('LEADS_ENC_KEY no configurada');
+  const [, iv, ct] = String(value).split(':');
+  const key = await crypto.subtle.importKey('raw', decodeBase64(LEADS_ENC_KEY), 'AES-GCM', false, ['decrypt']);
+  const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: decodeBase64(iv) }, key, decodeBase64(ct));
+  return new TextDecoder().decode(plain);
+}
+
+/** Correo breve (decisión de la Fase 0, handoff 11.6): un resumen corto y el enlace al reporte, sin el
+ *  detalle clínico ni el PDF adjunto. El reporte completo se ve en /reporte con el token. */
+function shortEmail(session: Record<string, any>, lead: Record<string, any>, url: string) {
+  const name = lead.name ? esc(lead.name) : '';
+  const lvl = levelMessage(sessionScores(session));
+  const emergency = session.level === 'alert' && (session.red_flags || []).includes('rf2');
+  const until = new Date(Date.now() + LINK_DAYS * 864e5).toLocaleDateString('es-PE', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'America/Lima' });
+  return `
+    <p style="margin:0 0 12px;">${name ? `Hola, ${name}.` : 'Hola.'} Tu reporte de Mindi está listo.</p>
+    ${emergency ? `<div style="background:${C.testBg};border:1.5px solid ${C.plum};border-left-width:5px;color:${C.plum};padding:14px 16px;border-radius:12px;font-weight:600;margin:16px 0;">${EMERGENCY_NOW}</div>` : ''}
+    <h1 style="font-family:${FONT_DISPLAY};font-weight:700;color:${C.plum};font-size:24px;line-height:1.15;margin:8px 0 10px;">${lvl.title}</h1>
+    ${doctorRecoHtml(session.level)}
+    <p style="margin:20px 0;"><a href="${url}" style="display:inline-block;background:${C.magentaBtn};color:#fff;font-family:${FONT_DISPLAY};font-weight:700;font-size:19px;text-decoration:none;padding:14px 26px;border-radius:40px;">Ver mi reporte</a></p>
+    <p style="color:${C.plumSoft};font-size:13px;">Ábrelo para verlo completo o compartirlo con tu médico. El enlace vence el ${until}.</p>
+    <p style="color:${C.plumSoft};font-size:13px;margin-top:16px;">Esto es solo orientación informativa. Solo un profesional de salud puede evaluarte con exámenes clínicos.</p>
+    ${footer()}`;
+}
+
 function footer() {
   return `<hr style="margin:28px 0;border:none;border-top:1px solid ${C.lineSoft};">
   <p style="font-size:12px;color:${C.plumSoft};">Recibiste esto porque dejaste tu contacto en Mindi. Tú decidiste qué compartir.</p>`;
@@ -588,6 +625,7 @@ async function buildPdf(session: Record<string, any>, lead: Record<string, any>)
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
+  if (SEND_REPORT_SECRET && req.headers.get('x-mindi-secret') !== SEND_REPORT_SECRET) return json({ error: 'unauthorized' }, 401);
   if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405);
 
   let session_id: string | undefined;
@@ -674,7 +712,9 @@ Deno.serve(async (req) => {
 
   // El reporte ya no se envía por WhatsApp: el contacto tiene que ser un correo. Los enlaces
   // de WhatsApp que ya se enviaron siguen abriendo (ver `existing` arriba y reporte.html).
-  const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(lead.contact);
+  let to: string;
+  try { to = await decryptContact(lead.contact); } catch (e) { console.error('No se pudo descifrar el contacto'); return json({ error: 'contacto' }, 500); }
+  const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(to);
   if (!isEmail) return json({ error: 'El reporte solo se envía por correo' }, 400);
   const fragment = buildFragment(session, lead);
   const channel = 'email';
@@ -686,24 +726,15 @@ Deno.serve(async (req) => {
     .single();
   if (rErr) return json({ error: rErr.message }, 500);
 
-  // El PDF es un extra: si por lo que sea falla al armarse, el correo sale igual, sin adjunto.
-  let pdfBytes: Uint8Array | undefined;
-  try {
-    pdfBytes = await buildPdf(session, lead);
-  } catch (e) {
-    console.error('No se pudo generar el PDF:', e);
-  }
-
   if (!RESEND_API_KEY) return json({ error: 'RESEND_API_KEY no configurada' }, 500);
-  const attachments = pdfBytes ? [{ filename: 'reporte-mindi.pdf', content: encodeBase64(pdfBytes) }] : undefined;
+  const reportUrl = `${SITE_URL}/reporte?t=${report.token}`;
 
   const r = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { Authorization: `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      from: RESEND_FROM, to: lead.contact, subject: 'Tu reporte de Mindi',
-      html: wrapForEmail(fragment, !!attachments),
-      ...(attachments ? { attachments } : {}),
+      from: RESEND_FROM, to, subject: 'Tu reporte de Mindi',
+      html: wrapForEmail(shortEmail(session, lead, reportUrl), false),
     }),
   });
   if (!r.ok) {

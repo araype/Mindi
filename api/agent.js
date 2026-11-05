@@ -4,10 +4,13 @@
 // La URL del agente va en AGENT_URL (variable del servidor, sin prefijo VITE_: no llega al navegador).
 
 import { validSession, cleanResultado, cleanText, callAgent } from './_lib/agente.js';
+import { route, readJson, send, clientIp } from './_lib/http.js';
+import { limit, LIMITS } from './_lib/limite.js';
 
-export default async function handler(req, res) {
-  if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
-  const body = typeof req.body === 'string' ? safeJson(req.body) : (req.body || {});
+// Límite de mensajes por minuto por persona (11.5) y solo desde el propio sitio (ALLOWED_ORIGINS).
+export default route(async (req, res) => {
+  if (!(await limit('agent', clientIp(req), ...LIMITS.agent)).ok) return send(res, 429, { error: 'rate_limited' });
+  const body = readJson(req);
   const { action, session } = body;
   if (!validSession(session)) return res.status(400).json({ error: 'bad_session' });
 
@@ -31,8 +34,4 @@ export default async function handler(req, res) {
     const code = e.message === 'session_lost' ? 410 : e.message === 'agent_not_configured' ? 503 : 502;
     return res.status(code).json({ error: e.message });
   }
-}
-
-function safeJson(s) {
-  try { return JSON.parse(s); } catch { return {}; }
-}
+});

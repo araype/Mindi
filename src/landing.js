@@ -1,7 +1,9 @@
 // Mindi · Interacciones de la landing (handoff, secciones 2 y 6). Las llama src/main.js con sus
 // propias funciones de medición y guardado, para no duplicarlas.
 //   track(nombre, props): evento de analítica. Solo el nombre de la acción (handoff 11.8).
-//   sb(tabla, fila): inserción en Supabase (solo INSERT). Devuelve una promesa de true/false.
+//   api(ruta, cuerpo): POST a /api/<ruta> (el servidor valida y guarda). → { ok, status, body } o null.
+//   mountTurnstile(contenedor): captcha invisible de Cloudflare (src/turnstile.js). No se importa
+//     aquí porque api/waitlist.js reutiliza waitlistRow en el servidor.
 
 /** Formularios de lista de espera (handoff 2.1 y 2.6). Los nombres de campo son las columnas de
  *  interest_signups (SQL 017). `contact` es siempre el correo. */
@@ -26,8 +28,8 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 /** Valida y limpia los datos de un formulario de lista de espera. Devuelve { row } o { error }. */
 export function waitlistRow(list, values) {
-  const cfg = WAITLISTS[list];
-  if (!cfg) return { error: 'Lista desconocida.' };
+  const cfg = typeof list === 'string' && Object.hasOwn(WAITLISTS, list) ? WAITLISTS[list] : null;
+  if (!cfg || !values || typeof values !== 'object') return { error: 'Lista desconocida.' };
   const row = { segment: list };
   for (const f of cfg.fields) {
     const v = String(values[f] ?? '').trim();
@@ -45,7 +47,7 @@ export function waitlistRow(list, values) {
 /** Rutas de la landing que abren una lista de espera (vercel.json las reescribe a index.html). */
 export const WAITLIST_ROUTES = { '/empresas': 'empresas', '/especialistas': 'especialistas' };
 
-export function initLanding({ track, sb, backendOn, consentVersion, isTest, origin, chatAvailable, whatsappHref, whatsappDisplay }) {
+export function initLanding({ track, api, mountTurnstile, backendOn, consentVersion, isTest, origin, chatAvailable, whatsappHref, whatsappDisplay }) {
   const $ = (id) => document.getElementById(id);
   const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   document.documentElement.classList.add('js');
@@ -318,30 +320,34 @@ export function initLanding({ track, sb, backendOn, consentVersion, isTest, orig
       <h2 id="waitlistTitle">${cfg.title}</h2><p class="m-text-s">${cfg.lead}</p>
       ${inputs}
       <label class="m-check"><input type="checkbox" name="consent"><span>Acepto la <a href="/privacidad" target="_blank" rel="noopener">Política de privacidad</a>. Usaremos estos datos solo para contactarte sobre Mindi.</span></label>
+      <div class="l-ts"></div>
       <p class="l-err" role="alert" hidden></p>
       <button class="m-btn" type="submit">${cfg.submit || WAITLIST_SUBMIT}</button>
     </form>`;
     const form = dialog.querySelector('form');
+    const captcha = mountTurnstile ? mountTurnstile(form.querySelector('.l-ts')) : { token: async () => '', remove() {}, reset() {} };
     dialog.querySelector('.l-dialog-x').addEventListener('click', () => dialog.close());
-    form.addEventListener('submit', (e) => {
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const values = Object.fromEntries(cfg.fields.map((f) => [f, form.elements[f].value]));
       values.consent = form.elements.consent.checked;
-      const { row, error } = waitlistRow(list, values);
+      const { error } = waitlistRow(list, values); // la misma validación corre en el servidor
       const err = form.querySelector('.l-err');
       if (error) { err.textContent = error; err.hidden = false; return; }
       err.hidden = true;
       form.querySelector('[type=submit]').disabled = true;
-      const full = { ...row, consent: true, consent_text_version: consentVersion, is_test: isTest };
-      if (origin) full.origin = origin;
-      sb('interest_signups', full).then((ok) => {
+      const turnstile = await captcha.token();
+      api('waitlist', { list, values: { ...values, consent: true }, consent_text_version: consentVersion, is_test: isTest, origin: origin || undefined, turnstile }).then((r) => {
+        const ok = !!(r && r.ok);
         const saved = ok || !backendOn; // sin backend (prototipo local) no hay dónde guardar
         track('waitlist_join', { list, captured: !!ok });
         if (!saved) { // se queda el formulario lleno para reintentar
           err.textContent = WAITLIST_ERROR; err.hidden = false;
           form.querySelector('[type=submit]').disabled = false;
+          captcha.reset();
           return;
         }
+        captcha.remove();
         form.innerHTML = `<button class="l-dialog-x" type="button" aria-label="Cerrar">×</button><h2 id="waitlistTitle">${cfg.title}</h2><p class="l-ok">${cfg.done || WAITLIST_DONE}</p>`;
         form.querySelector('.l-dialog-x').addEventListener('click', () => dialog.close());
       });

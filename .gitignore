@@ -1,7 +1,7 @@
 node_modules
 dist
-.env
-.env.local
+.env*
+!.env.example
 uploads/
 .thumbnail/
 
@@ -21,3 +21,13 @@ docs/capturas-produccion/
 docs/*.txt
 *pastedcontent*.txt
 /*-this-session-is-being-continued-*.txt
+
+# Credenciales: nunca al repo (cuenta de servicio de Google, llaves, certificados)
+*.pem
+*.key
+*.p12
+*service-account*.json
+*-sa-key*.json
+gcp-*.json
+credentials*.json
+*.tfvars

@@ -251,3 +251,5 @@ body.no-scroll{overflow:hidden}
   .typing span{animation:none;opacity:.7}
   .meter span,.progress-fill{transition:none}
 }
+.ts-box{flex:none;padding:0 16px;background:var(--test-bg)}
+.ts-box:empty{display:none}

@@ -8,6 +8,8 @@
 // No se guarda ninguna conversación en Mindi: el agente la mantiene en memoria mientras dura.
 // (Carpeta _lib: Vercel no la publica como ruta.)
 
+import { agentAuthorization } from './gcp.js';
+
 export const APP_NAME = 'mindi_agent';
 /* Herramienta con la que el agente recomienda el test (handoff 10.5.1). Responde
    { mostrar_boton: true | false }: la herramienta aplica las reglas (máximo dos veces, nunca si ya
@@ -73,14 +75,17 @@ export function extractReply(events) {
 }
 
 /** Llama al agente. fetchImpl permite probarlo sin red. Lanza Error('agent_unavailable') si falla. */
-export async function callAgent({ agentUrl, action, session, resultado, text }, fetchImpl = fetch, timeoutMs = 25000, retryDelayMs = 1000) {
+export async function callAgent({ agentUrl, action, session, resultado, text }, fetchImpl = fetch, timeoutMs = 25000, retryDelayMs = 1000, auth = agentAuthorization) {
   const base = String(agentUrl || '').replace(/\/$/, '');
   if (!base) throw new Error('agent_not_configured');
+  // Cloud Run privado (11.5): ID token de la cuenta de servicio, si GCP_SA_KEY está configurada.
+  let authorization = '';
+  try { authorization = await auth(base, fetchImpl); } catch { throw new Error('agent_unavailable'); }
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   const once = (path, body) => fetchImpl(`${base}${path}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...(authorization ? { Authorization: authorization } : {}) },
     body: JSON.stringify(body),
     signal: ctrl.signal,
   });

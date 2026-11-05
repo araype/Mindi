@@ -31,6 +31,9 @@ Reglas que más se olvidan:
 
 ## Pendientes
 
+- **Seguridad para publicar (Fase 4):** pasos fuera del código en `docs/fase-4-seguridad.md`;
+  migración a São Paulo en `docs/migracion-sao-paulo.md`; imágenes en alta en `docs/pendientes-post-lanzamiento.md`.
+
 ### Pendiente: limpieza automática a los 2 años (antes de octubre de 2028)
 
 La política de privacidad publicada promete conservar las respuestas del test y el reporte en
@@ -47,10 +50,8 @@ de 2028, cuando se cumplen 2 años de los primeros datos, para cumplir la polít
 
 ### Pendientes del chat con el agente de IA (bloque 5)
 
-- **Cloud Run es público.** El agente (`mindi-agent`, us-central1) acepta llamadas de cualquiera
-  que tenga su URL, sin pasar por la web, y cada una gasta crédito de OpenAI. Pasarlo a privado
-  (solo una cuenta de servicio con `roles/run.invoker`) y que `api/agent.js` llame con esa
-  credencial.
+- **Cloud Run privado.** El código ya manda el ID token (`api/_lib/gcp.js`, variable `GCP_SA_KEY`);
+  falta configurarlo en Google Cloud (docs/fase-4-seguridad.md, paso C.7).
 - **Clics de WhatsApp desde el chat del agente.** Se registran como `whatsapp_click {origen:
   "agente"}` (el botón solo aparece si el agente falla o no responde a tiempo), pero la tarjeta
   "Clics en WhatsApp" del panel todavía no los cuenta: falta un SQL que agregue

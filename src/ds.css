@@ -1,5 +1,6 @@
 /* Mindi · Sistema de diseño para el sitio (lo importan las páginas desde su JS).
-   Las fuentes se cargan con <link> en cada HTML (ver FONTS_HREF en docs/sistema-diseno.md). */
+   Las fuentes van alojadas en el sitio (tokens/fonts-local.css → public/fonts/), sin Google Fonts. */
+@import '../tokens/fonts-local.css';
 @import '../tokens/colors.css';
 @import '../tokens/typography.css';
 @import '../tokens/spacing.css';

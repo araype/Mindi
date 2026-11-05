@@ -11,25 +11,21 @@ Los valores viven en `tokens/` y son la única fuente para todo el sitio.
 | `tokens/typography.css` | Familias, escala de escritorio y de móvil (≤ 760 px), interlineados |
 | `tokens/spacing.css` | Espacios, margen lateral (`--gutter`, 16 px), contenedores, área táctil (44 px) |
 | `tokens/radius.css`, `tokens/shadow.css`, `tokens/motion.css` | Radios, sombras y movimiento (incluye `prefers-reduced-motion`) |
+| `tokens/fonts-local.css` | `@font-face` de las fuentes alojadas en el sitio (`public/fonts/`) |
 | `tokens/fonts.css` | `@import` de Google Fonts, solo para el paquete de diseño |
 | `base.css` | Reglas mínimas comunes (cuerpo, títulos, enlaces, foco) |
 | `components.css` | Componentes base con prefijo `m-` |
-| `src/ds.css` | Entrada del sitio: tokens + base + componentes (sin fuentes) |
+| `src/ds.css` | Entrada del sitio: fuentes locales + tokens + base + componentes |
 | `styles.css` | Entrada del paquete de diseño (`guidelines/`, `components/`, `ui_kits/`) |
 | `sistema.html` | Muestrario de componentes, solo en `npm run dev` (no se publica) |
 | `guidelines/`, `components/`, `ui_kits/web/` | Paquete de referencia para Claude Design; se arma con `npm run build:ds` (ver README) |
 
-## Fuentes en cada página
+## Fuentes
 
-En el `<head>` de cada HTML del sitio:
-
-```html
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Special+Gothic:wght@700&family=Signika:wght@400;600&family=Space+Mono&family=DM+Mono:wght@300&display=swap">
-```
-
-Y en su JS: `import './ds.css';`
+Alojadas en el sitio, sin Google Fonts (handoff 4, Fase 4): los WOFF2 están en `public/fonts/` y sus
+`@font-face` en `tokens/fonts-local.css`, que importa `src/ds.css` (y `src/panel.css`). Se regeneran con
+`node scripts/fuentes.mjs`. `tokens/fonts.css` (Google Fonts) queda solo para el paquete de diseño.
+El PDF usa los TTF de `public/fonts/pdf/`. En cada JS de página: `import './ds.css';`
 
 ## Componentes
 

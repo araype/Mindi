@@ -1,0 +1,15 @@
+#!/bin/sh
+# Mindi · Antes de cada commit, gitleaks revisa lo que vas a subir y lo bloquea si trae una clave
+# (handoff 11.7: los repos son públicos). Se activa con: git config core.hooksPath .githooks
+# (npm install lo hace solo, con scripts/hooks.mjs).
+if ! command -v gitleaks >/dev/null 2>&1; then
+  echo "pre-commit: falta gitleaks. Instálalo y vuelve a intentar:"
+  echo "  Windows: winget install gitleaks   ·   Mac: brew install gitleaks"
+  exit 1
+fi
+if ! gitleaks git --pre-commit --staged --redact --no-banner; then
+  echo ""
+  echo "pre-commit: gitleaks encontró algo que parece una clave. Sácala del commit (y si ya se subió"
+  echo "alguna vez, rótala). Si es un falso positivo, agrégalo a .gitleaksignore con su huella."
+  exit 1
+fi
