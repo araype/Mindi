@@ -34,6 +34,9 @@ test('rutas cortas: vercel.json reescribe /test, /chat, /empresas y /especialist
   assert.equal(v.cleanUrls, true); // /terminos y /privacidad
   const sources = v.rewrites.map((r) => r.source);
   for (const p of ['/test', '/chat', ...Object.keys(WAITLIST_ROUTES)]) assert.ok(sources.includes(p), p);
+  // Con cleanUrls, Vercel no sirve /index.html (lo redirige a /): un rewrite a "/index.html" da 404.
+  for (const r of v.rewrites) assert.ok(!/\.html$/.test(r.destination), `${r.source} → ${r.destination}`);
+  // Lo de arriba no prueba el despliegue real: para eso, npm run check:rutas -- <URL> (scripts/rutas.mjs).
 });
 
 test('lenguaje genérico para profesionales de la salud (punto 8): sin formas en femenino ni "(a)"', async () => {

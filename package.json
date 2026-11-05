@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "test": "node --test \"tests/**/*.test.js\"",
     "build:ds": "node scripts/build-ds.mjs",
-    "prepare": "node scripts/hooks.mjs"
+    "prepare": "node scripts/hooks.mjs",
+    "check:rutas": "node scripts/rutas.mjs"
   },
   "devDependencies": {
     "vite": "^6.0.0"

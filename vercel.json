@@ -1,10 +1,10 @@
 {
   "cleanUrls": true,
   "rewrites": [
-    { "source": "/test", "destination": "/index.html" },
-    { "source": "/chat", "destination": "/index.html" },
-    { "source": "/empresas", "destination": "/index.html" },
-    { "source": "/especialistas", "destination": "/index.html" }
+    { "source": "/test", "destination": "/" },
+    { "source": "/chat", "destination": "/" },
+    { "source": "/empresas", "destination": "/" },
+    { "source": "/especialistas", "destination": "/" }
   ],
   "functions": {
     "api/agent.js": { "maxDuration": 30 },
