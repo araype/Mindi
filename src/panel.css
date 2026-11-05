@@ -373,3 +373,15 @@ h1 {
   .f-row { grid-template-columns: 1fr 48px 78px; row-gap: 4px; }
   .f-label { grid-column: 1 / -1; }
 }
+
+/* Temas del chat: barras simples por mes */
+.temas{display:grid;gap:22px}
+.temas-mes h3{font-size:15px;margin:0 0 8px}
+.temas-mes h3 .tile-sub{font-weight:400;margin-left:6px}
+.tema-row{display:grid;grid-template-columns:150px 1fr 48px;align-items:center;gap:10px;padding:3px 0;font-size:14px}
+.tema-track{height:12px;border-radius:6px;background:var(--border, #F3CFE4);overflow:hidden}
+.tema-bar{display:block;height:100%;border-radius:6px;background:var(--action, #C0128C)}
+.tema-n{text-align:right;font-variant-numeric:tabular-nums}
+@media (max-width:560px){.tema-row{grid-template-columns:110px 1fr 40px;font-size:13px}}
+/* Listas: botones de exportación */
+.export-grid{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}

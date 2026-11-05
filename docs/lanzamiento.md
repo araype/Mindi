@@ -1,21 +1,44 @@
 # Día del lanzamiento (cierra el hallazgo 2)
 
-Se lanza con el chat con IA **apagado** en Production (`VITE_AGENT_CHAT_ENABLED` sin definir): los
-botones "Pregúntale a Mindi" van a WhatsApp, el resultado ofrece "Tengo una duda sobre mi resultado"
-(WhatsApp) y `/chat` abre el test. Se enciende después de probar el chat (paso h).
+Se lanza **con el chat con IA encendido** si las evaluaciones del agente quedan aprobadas (paso 0b).
+Si no, se lanza con el chat apagado (sin `VITE_AGENT_CHAT_ENABLED` en Production): los botones
+"Pregúntale a Mindi" van a WhatsApp y `/chat` abre el test; se enciende después (paso h).
 
 Cada paso dice cómo comprobarlo. Si una comprobación falla, para y no sigas.
 
 ## 0. Antes de empezar (el mismo día)
 
-- [ ] SQL 018, 019 y 020 corridos (SQL Editor). Comprobar: `select jobname from cron.job;` muestra `mindi-limpieza`.
+- [ ] SQL 018, 019, 020, 021 y 022 corridos (SQL Editor). Comprobar: `select jobname from cron.job;` muestra `mindi-limpieza`.
+- [ ] Contactos antiguos cifrados (`docs/cifrado-contactos.md`); se repite después del lanzamiento.
 - [ ] Vista previa probada: test completo, PDF, compartir, correo (llega y se abre), listas de espera.
 - [ ] **`ALLOWED_ORIGINS` de Production incluye `https://mindi-beta.vercel.app`** (el sitio nuevo se
       publica primero ahí). Si no, todas las rutas `/api` responden 403. Valor recomendado para hoy:
       `https://mindi-beta.vercel.app,https://mindifem.com,https://www.mindifem.com`
 - [ ] En Turnstile (Cloudflare → Turnstile → el sitio → Hostnames): `mindi-beta.vercel.app`, `mindifem.com`,
       `www.mindifem.com` y `mindi-rediseno.vercel.app`.
-- [ ] Production **no** tiene `VITE_AGENT_CHAT_ENABLED` (o la tiene en `false`), y `VITE_TEST_MODE=false`.
+- [ ] `VITE_TEST_MODE=false` en Production.
+- [ ] **Con el chat encendido:** `VITE_AGENT_CHAT_ENABLED=true` en Production (Vercel → Environment
+      Variables; se lee al construir, así que entra con el despliegue del paso a). `VITE_CHAT_RESEARCH_ENABLED`
+      y `CHAT_RESEARCH_ENABLED` quedan **sin definir** hasta aprobar la política del nivel 2.
+
+## 0b. Agente: fusionar y desplegar (antes del paso a, solo con las evaluaciones aprobadas)
+
+En Mindi_agents, fusionar `feat/recomendar-test` y `chore/seguridad-repo` en `master` y desplegar
+**manteniendo el servicio privado**:
+
+```bash
+git switch master && git merge --no-ff feat/recomendar-test && git merge --no-ff chore/seguridad-repo
+python -m unittest discover -s tests          # deben pasar todos
+adk deploy cloud_run --project=beefocus-476502 --region=us-central1 --service_name=mindi-agent \
+  --session_service_uri=memory:// --artifact_service_uri=memory:// ./mindi_agent \
+  -- --set-secrets=OPENAI_API_KEY=OPENAI_API_KEY:latest --max-instances=1 --no-allow-unauthenticated
+```
+
+Comprobar:
+- `gcloud run services get-iam-policy mindi-agent --region=us-central1 --project=beefocus-476502` muestra
+  solo `mindi-web` (sin `allUsers`).
+- Llamado directo a `https://mindi-agent-647713663993.us-central1.run.app/list-apps`: **403**.
+- En la vista previa, `/chat` responde, recomienda el test cuando corresponde y `/chat?tema=peso` saluda sobre el peso.
 
 ## a) Publicar el sitio nuevo en producción
 
@@ -26,7 +49,8 @@ npm run check:rutas -- https://mindi-beta.vercel.app
 ```
 
 Comprobar a mano en `https://mindi-beta.vercel.app`: la portada, `/test` completo hasta el PDF, una lista
-de espera, que "Pregúntale a Mindi" abra WhatsApp. En el panel (`/panel`), que carguen los números.
+de espera, y "Pregúntale a Mindi" (con el chat encendido abre `/chat` y responde; apagado, WhatsApp). En el
+panel (`/panel`): que carguen los números, la pestaña "Temas del chat" y una exportación en "Listas".
 
 **Justo después**, desplegar las funciones nuevas (no antes: el sitio anterior las llamaba desde el
 navegador y leía `?t=`; las nuevas no tienen CORS y mandan los enlaces con `#t=`):
@@ -34,6 +58,7 @@ navegador y leía `?t=`; las nuevas no tienen CORS y mandan los enlaces con `#t=
 ```bash
 npx supabase functions deploy send-report --use-api
 npx supabase functions deploy funnel-stats --use-api
+npx supabase functions deploy export-lists --use-api
 ```
 
 Comprobar: pedir la copia del reporte por correo en el sitio publicado; el enlace del correo abre `/reporte`.
@@ -102,5 +127,7 @@ siguiente despliegue sale sin ellas. Comprobar: `npm run check:rutas -- https://
 
 - Correo desde el dominio: Resend → Domains → `mindifem.com` (SPF, DKIM y DMARC en Cloudflare) y luego
   `RESEND_FROM` con `@mindifem.com` (paso C.9 de `docs/fase-4-seguridad.md`).
-- **h) Encender el chat con IA** cuando esté probado con créditos: `VITE_AGENT_CHAT_ENABLED=true` en
+- **h) Encender el chat con IA** (solo si se lanzó apagado): `VITE_AGENT_CHAT_ENABLED=true` en
   Production y `npx vercel deploy --prod`. Comprobar `/chat` y "Pregúntale a Mindi sobre tu resultado".
+- **Nivel 2 (preguntas compartidas)**, cuando apruebes la política: `VITE_CHAT_RESEARCH_ENABLED=true` y
+  `CHAT_RESEARCH_ENABLED=true` en Production, y `npx vercel deploy --prod`.

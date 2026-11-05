@@ -47,6 +47,8 @@
     <div class="tabs" role="tablist" aria-label="Vista">
       <button type="button" role="tab" id="tabBtnChat" aria-controls="tabChat" data-tab="chat">Chat</button>
       <button type="button" role="tab" id="tabBtnEventos" aria-controls="tabEventos" data-tab="eventos">Conversatorio</button>
+      <button type="button" role="tab" id="tabBtnTemas" aria-controls="tabTemas" data-tab="temas">Temas del chat</button>
+      <button type="button" role="tab" id="tabBtnListas" aria-controls="tabListas" data-tab="listas">Listas</button>
     </div>
 
     <section class="filters" aria-label="Filtros">
@@ -143,6 +145,37 @@
           <p class="split-empty" id="eListaEmpty" hidden>Nadie se ha inscrito en este periodo.</p>
         </section>
       </div>
+    </div>
+
+    <!-- Temas del chat (nivel 1): solo cuentas por tema y mes, sin texto ni sesiones -->
+    <div id="tabTemas" class="tab-panel" role="tabpanel" aria-labelledby="tabBtnTemas" hidden>
+      <p class="status" id="temasMissing" hidden>Corre <code>supabase/022_chat_temas.sql</code> en Supabase para ver esta pestaña.</p>
+      <section class="block" id="temasBody">
+        <h2>Temas por mes</h2>
+        <p class="block-note">De qué tratan las preguntas al chat con IA. Son solo cuentas por tema: no se guarda el texto de las preguntas ni quién preguntó.</p>
+        <div id="temasChart" class="temas"></div>
+        <p class="split-empty" id="temasEmpty" hidden>Todavía no hay preguntas en este periodo.</p>
+      </section>
+    </div>
+
+    <!-- Listas: exportación descifrada (export-lists) -->
+    <div id="tabListas" class="tab-panel" role="tabpanel" aria-labelledby="tabBtnListas" hidden>
+      <section class="block">
+        <h2>Exportar listas</h2>
+        <p class="block-note">Descarga un CSV con los contactos descifrados. Tiene datos personales: guárdalo solo el tiempo necesario y no lo reenvíes. Respeta el filtro "Incluir pruebas".</p>
+        <div class="export-grid" id="exportGrid">
+          <button type="button" class="btn quiet" data-list="plus">Mindi Plus</button>
+          <button type="button" class="btn quiet" data-list="consultas">Consultas</button>
+          <button type="button" class="btn quiet" data-list="especialistas">Especialistas</button>
+          <button type="button" class="btn quiet" data-list="empresas">Demo Enterprise</button>
+          <button type="button" class="btn quiet" data-list="interes">Interés (menores de 40)</button>
+          <button type="button" class="btn quiet" data-list="conversatorios">Conversatorios</button>
+          <button type="button" class="btn quiet" data-list="avisos">Avisos</button>
+          <button type="button" class="btn quiet" data-list="preguntas" data-research hidden>Preguntas del chat</button>
+        </div>
+        <p class="block-note">"Avisos" son quienes marcaron "Avisos de Mindi" al pedir la copia de su reporte: es una lista aparte de las listas de espera.</p>
+        <p class="status" id="exportStatus" aria-live="polite" hidden></p>
+      </section>
     </div>
   </div>
 

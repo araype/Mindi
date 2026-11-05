@@ -56,7 +56,7 @@ Deno.serve(async (req) => {
     const body = await req.json();
     if (typeof body.since === 'string' && !Number.isNaN(Date.parse(body.since))) since = new Date(body.since).toISOString();
     includeTest = body.include_test === true;
-    if (body.view === 'eventos') panelView = 'eventos';
+    if (body.view === 'eventos' || body.view === 'temas') panelView = body.view;
     if (typeof body.origin === 'string' && /^[a-z0-9_-]{1,30}$/.test(body.origin)) origin = body.origin;
   } catch {
     // cuerpo vacío: sin filtros
@@ -65,6 +65,13 @@ Deno.serve(async (req) => {
   const generated_at = new Date().toISOString();
   // p_origin solo se manda si hay filtro: así sigue funcionando aunque 012 no se haya corrido.
   const args = { p_since: since, p_include_test: includeTest, ...(origin ? { p_origin: origin } : {}) };
+
+  // Pestaña "Temas del chat": cuentas por mes y tema (supabase/022_chat_temas.sql). Sin texto ni sesiones.
+  if (panelView === 'temas') {
+    const { data, error } = await supabase.rpc('chat_topics_stats', { p_since: since, p_include_test: includeTest });
+    if (error) return json({ ok: true, temas: null, missing: '022_chat_temas.sql', generated_at });
+    return json({ ok: true, temas: data ?? [], generated_at });
+  }
 
   // Pestaña "Conversatorio": función event_stats (supabase/011_event_stats.sql).
   if (panelView === 'eventos') {

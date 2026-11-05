@@ -56,11 +56,14 @@ function syncFilterUI(enabled){
 }
 
 /* ---------- Pestañas: el chat y el conversatorio se leen por separado ---------- */
+const TABS = ['chat', 'eventos', 'temas', 'listas'];
+const TAB_HASH = {eventos:'#conversatorio', temas:'#temas', listas:'#listas'};
 let tab = (()=>{
-  if(location.hash === '#conversatorio') return 'eventos';
-  try { return localStorage.getItem(TAB_STORE) === 'eventos' ? 'eventos' : 'chat'; } catch { return 'chat'; }
+  const fromHash = Object.keys(TAB_HASH).find((t)=> TAB_HASH[t] === location.hash);
+  if(fromHash) return fromHash;
+  try { const t = localStorage.getItem(TAB_STORE); return TABS.includes(t) ? t : 'chat'; } catch { return 'chat'; }
 })();
-const TAB_TITLE = {chat:'Embudo de conversación', eventos:'Conversatorio'};
+const TAB_TITLE = {chat:'Embudo de conversación', eventos:'Conversatorio', temas:'Temas del chat', listas:'Listas'};
 function syncTabs(){
   document.querySelectorAll('.tabs [role="tab"]').forEach((b)=>{
     const on = b.dataset.tab === tab;
@@ -69,13 +72,15 @@ function syncTabs(){
   });
   $('tabChat').hidden = tab !== 'chat';
   $('tabEventos').hidden = tab !== 'eventos';
+  $('tabTemas').hidden = tab !== 'temas';
+  $('tabListas').hidden = tab !== 'listas';
   $('pageTitle').textContent = TAB_TITLE[tab];
 }
 function pickTab(t){
   if(t === tab) return;
   tab = t;
   try { localStorage.setItem(TAB_STORE, t); } catch {}
-  history.replaceState(null, '', t === 'eventos' ? '#conversatorio' : location.pathname);
+  history.replaceState(null, '', TAB_HASH[t] || location.pathname);
   syncTabs(); load();
 }
 
@@ -94,6 +99,8 @@ async function load(){
   const key = getKey();
   if(!key){ showStatus(''); showGate(); return; }
 
+  // Listas: no se piden números; la clave se revisa al exportar.
+  if(tab === 'listas'){ gate.hidden = true; $('headActions').hidden = false; dash.hidden = false; showStatus(''); syncTabs(); syncFilterUI(true); return; }
   const btn = $('refreshBtn');
   btn.disabled = true;
   showStatus(dash.hidden ? 'Cargando…' : '');
@@ -112,7 +119,10 @@ async function load(){
     $('headActions').hidden = false;
     showStatus('');
     syncTabs();
-    if(tab === 'eventos'){
+    if(tab === 'temas'){
+      syncFilterUI(true);
+      renderTemas(res.temas, res.generated_at, res.missing);
+    } else if(tab === 'eventos'){
       syncFilterUI(true);
       renderEventos(res.eventos, res.generated_at, res.missing);
     } else {
@@ -152,6 +162,57 @@ function setMeta(at, filtered){
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
+/* ---------- Temas del chat: barras por mes, de mayor a menor ---------- */
+const TEMA_LABEL = {bochornos:'Bochornos', sueno:'Sueño', animo:'Ánimo', peso:'Peso', vida_intima:'Vida íntima',
+  terapia_hormonal:'Terapia hormonal', remedios_naturales:'Remedios naturales', edad_inicio:'Edad de inicio',
+  duracion:'Duración', trabajo:'Trabajo', otro:'Otro'};
+function renderTemas(rows, at, missing){
+  setMeta(at, true);
+  $('temasMissing').hidden = !missing;
+  $('temasBody').hidden = !!missing;
+  dash.hidden = false;
+  if(missing) return;
+  const byMonth = {};
+  for(const r of rows || []) (byMonth[r.mes] ||= []).push(r);
+  const months = Object.keys(byMonth).sort().reverse();
+  $('temasEmpty').hidden = months.length > 0;
+  $('temasChart').innerHTML = months.map((m)=>{
+    const list = byMonth[m].sort((a, b)=> b.n - a.n);
+    const max = Math.max(...list.map((r)=> Number(r.n)));
+    const total = list.reduce((s, r)=> s + Number(r.n), 0);
+    const raw = new Date(`${m}-01T12:00:00`).toLocaleDateString('es-PE', {month:'long', year:'numeric'});
+    const title = raw.charAt(0).toUpperCase() + raw.slice(1); // Noviembre de 2026
+    return `<div class="temas-mes"><h3>${esc(title)} <span class="tile-sub">${fmt(total)} preguntas</span></h3>` +
+      list.map((r)=> `<div class="tema-row"><span class="tema-name">${esc(TEMA_LABEL[r.tema] || r.tema)}</span>` +
+        `<span class="tema-track"><span class="tema-bar" style="width:${Math.max(2, Math.round(Number(r.n) / max * 100))}%"></span></span>` +
+        `<span class="tema-n">${fmt(r.n)}</span></div>`).join('') + `</div>`;
+  }).join('');
+}
+
+/* ---------- Listas: descarga del CSV descifrado ---------- */
+if(import.meta.env.VITE_CHAT_RESEARCH_ENABLED === 'true') document.querySelectorAll('[data-research]').forEach((b)=>{ b.hidden = false; });
+document.querySelectorAll('#exportGrid [data-list]').forEach((b)=> b.addEventListener('click', async ()=>{
+  const key = getKey();
+  if(!key){ showGate(); return; }
+  const status = $('exportStatus');
+  status.hidden = false; status.textContent = 'Preparando…';
+  b.disabled = true;
+  try {
+    const r = await fetch('/api/export', { method:'POST', headers:{'Content-Type':'application/json', 'x-admin-key':key}, body:JSON.stringify({list:b.dataset.list, include_test:filters.includeTest}) });
+    if(r.status === 401){ setKey(''); status.hidden = true; showGate('Esa clave no coincide con ADMIN_KEY.'); return; }
+    if(!r.ok){ status.textContent = 'No se pudo exportar. Vuelve a intentarlo.'; return; }
+    const url = URL.createObjectURL(await r.blob());
+    const a = Object.assign(document.createElement('a'), {href:url, download:`mindi-${b.dataset.list}.csv`});
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=> URL.revokeObjectURL(url), 10000);
+    status.textContent = `Descargado: mindi-${b.dataset.list}.csv`;
+  } catch {
+    status.textContent = 'Sin conexión. Vuelve a intentarlo.';
+  } finally {
+    b.disabled = false;
+  }
+}));
+
 function renderEventos(e, at, missing){
   setMeta(at, !!e);
   if(missing) $('eventosMissingFile').textContent = 'supabase/' + missing;
@@ -172,8 +233,8 @@ function renderEventos(e, at, missing){
     const fecha = new Date(r.fecha).toLocaleString('es-PE', { timeZone: 'America/Lima', dateStyle: 'medium', timeStyle: 'short' });
     return `<tr>
       <td>${esc(fecha)}</td>
-      <td>${r.nombre ? esc(r.nombre) : '<span class="tile-sub">Sin nombre</span>'}${r.origen ? `<span class="tag-origin">${esc(r.origen)}</span>` : ''}${r.prueba ? '<span class="tag-test">prueba</span>' : ''}</td>
-      <td class="contact">${esc(r.contacto)}</td>
+      <td>${r.nombre && !String(r.nombre).startsWith('v1:') ? esc(r.nombre) : '<span class="tile-sub">Sin nombre</span>'}${r.origen ? `<span class="tag-origin">${esc(r.origen)}</span>` : ''}${r.prueba ? '<span class="tag-test">prueba</span>' : ''}</td>
+      <td class="contact">${String(r.contacto || '').startsWith('v1:') ? '<span class="tile-sub">Cifrado: descárgalo en Listas → Conversatorios</span>' : esc(r.contacto)}</td>
     </tr>`;
   }).join('');
   $('eLista').closest('.table-wrap').hidden = !lista.length;

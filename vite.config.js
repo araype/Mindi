@@ -26,7 +26,7 @@ function devApi(env) {
           setHeader: (k, v) => res.setHeader(k, v),
           status(code) { res.statusCode = code; return shim; },
           json(body) { res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify(body)); return shim; },
-          end: () => res.end(),
+          end: (b) => res.end(b),
         };
         await handler({ method: req.method, url: req.originalUrl || req.url, headers: req.headers, body: raw }, shim);
       });

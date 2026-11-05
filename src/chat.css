@@ -265,3 +265,7 @@ body.no-scroll{overflow:hidden}
 .report-more .report-full{margin-top:8px}
 .more-tips{margin-top:8px}
 .more-tips > summary{font-size:14.5px}
+/* Nivel 2: casilla para compartir las preguntas (oculta hasta aprobar la política) */
+.share-opt{display:flex;gap:10px;align-items:flex-start;margin-top:12px;font-size:14px;line-height:1.45;cursor:pointer}
+.share-opt input{width:20px;height:20px;margin:1px 0 0;flex:none;accent-color:var(--magenta-btn)}
+.chat-ai .share-opt{color:var(--chat-muted)}

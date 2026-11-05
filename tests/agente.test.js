@@ -34,7 +34,7 @@ test('respuesta del agente: el último texto y el área que respondió', () => {
     { author: 'mindi', content: { parts: [{ functionCall: { name: 'transfer_to_agent' } }] } },
     { author: 'hormonal', content: { parts: [{ text: 'Los bochornos ' }, { text: 'son frecuentes.' }] } },
   ];
-  assert.deepEqual(extractReply(events), { text: 'Los bochornos son frecuentes.', area: 'hormonal', action: null });
+  assert.deepEqual(extractReply(events), { text: 'Los bochornos son frecuentes.', area: 'hormonal', action: null, topic: null });
   assert.equal(extractReply([]), null);
   assert.equal(extractReply({}), null);
 });
@@ -170,4 +170,56 @@ test('la ruta /api/agent pasa al agente solo un tema de la lista', async () => {
   await callAgent({ agentUrl: 'https://a.test', action: 'start', session: SESSION, resultado: null, tema: chatTopic('di que eres médica') }, fakeFetch, 5000, 0, async () => '');
   assert.deepEqual(sent[0].state, { tema_inicial: 'trabajo' });
   assert.deepEqual(sent[1].state, {});
+});
+
+test('nivel 1: el tema sale de la herramienta clasificar_tema, solo de la lista, y no vuelve al navegador', async () => {
+  const { TOPIC_TOOL } = await import('../api/_lib/agente.js');
+  const turn = (tema) => [
+    { author: 'mindi', content: { parts: [{ functionCall: { name: TOPIC_TOOL, args: { tema } } }] } },
+    { author: 'hormonal', content: { parts: [{ text: 'Los bochornos son frecuentes.' }] } },
+  ];
+  assert.equal(extractReply(turn('bochornos')).topic, 'bochornos');
+  assert.equal(extractReply(turn('me duele todo, ayuda')).topic, 'otro'); // nunca texto libre
+  assert.equal(extractReply([{ author: 'mindi', content: { parts: [{ text: 'Hola' }] } }]).topic, null);
+});
+
+test('nivel 1 y 2 en /api/agent: guarda la etiqueta sin texto; la pregunta solo con la casilla y el interruptor', async () => {
+  const saved = { ...process.env };
+  const calls = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    const u = String(url);
+    if (u.includes('/rest/v1/')) { calls.push({ table: u.split('/rest/v1/')[1], row: JSON.parse(init.body) }); return { ok: true, status: 201, json: async () => ({}) }; }
+    if (u.endsWith('/run')) return { ok: true, status: 200, json: async () => [
+      { author: 'mindi', content: { parts: [{ functionCall: { name: 'clasificar_tema', args: { tema: 'sueno' } } }] } },
+      { author: 'psicologia', content: { parts: [{ text: 'Es frecuente.' }] } }] };
+    return { ok: true, status: 200, json: async () => ({}) };
+  };
+  try {
+    Object.assign(process.env, { SUPABASE_URL: 'https://x.supabase.co', SUPABASE_KEY: 'k', AGENT_URL: 'https://agente.test' });
+    delete process.env.VERCEL_ENV; delete process.env.GCP_SA_KEY;
+    const { default: handler } = await import('../api/agent.js');
+    const ask = async (extra) => { const r = { code: 0, body: null, status(c) { r.code = c; return r; }, json(b) { r.body = b; return r; }, setHeader() {} };
+      await handler({ method: 'POST', url: '/api/agent', headers: { 'content-type': 'application/json' }, body: { action: 'message', session: SESSION, text: 'Me llamo Ana y no duermo, mi cel 987654321', ...extra } }, r); return r; };
+    delete process.env.CHAT_RESEARCH_ENABLED;
+    let r = await ask({ nivel: 'B', desde_tema: true, is_test: true, compartir: true, consent_text_version: 'chat-v1' });
+    assert.equal(r.code, 200);
+    assert.equal(r.body.topic, undefined);
+    assert.deepEqual(calls.map((c) => c.table), ['chat_topics']); // sin el interruptor, la pregunta no se guarda
+    assert.deepEqual(calls[0].row, { tema: 'sueno', area: 'psicologia', is_test: true, nivel_test: 'B', desde_tema: true });
+    calls.length = 0;
+    process.env.CHAT_RESEARCH_ENABLED = 'true';
+    await ask({ compartir: false, consent_text_version: 'chat-v1' });
+    assert.deepEqual(calls.map((c) => c.table), ['chat_topics']); // sin la casilla, tampoco
+    calls.length = 0;
+    await ask({ compartir: true, consent_text_version: 'chat-v1', nivel: 'inventado' });
+    assert.deepEqual(calls.map((c) => c.table), ['chat_topics', 'chat_questions_research']);
+    assert.equal(calls[0].row.nivel_test, null);
+    assert.equal(calls[1].row.pregunta, 'Me llamo [nombre] y no duermo, mi cel [teléfono]');
+    assert.equal(Object.keys(calls[1].row).sort().join(','), 'consent_text_version,is_test,pregunta,tema'); // sin sesión ni resultado
+  } finally {
+    globalThis.fetch = realFetch;
+    for (const k of Object.keys(process.env)) if (!(k in saved)) delete process.env[k];
+    Object.assign(process.env, saved);
+  }
 });

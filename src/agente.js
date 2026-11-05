@@ -20,6 +20,9 @@ export const CHAT_TOPICS = {
 };
 /** Valor de ?tema= → 'peso' | 'trabajo' | null. */
 export const chatTopic = (v) => (typeof v === 'string' && Object.hasOwn(CHAT_TOPICS, v) ? v : null);
+/* Nivel 2: casilla del inicio del chat (oculta hasta aprobar la política: VITE_CHAT_RESEARCH_ENABLED). */
+export const SHARE_QUESTIONS_TEXT = 'Quiero que mis preguntas se usen, sin mis datos de contacto, para entender mejor qué necesitan las mujeres en esta etapa.';
+export const SHARE_QUESTIONS_VERSION = 'chat-v1';
 export const ERROR_TEXT = 'Ahora no puedo responder. Intenta de nuevo en unos minutos, o escríbele al equipo de Mindi.';
 export const LIMIT_TEXT = 'Llegaste al límite de esta conversación. Si tienes más dudas, escríbele al equipo de Mindi.';
 /* Si el agente no responde en este tiempo, se trata como falla: aparece el botón de WhatsApp. */
@@ -44,6 +47,9 @@ export function agentHtml(text) {
  *  la recrea si el agente se reinició (410) y corta a los REPLY_TIMEOUT_MS. */
 export function createAgentClient({ newId, fetchImpl = (...a) => fetch(...a), timeoutMs = REPLY_TIMEOUT_MS }) {
   let session = null, started = false, resultado = null, tema = null, sent = 0;
+  /* Etiquetas que acompañan cada pregunta (chat_topics): nivel del test, si llegó por ?tema=, si es
+     prueba y, solo si marcó la casilla, compartir + versión del texto. Nunca datos personales. */
+  let context = {};
 
   async function api(body) {
     const ctrl = new AbortController();
@@ -78,17 +84,19 @@ export function createAgentClient({ newId, fetchImpl = (...a) => fetch(...a), ti
       const next = chatTopic(t);
       if (next !== tema) { tema = next; started = false; }
     },
+    /** { nivel?: 'A'|'B'|'C'|'alert', desde_tema?: bool, is_test?: bool, compartir?: bool, consent_text_version?: string } */
+    setContext(c) { context = { ...(c || {}) }; },
     get limitReached() { return sent >= MAX_MESSAGES; },
     /** → { text, area, action } (action: 'recommend_test' o null). Lanza un Error con .status si falla. */
     async ask(text) {
       sent++;
       try {
         await ensureSession(false);
-        return await api({ action: 'message', session, text });
+        return await api({ action: 'message', session, text, ...context });
       } catch (e) {
         if (e.status !== 410) throw e;
         await ensureSession(true); // la sesión se perdió (el agente se reinició): una nueva y un reintento
-        return api({ action: 'message', session, text });
+        return api({ action: 'message', session, text, ...context });
       }
     },
   };

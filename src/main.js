@@ -11,7 +11,7 @@ import { prioritizedSelfCare, SELF_CARE_SOURCE } from '../supabase/functions/_sh
 import { whyNotes, WHY_TITLE } from '../supabase/functions/_shared/notas.js';
 import { stageFilter, STAGE_EXIT } from './etapa.js';
 import { whatsappUrl, WHATSAPP_TEXT, channelUrl } from './whatsapp.js';
-import { createAgentClient, agentHtml, AI_NOTICE, GREETING, CHAT_TOPICS, chatTopic, ERROR_TEXT, LIMIT_TEXT } from './agente.js';
+import { createAgentClient, agentHtml, AI_NOTICE, GREETING, CHAT_TOPICS, chatTopic, ERROR_TEXT, LIMIT_TEXT, SHARE_QUESTIONS_TEXT, SHARE_QUESTIONS_VERSION } from './agente.js';
 import { glossaryMore } from './glosario.js';
 import { initLanding } from './landing.js';
 import { mountTurnstile } from './turnstile.js';
@@ -123,6 +123,8 @@ document.addEventListener('click', (e)=>{
 /* Chat con el agente de IA (bloque 5): solo con VITE_AGENT_CHAT_ENABLED = 'true'. Apagado, el
    sitio queda igual que antes y ningún botón lleva al agente. */
 const AGENT_ENABLED = import.meta.env.VITE_AGENT_CHAT_ENABLED === 'true';
+/* Nivel 2 (preguntas del chat para investigación): apagado hasta aprobar la política de privacidad. */
+const CHAT_RESEARCH_ENABLED = AGENT_ENABLED && import.meta.env.VITE_CHAT_RESEARCH_ENABLED === 'true';
 const agentClient = AGENT_ENABLED ? createAgentClient({newId}) : null;
 
 /* Invitación al canal de tips al final del flujo (VITE_WHATSAPP_CHANNEL_URL). Sin enlace válido,
@@ -1405,9 +1407,22 @@ function openAiChat(){
   agentClient.setTopic(topic);
   track('agent_open', {source:chatSource});
   track('chat_open', {tema: topic || 'ninguno'});
-  revealCard(`<p>${AI_NOTICE}</p>`, 'notice').then(()=>{
+  // Etiquetas para chat_topics: nivel del test (si vino del resultado) y si llegó por ?tema=.
+  const nivel = chatResult ? (chatResult.senal_alerta ? 'alert' : mrsLevel(chatResult)) : null;
+  const ctx = {...(nivel ? {nivel} : {}), desde_tema: !!topic, is_test: TEST_MODE};
+  agentClient.setContext(ctx);
+  // Nivel 2: casilla sin marcar, solo si está activado (hasta aprobar la política, no se muestra).
+  const share = CHAT_RESEARCH_ENABLED
+    ? `<label class="opt share-opt"><input type="checkbox" id="chatShare"><span>${SHARE_QUESTIONS_TEXT}</span></label>` : '';
+  revealCard(`<p>${AI_NOTICE}</p>${share}`, 'notice').then(()=>{
     renderChips([{label:'Entendido', primary:true}], ()=>{
       track('agent_consent', {source:chatSource});
+      const box = document.getElementById('chatShare');
+      if(box){
+        if(box.checked) agentClient.setContext({...ctx, compartir:true, consent_text_version:SHARE_QUESTIONS_VERSION});
+        box.disabled = true;
+        track('chat_share', {captured: box.checked});
+      }
       botSay([topic ? CHAT_TOPICS[topic] : GREETING[chatSource]]).then(renderQuestionInput);
     });
   });

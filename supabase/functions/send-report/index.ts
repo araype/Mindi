@@ -27,11 +27,10 @@
 // integridad del registro de npm, y deno.lock (en esta carpeta) fija esos hashes.
 import { createClient } from 'npm:@supabase/supabase-js@2.45.4';
 import { serverKey } from '../_shared/clave.js';
+import { decryptContact as sharedDecrypt } from '../_shared/descifrar.js';
 import { PDFDocument, StandardFonts, rgb } from 'npm:pdf-lib@1.17.1';
 import fontkit from 'npm:@pdf-lib/fontkit@1.1.1';
 
-/** base64 → bytes (sin dependencias). */
-const decodeBase64 = (s: string) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
 // Puntaje MRS, cortes de la Guía HNHU y textos del resultado: el mismo módulo que usa el chat.
 import {
   levelMessage, AREAS as MRS_AREAS, areaStatus, AREA_TAG, CUTS, CUTS_SOURCE,
@@ -347,16 +346,8 @@ function buildFragment(session: Record<string, any>, lead: Record<string, any>, 
     ${opts.shared ? '' : footer()}`;
 }
 
-/** Correo cifrado por /api/lead ("v1:<iv>:<cifrado+tag>", base64) → texto. Las filas anteriores
- *  a la Fase 4 no están cifradas y se devuelven tal cual. */
-async function decryptContact(value: string): Promise<string> {
-  if (!String(value).startsWith('v1:')) return value;
-  if (!LEADS_ENC_KEY) throw new Error('LEADS_ENC_KEY no configurada');
-  const [, iv, ct] = String(value).split(':');
-  const key = await crypto.subtle.importKey('raw', decodeBase64(LEADS_ENC_KEY), 'AES-GCM', false, ['decrypt']);
-  const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: decodeBase64(iv) }, key, decodeBase64(ct));
-  return new TextDecoder().decode(plain);
-}
+/** Correo cifrado por /api/lead → texto (las filas anteriores al cifrado vuelven tal cual). */
+const decryptContact = (value: string): Promise<string> => sharedDecrypt(value, LEADS_ENC_KEY);
 
 /** Correo breve (decisión de la Fase 0, handoff 11.6): un resumen corto y el enlace al reporte, sin el
  *  detalle clínico ni el PDF adjunto. El reporte completo se ve en /reporte con el token. */

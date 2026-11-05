@@ -7,6 +7,28 @@
 import { validSession, cleanResultado, cleanText, callAgent, chatTopic } from './_lib/agente.js';
 import { route, readJson, send, clientIp } from './_lib/http.js';
 import { limit, LIMITS } from './_lib/limite.js';
+import { insert, supabaseOn } from './_lib/supabase.js';
+import { redact } from './_lib/redactar.js';
+
+/* Nivel 1 (chat_topics): por cada pregunta, la etiqueta de tema, el área, el nivel del test y si llegó por
+   ?tema=. Sin texto ni sesión. Nivel 2 (chat_questions_research): la pregunta sin datos personales, solo
+   con la casilla marcada y CHAT_RESEARCH_ENABLED=true (apagado hasta aprobar la política). */
+const LEVELS = ['A', 'B', 'C', 'alert'];
+async function saveChatData(body, out, text) {
+  if (!supabaseOn() || !out || !out.topic) return;
+  const is_test = body.is_test === true;
+  try {
+    await insert('chat_topics', {
+      tema: out.topic, area: out.area || 'otro', is_test,
+      nivel_test: LEVELS.includes(body.nivel) ? body.nivel : null, desde_tema: body.desde_tema === true,
+    });
+    const version = typeof body.consent_text_version === 'string' && body.consent_text_version.length <= 20 ? body.consent_text_version : null;
+    if (process.env.CHAT_RESEARCH_ENABLED === 'true' && body.compartir === true && version) {
+      const pregunta = redact(text);
+      if (pregunta) await insert('chat_questions_research', { pregunta, tema: out.topic, consent_text_version: version, is_test });
+    }
+  } catch { /* no se corta la respuesta por esto */ }
+}
 
 // Límite de mensajes por minuto por persona (11.5) y solo desde el propio sitio (ALLOWED_ORIGINS).
 export default route(async (req, res) => {
@@ -30,7 +52,9 @@ export default route(async (req, res) => {
 
   try {
     const out = await callAgent({ agentUrl: process.env.AGENT_URL, ...args });
-    return res.status(200).json(out);
+    if (action === 'message') await saveChatData(body, out, args.text);
+    const { topic, ...reply } = out; // la etiqueta no vuelve al navegador
+    return res.status(200).json(reply);
   } catch (e) {
     const code = e.message === 'session_lost' ? 410 : e.message === 'agent_not_configured' ? 503 : 502;
     return res.status(code).json({ error: e.message });

@@ -205,3 +205,26 @@ test('funciones de Supabase: usan la clave secreta nueva si está, y la service_
     assert.equal(serverKey(), 'eyJ.antigua');
   } finally { delete globalThis.Deno; }
 });
+
+test('filtro de datos personales del nivel 2', async () => {
+  const { redact } = await import('../api/_lib/redactar.js');
+  assert.equal(redact('Me llamo Ana Pérez y tengo 47 años'), 'Me llamo [nombre] y tengo 47 años');
+  assert.equal(redact('soy diabética y tengo bochornos'), 'soy diabética y tengo bochornos');
+  assert.equal(redact('Mi correo es ana.p@gmail.com'), 'Mi correo es [correo]');
+  assert.equal(redact('al 987 654 321 o +51 987-654-321'), 'al [teléfono] o [teléfono]');
+  assert.equal(redact('mi DNI 12345678'), 'mi DNI [DNI]');
+  assert.equal(redact('vivo en Av. Los Olivos 123, Lima'), 'vivo en [dirección], Lima');
+  assert.equal(redact('tomo 2 pastillas de 50 mg a los 52 años'), 'tomo 2 pastillas de 50 mg a los 52 años');
+});
+
+test('listas: /api/waitlist guarda nombre, correo y WhatsApp cifrados; la exportación los descifra igual', async () => {
+  process.env.LEADS_ENC_KEY = Buffer.alloc(32, 9).toString('base64');
+  const { encryptContact } = await import('../api/_lib/cifrado.js');
+  const { decryptContact } = await import('../supabase/functions/_shared/descifrar.js');
+  const enc = encryptContact('rh@acme.pe');
+  assert.equal(await decryptContact(enc, process.env.LEADS_ENC_KEY), 'rh@acme.pe'); // Node cifra, la función de Supabase descifra
+  assert.equal(await decryptContact('vieja@mail.com', process.env.LEADS_ENC_KEY), 'vieja@mail.com'); // filas sin cifrar
+  const src = await readFile(new URL('../api/waitlist.js', import.meta.url), 'utf8');
+  assert.match(src, /const ENCRYPTED = \['name', 'contact', 'whatsapp'\]/);
+  delete process.env.LEADS_ENC_KEY;
+});
