@@ -134,3 +134,7 @@ test('listas de espera: nombres de lista raros no rompen la validación del serv
   for (const list of ['__proto__', 'constructor', 'toString', 1, null]) assert.match(waitlistRow(list, {}).error, /desconocida/);
   assert.match(waitlistRow('plus', null).error, /desconocida/);
 });
+
+test('evento chat_open: el tema va como dato de uso', () => {
+  assert.deepEqual(eventRow({ session_id: ID, name: 'chat_open', props: { tema: 'peso', is_test: true } }).row.props, { is_test: true, tema: 'peso' });
+});

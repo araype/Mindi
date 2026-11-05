@@ -10,7 +10,7 @@ import { selfCareItems, SELF_CARE_SOURCE } from '../supabase/functions/_shared/a
 import { whyNotes, WHY_TITLE } from '../supabase/functions/_shared/notas.js';
 import { stageFilter, STAGE_EXIT } from './etapa.js';
 import { whatsappUrl, WHATSAPP_TEXT, channelUrl } from './whatsapp.js';
-import { createAgentClient, agentHtml, AI_NOTICE, GREETING, ERROR_TEXT, LIMIT_TEXT } from './agente.js';
+import { createAgentClient, agentHtml, AI_NOTICE, GREETING, CHAT_TOPICS, chatTopic, ERROR_TEXT, LIMIT_TEXT } from './agente.js';
 import { glossaryMore } from './glosario.js';
 import { initLanding } from './landing.js';
 import { mountTurnstile } from './turnstile.js';
@@ -1391,14 +1391,18 @@ function openAiChat(){
   document.body.classList.add('chat-ai');
   chatResult = storedResult();
   chatSource = chatResult ? 'resultado' : 'landing';
+  // ?tema=peso | trabajo (tarjetas de la portada): saludo propio y la etiqueta para el agente.
+  const topic = chatTopic(new URLSearchParams(location.search).get('tema'));
   openChatShell();
   setStatus(false);
   agentClient.setResult(chatResult);
+  agentClient.setTopic(topic);
   track('agent_open', {source:chatSource});
+  track('chat_open', {tema: topic || 'ninguno'});
   revealCard(`<p>${AI_NOTICE}</p>`, 'notice').then(()=>{
     renderChips([{label:'Entendido', primary:true}], ()=>{
       track('agent_consent', {source:chatSource});
-      botSay([GREETING[chatSource]]).then(renderQuestionInput);
+      botSay([topic ? CHAT_TOPICS[topic] : GREETING[chatSource]]).then(renderQuestionInput);
     });
   });
 }

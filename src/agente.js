@@ -11,6 +11,15 @@ export const GREETING = {
   resultado: 'Ya tengo tu resultado del test. ¿Qué te gustaría saber?',
   landing: 'Cuéntame tu duda sobre la perimenopausia o la menopausia.',
 };
+/* Temas con los que se puede abrir /chat desde la landing (/chat?tema=peso). Lista cerrada: cualquier
+   otro valor se ignora y se usa el saludo general, para que nadie pueda poner texto desde la URL.
+   Al agente solo le llega la etiqueta (tema_inicial), nunca texto libre. */
+export const CHAT_TOPICS = {
+  peso: 'Hola, soy Mindi. Muchas mujeres notan cambios en su peso en esta etapa, aunque coman igual que antes. No es falta de voluntad: tiene explicación. ¿Qué es lo que más te preocupa? Cuéntamelo con tus palabras.',
+  trabajo: 'Hola, soy Mindi. Sentirse distinta en el trabajo durante esta etapa es más común de lo que parece, aunque casi nadie lo diga. ¿Qué te está pasando? Cuéntame y lo vemos juntas.',
+};
+/** Valor de ?tema= → 'peso' | 'trabajo' | null. */
+export const chatTopic = (v) => (typeof v === 'string' && Object.hasOwn(CHAT_TOPICS, v) ? v : null);
 export const ERROR_TEXT = 'Ahora no puedo responder. Intenta de nuevo en unos minutos, o escríbele al equipo de Mindi.';
 export const LIMIT_TEXT = 'Llegaste al límite de esta conversación. Si tienes más dudas, escríbele al equipo de Mindi.';
 /* Si el agente no responde en este tiempo, se trata como falla: aparece el botón de WhatsApp. */
@@ -34,7 +43,7 @@ export function agentHtml(text) {
 /** Conversación con el agente: crea la sesión al primer mensaje (con resultado_mrs si lo hay),
  *  la recrea si el agente se reinició (410) y corta a los REPLY_TIMEOUT_MS. */
 export function createAgentClient({ newId, fetchImpl = (...a) => fetch(...a), timeoutMs = REPLY_TIMEOUT_MS }) {
-  let session = null, started = false, resultado = null, sent = 0;
+  let session = null, started = false, resultado = null, tema = null, sent = 0;
 
   async function api(body) {
     const ctrl = new AbortController();
@@ -54,7 +63,7 @@ export function createAgentClient({ newId, fetchImpl = (...a) => fetch(...a), ti
   async function ensureSession(fresh) {
     if (started && !fresh) return;
     session = newId();
-    await api({ action: 'start', session, ...(resultado ? { resultado_mrs: resultado } : {}) });
+    await api({ action: 'start', session, ...(resultado ? { resultado_mrs: resultado } : {}), ...(tema ? { tema_inicial: tema } : {}) });
     started = true;
   }
 
@@ -63,6 +72,11 @@ export function createAgentClient({ newId, fetchImpl = (...a) => fetch(...a), ti
     setResult(r) {
       const next = r || null;
       if (JSON.stringify(next) !== JSON.stringify(resultado)) { resultado = next; started = false; }
+    },
+    /** Tema con el que se abrió el chat (solo la etiqueta de CHAT_TOPICS). */
+    setTopic(t) {
+      const next = chatTopic(t);
+      if (next !== tema) { tema = next; started = false; }
     },
     get limitReached() { return sent >= MAX_MESSAGES; },
     /** → { text, area, action } (action: 'recommend_test' o null). Lanza un Error con .status si falla. */

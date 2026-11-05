@@ -9,6 +9,8 @@
 // (Carpeta _lib: Vercel no la publica como ruta.)
 
 import { agentAuthorization } from './gcp.js';
+// Lista cerrada de temas de /chat?tema= (la misma que usa la web): al agente solo le llega la etiqueta.
+export { chatTopic } from '../../src/agente.js';
 
 export const APP_NAME = 'mindi_agent';
 /* Herramienta con la que el agente recomienda el test (handoff 10.5.1). Responde
@@ -75,7 +77,7 @@ export function extractReply(events) {
 }
 
 /** Llama al agente. fetchImpl permite probarlo sin red. Lanza Error('agent_unavailable') si falla. */
-export async function callAgent({ agentUrl, action, session, resultado, text }, fetchImpl = fetch, timeoutMs = 25000, retryDelayMs = 1000, auth = agentAuthorization) {
+export async function callAgent({ agentUrl, action, session, resultado, tema, text }, fetchImpl = fetch, timeoutMs = 25000, retryDelayMs = 1000, auth = agentAuthorization) {
   const base = String(agentUrl || '').replace(/\/$/, '');
   if (!base) throw new Error('agent_not_configured');
   // Cloud Run privado (11.5): ID token de la cuenta de servicio, si GCP_SA_KEY está configurada.
@@ -103,7 +105,7 @@ export async function callAgent({ agentUrl, action, session, resultado, text }, 
   };
   try {
     if (action === 'start') {
-      const state = resultado ? { resultado_mrs: resultado } : {};
+      const state = { ...(resultado ? { resultado_mrs: resultado } : {}), ...(tema ? { tema_inicial: tema } : {}) };
       const r = await post(`/apps/${APP_NAME}/users/${session}/sessions`, { session_id: session, state });
       if (!r.ok) throw new Error('agent_unavailable');
       return { ok: true };

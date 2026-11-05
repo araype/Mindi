@@ -1,9 +1,10 @@
 // Ruta del servidor POST /api/agent (función de Vercel). Ver api/_lib/agente.js.
-//   { action: 'start', session, resultado_mrs? } → { ok: true }
+//   { action: 'start', session, resultado_mrs?, tema_inicial? } → { ok: true }
+//     tema_inicial: solo 'peso' o 'trabajo' (chatTopic); cualquier otro valor se ignora.
 //   { action: 'message', session, text }          → { text, area, action: 'recommend_test' | null }
 // La URL del agente va en AGENT_URL (variable del servidor, sin prefijo VITE_: no llega al navegador).
 
-import { validSession, cleanResultado, cleanText, callAgent } from './_lib/agente.js';
+import { validSession, cleanResultado, cleanText, callAgent, chatTopic } from './_lib/agente.js';
 import { route, readJson, send, clientIp } from './_lib/http.js';
 import { limit, LIMITS } from './_lib/limite.js';
 
@@ -18,7 +19,7 @@ export default route(async (req, res) => {
   if (action === 'start') {
     const resultado = body.resultado_mrs == null ? null : cleanResultado(body.resultado_mrs);
     if (body.resultado_mrs != null && !resultado) return res.status(400).json({ error: 'bad_result' });
-    args = { action, session, resultado };
+    args = { action, session, resultado, tema: chatTopic(body.tema_inicial) };
   } else if (action === 'message') {
     const text = cleanText(body.text);
     if (!text) return res.status(400).json({ error: 'bad_text' });
