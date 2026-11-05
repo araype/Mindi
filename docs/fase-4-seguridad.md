@@ -110,7 +110,7 @@ Hoy la vista previa (`mindi-rediseno.vercel.app`) ya tiene todo; producción sig
 - [ ] **`VITE_AGENT_CHAT_ENABLED=true` en Production** (hoy solo está en Preview). Sin ella, el sitio
       publicado no muestra "Pregúntale a Mindi" ni abre `/chat`: los enlaces llevan a WhatsApp.
 - [ ] `VITE_TEST_MODE=false` en Production (ya está así; revisar que no cambie).
-- [ ] `GCP_SA_KEY` en Production y Preview, y Cloud Run privado (paso C.7).
+- [x] `GCP_SA_KEY` en Production y Preview, y Cloud Run privado (paso C.7, hecho el 5 nov. 2026).
 - [ ] Desplegar el sitio nuevo: `vercel --prod` desde `rediseno-landing` (o desde la rama fusionada).
       Las `VITE_` se leen al construir: cualquier cambio en ellas pide volver a desplegar.
 - [ ] Después de ese despliegue: `SEND_REPORT_SECRET` en Supabase (paso C.6) y borrar
@@ -124,7 +124,7 @@ Hoy la vista previa (`mindi-rediseno.vercel.app`) ya tiene todo; producción sig
 - [x] La clave publicable no puede leer `sessions`, `leads`, `events`, `reports`, `interest_signups`,
       `research_consents` ni `event_signups` (401 *permission denied*), ni listar el bucket `reports`
       (probado el 4 nov. 2026). Repetir con `report_shares` después de correr 018.
-- [ ] Cloud Run responde 403 si se llama sin token: `curl -s -o /dev/null -w "%{http_code}" -X POST <AGENT_URL>/run`.
+- [x] Cloud Run responde 403 si se llama sin token (probado el 5 nov. 2026 en `/run`, `/docs`, `/list-apps` y sesiones).
 - [ ] Cabeceras: securityheaders.com con `https://mindifem.com` (esperado: A o A+).
 - [ ] `send-report` responde 401 sin `x-mindi-secret` (después del paso C.6).
 - [ ] Pedir a Claude Code una revisión de seguridad del repo completo antes del lanzamiento.

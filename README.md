@@ -50,8 +50,8 @@ de 2028, cuando se cumplen 2 años de los primeros datos, para cumplir la polít
 
 ### Pendientes del chat con el agente de IA (bloque 5)
 
-- **Cloud Run privado.** El código ya manda el ID token (`api/_lib/gcp.js`, variable `GCP_SA_KEY`);
-  falta configurarlo en Google Cloud (docs/fase-4-seguridad.md, paso C.7).
+- **Cloud Run privado: hecho** (5 nov. 2026). Solo la cuenta `mindi-web` puede invocarlo, con el ID token
+  que manda `/api/agent` (`api/_lib/gcp.js`, `GCP_SA_KEY`). Ver docs/paso-c7-cloud-run.md.
 - **Clics de WhatsApp desde el chat del agente.** Se registran como `whatsapp_click {origen:
   "agente"}` (el botón solo aparece si el agente falla o no responde a tiempo), pero la tarjeta
   "Clics en WhatsApp" del panel todavía no los cuenta: falta un SQL que agregue

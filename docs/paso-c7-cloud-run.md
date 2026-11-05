@@ -1,4 +1,12 @@
-# Paso C.7 · Cloud Run privado (listo para ejecutar)
+# Paso C.7 · Cloud Run privado — HECHO el 5 nov. 2026
+
+Resultado: `mindi-web` es la única cuenta con `roles/run.invoker` en `mindi-agent` (sin roles en el
+proyecto); `GCP_SA_KEY` está en Vercel (Preview y Production) y el archivo de la clave se borró.
+Llamado directo: 403 en `/list-apps`, `/docs`, sesiones y `/run`. Desde la vista previa: la sesión se
+crea (200) y `/run` llega al agente, que hoy falla por falta de créditos de OpenAI (429), no por permisos.
+Pendiente: con créditos, probar que el chat responda.
+
+Los pasos que se siguieron:
 
 Datos reales (revisados el 5 nov. 2026):
 
