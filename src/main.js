@@ -93,12 +93,11 @@ function sb(table, row){
 }
 
 window.dataLayer = window.dataLayer || [];
-/* Si el test se empezó desde una pregunta al agente, sus eventos llevan origen: 'agente'
-   (los del agente y los que ya traen su propio origen, como whatsapp_click, no se tocan). */
-const AGENT_EVENTS = new Set(['agent_open','agent_consent','agent_message','agent_error','test_offer_click']);
-let testFromAgent = false;
+/* Si el test se abrió desde el botón del chat con IA (/test?origen=chat, handoff 10.5.1), sus eventos
+   llevan origen: 'chat' (los que ya traen su propio origen, como whatsapp_click, no se tocan). */
+const TEST_ORIGEN = new URLSearchParams(location.search).get('origen') === 'chat' ? 'chat' : null;
 function track(event, props){
-  if(testFromAgent && !AGENT_EVENTS.has(event) && !(props && props.origen)) props = Object.assign({}, props, {origen:'agente'});
+  if(TEST_ORIGEN && !(props && props.origen)) props = Object.assign({}, props, {origen:TEST_ORIGEN});
   const payload = Object.assign({event:'mindi_'+event, ts:Date.now()}, props||{});
   window.dataLayer.push(payload);
   if(window.console) console.debug('[mindi]', payload);
@@ -266,6 +265,8 @@ const RED_FLAGS = [
 const NONE_TEXT = RED_FLAGS.find(f=>f.id==='none').text;
 
 const ICON_CHECK = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+/* Ícono discreto del aviso de emergencia (10.3): un corazón con línea, en ciruela. */
+const ICON_CARE  = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.8 5.6a5 5 0 0 0-7.1 0L12 7.3l-1.7-1.7a5 5 0 1 0-7.1 7.1L12 21.5l8.8-8.8a5 5 0 0 0 0-7.1z"/><path d="M3.5 12h4l1.5-3 3 6 1.5-3h7"/></svg>';
 const ICON_SEND  = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h15M13 6l6 6-6 6"/></svg>';
 
 /* ---------- Estado ---------- */
@@ -289,7 +290,7 @@ const TYPING_MS = reduceMotion ? 0 : 850; // antes 550 — conversación más pa
 const TOTAL_STEPS = 26;
 let step = 0;
 let started = false;   // el test (modo guiado) ya empezó
-let freeActive = false; // el chat está en modo libre (preguntas al agente)
+let aiMode = false;     // esta pestaña es el chat con IA (/chat): sesión aparte del test (10.5)
 /* Se pone en true cuando la usuaria toca "Salir" del modo pantalla completa. Sin esto,
    cualquier "resize" lo reactivaba solo — y en el navegador de un celular el alto de la
    ventana cambia todo el tiempo (la barra de direcciones se oculta/aparece al hacer scroll),
@@ -307,7 +308,7 @@ function setFocus(on){
    mobile) — ahora, mientras se conversa, tapa el resto de la landing en cualquier tamaño,
    para que el chat tenga todo el espacio. Se mantiene apagado solo si la usuaria lo cerró
    a propósito con "Salir" (ver focusDismissed). */
-function syncFocus(){ if((started || freeActive) && !focusDismissed) setFocus(true); }
+function syncFocus(){ if((started || aiMode) && !focusDismissed) setFocus(true); }
 function setProgress(n){ progressFill.style.width = Math.min(100, Math.round((n/TOTAL_STEPS)*100)) + '%'; }
 function advance(){ step++; setProgress(step); }
 function scrollBottom(){ requestAnimationFrame(()=>{ chat.scrollTop = chat.scrollHeight; }); }
@@ -315,7 +316,7 @@ function scrollBottom(){ requestAnimationFrame(()=>{ chat.scrollTop = chat.scrol
 /* Teclado en mobile: en pantallas táctiles no se enfoca el campo de texto solo (abriría el
    teclado encima de la pregunta antes de que la usuaria la lea) — lo abre ella al tocarlo.
    Y cuando el teclado aparece, el chat se achica al área visible (--app-h / --app-top, ver
-   landing.css) y baja al final, para que la pregunta y el campo queden justo encima.
+   src/chat.css) y baja al final, para que la pregunta y el campo queden justo encima.
    Android lo hace además con interactive-widget=resizes-content (index.html); iOS no lo
    soporta, por eso se usa visualViewport. */
 const isTouch = window.matchMedia('(pointer: coarse)').matches;
@@ -387,6 +388,9 @@ function addCard(html, kind){
   row.appendChild(c);
   chat.appendChild(row);
   scrollBottom();
+  // Las barras del resultado se llenan con animación al aparecer (sin animación si reduce motion).
+  requestAnimationFrame(()=> requestAnimationFrame(()=> c.classList.add('is-shown')));
+  return c;
 }
 function showTyping(){
   const row = document.createElement('div');
@@ -394,8 +398,12 @@ function showTyping(){
   row.setAttribute('aria-hidden','true');
   row.innerHTML = '<div class="typing"><span></span><span></span><span></span></div>';
   chat.appendChild(row); scrollBottom();
+  setStatus(true);
 }
-function hideTyping(){ const t = document.getElementById('typingRow'); if(t) t.remove(); }
+function hideTyping(){ const t = document.getElementById('typingRow'); if(t) t.remove(); setStatus(false); }
+/* Estado bajo "Mindi" en el chat con IA: "en línea" / "escribiendo…" (10.5). */
+const chatStatus = document.getElementById('chatStatus');
+function setStatus(typing){ if(aiMode && chatStatus) chatStatus.textContent = typing ? 'escribiendo…' : 'en línea'; }
 
 /* Revela una tarjeta con el mismo ritmo que los mensajes del bot (pausa de "escribiendo")
    en vez de que todas aparezcan de golpe — para el resultado, que muestra varias seguidas. */
@@ -437,8 +445,7 @@ function revealCardWithPause(introMsg, html, kind, isLast = false, continueText 
 /* Secuencia de cards de resultado compartida entre el flujo normal y el de banderas rojas */
 async function showResultsCardSequence(){
   const msg = levelMessage(state.scores);
-  await revealCardWithPause(null,                                         levelCard(msg), BAND_KIND[msg.band], false, 'Ver mis resultados por área');
-  await revealCardWithPause('Así se ve por áreas:',                        areasCard(),         '',      false, '¿Y qué hago con esto?');
+  await revealCardWithPause(null,                                         levelCard(msg), '',      false, '¿Y qué hago con esto?');
   await revealCardWithPause('Preguntas para tu médico(a):',                consultCard(),       '',      false, 'Muy útil, ¿algo más?');
   // Las recomendaciones de autocuidado y el aviso "solo orientación" ya no van aquí: están en
   // "Tu reporte" (ver reportFullHtml), al final del chat, igual que en el PDF y el correo.
@@ -514,10 +521,10 @@ function renderScale(onPick, allowSkip, heading, labels){
     btn.type = 'button';
     btn.className = 'chip';
     btn.setAttribute('aria-label', `${label}, nivel ${official.toLowerCase()}, ${val} de 4`);
-    btn.innerHTML = `<span>${label}</span><span class="scale-badge s${val}">${val}</span>`;
+    btn.innerHTML = `<span class="scale-badge s${val}" aria-hidden="true">${val}</span><span>${label}</span>`;
     btn.onclick = ()=>{
       stopScaleKeys();
-      if(!heading){ addBubble(label, 'user'); advance(); }
+      if(!heading){ addBubble(`${val} · ${label}`, 'user'); advance(); }
       clearComposer();
       onPick(val);
     };
@@ -729,9 +736,6 @@ function renderTextInput(placeholder, opts, onSubmit){
 }
 
 /* ---------- Flujo ---------- */
-/* El texto del consentimiento vive una sola vez, en la tarjeta de inicio (index.html). Se guarda
-   aquí para mostrarlo igual si el test se empieza desde una pregunta al agente. */
-const CONSENT_HTML = document.querySelector('#chatStart .consent-text')?.innerHTML || '';
 function openChatShell(){
   const s = document.getElementById('chatStart'); if(s) s.remove();
   document.querySelector('.chat-shell').classList.remove('idle');
@@ -742,7 +746,6 @@ function openChatShell(){
 async function start(){
   if(started) return;
   started = true;
-  freeActive = false; // modo guiado: el campo de texto no se muestra hasta terminar
   track('chat_start');
   openChatShell();
   setSection('Bienvenida');
@@ -955,28 +958,26 @@ function hasFlag(){ return state.redFlags.length && !state.redFlags.includes('no
 
 /* ---------- Lo que se detectó: contenido de cada "tema" desplegable ---------- */
 /* AREAS (etiqueta, máximo y corte de cada subescala) viene del módulo compartido. */
-function areasCard(){
+/* Tres barras (10.2): Cuerpo, Ánimo y Vida íntima, con el porcentaje a la derecha. El ancho va en
+   --w y se anima cuando la tarjeta aparece (clase is-shown, ver revealCard). */
+function areaBars(){
   const s = state.scores;
-  const rows = AREAS.map(a=>{
+  return AREAS.map(a=>{
     const v = s[a.key];
     const pct = Math.round((v/a.max)*100);
     const status = areaStatus(a.key, v, state.skippedIntimate);
     const notable = status === 'over';
-    const desc = AREA_TAG.user[status];
     return `<div class="area">
-      <div class="area-top">
-        <span class="area-name"><strong>${a.label}</strong></span>
-        <span class="area-tag ${notable ? 'hi' : ''}">${desc}</span>
-      </div>
-      <div class="meter-wrap">
-        <div class="meter" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100">
-          <span style="width:${pct}%" class="${notable ? 'hi' : ''}"></span>
-        </div>
-        <span class="meter-pct">${pct}%</span>
-      </div>
+      <div class="area-top"><span class="area-name">${a.label}</span><span class="meter-pct">${pct}%</span></div>
+      <div class="meter" role="progressbar" aria-label="${a.label}" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"><span style="--w:${pct}%"></span></div>
+      <span class="area-tag ${notable ? 'hi' : ''}">${AREA_TAG.user[status]}</span>
     </div>`;
   }).join('');
-  let html = `<h3>Lo que noto por áreas</h3><p class="card-note">Evaluación gráfica de conjunto según la Escala MRS (Menopause Rating Scale), no una calificación.</p>${rows}`;
+}
+/* Notas que acompañan a las barras: bienestar emocional y preguntas íntimas omitidas. */
+function areaNotes(){
+  const s = state.scores;
+  let html = '';
   if(s.psicologico >= CUTS.psicologico){
     html += `<div class="area-note">
       <div class="area-note-header">
@@ -988,32 +989,25 @@ function areasCard(){
     </div>`;
   }
   if(state.skippedIntimate){
-    html += `<p style="margin-top:12px;font-size:13px;color:var(--ink-soft);">${SKIPPED_INTIMATE_NOTE}</p>`;
+    html += `<p class="skipped-note">${SKIPPED_INTIMATE_NOTE}</p>`;
   }
   return html;
 }
 
-function areasBody(){ return areasCard(); }
-
 /* Badge, título y texto describen la acción que sugiere la guía, no la intensidad
    (los cortes HNHU son umbrales de tratamiento). Ver levelMessage en el módulo compartido. */
-const BAND_CLASS = {A0:'level-a', A1:'level-a', B:'level-b', C:'level-c'};
-const BAND_KIND = {A0:'calm', A1:'calm', B:'notice', C:'notice'};
 const levelText = (msg)=> msg.paragraphs.join('<br><br>');
 /* Nivel para la recomendación médica: con una señal de alerta manda la indicación del aviso. */
 const recoLevel = ()=> hasFlag() ? 'alert' : computeLevel();
 const doctorReco = ()=> `<p class="doctor-reco">${doctorRecommendation(recoLevel())}</p>`;
+/* Resultado (10.2): "Tus síntomas hoy", el chip con la etiqueta de la guía (decisión del 4 nov.:
+   no la intensidad), las tres barras y la nota en lenguaje simple. */
 function levelCard(msg){
-  return `<div class="result-badge-row"><span class="result-level-badge ${BAND_CLASS[msg.band]}">${msg.badge}</span></div>` +
-    `<h3>${msg.title}</h3>` +
-    doctorReco() +
-    `<p>${levelText(msg)}</p>`;
-}
-
-function stageCard(){
-  return `<h3>Sobre tu etapa clínica</h3>` +
-    `<p>${stageNote()}</p>` +
-    `<span class="cite">${PERU_AGE_NOTE} Fuente: Guía HNHU (RD N° 211-2024-DG/HNHU), secciones 5.4 y 6.2.1.</span>`;
+  return `<h3>Tus síntomas hoy</h3><span class="result-chip">${msg.badge}</span>` +
+    areaBars() +
+    `<p class="cite">Evaluación gráfica de conjunto según la Escala MRS (Menopause Rating Scale), no una calificación.</p>` +
+    `<div class="result-note"><strong>${msg.title}</strong>${doctorReco()}<p>${levelText(msg)}</p></div>` +
+    areaNotes();
 }
 
 function consultCard(){
@@ -1053,25 +1047,6 @@ function consultBody(){
 }
 
 
-/* Respaldo en acordeón por si se requiere en otras vistas */
-function resultTopicsCard(){
-  const msg = levelMessage(state.scores);
-  const stageBody = `<p>${stageNote()}</p><span class="cite">${PERU_AGE_NOTE} Fuente: Guía HNHU (RD N° 211-2024-DG/HNHU), secciones 5.4 y 6.2.1.</span>`;
-  const topics = [
-    [msg.title, `<p>${levelText(msg)}</p>`],
-    ['Sobre tu etapa', stageBody],
-    ['¿Qué preguntarle a mi médico?', consultBody()],
-    ['Ver mis resultados por área', areasBody()],
-    ['Quiero ver mis recomendaciones', selfCareBody()],
-  ];
-  const rows = topics.map(([title, body])=>
-    `<details class="result-topic"><summary>${title}</summary><div class="result-topic-body">${body}</div></details>`
-  ).join('');
-  return `<p class="topics-intro">Estos son algunos resultados y recomendaciones en base a tus respuestas:</p>${rows}` +
-    `<p class="topics-outro">Puedes desplegarlas o leerlas cuando quieras en tu reporte personalizado.</p>` +
-    `<p class="topics-disclaimer">Esto es solo orientación informativa. Solo un profesional de salud puede evaluarte con exámenes clínicos.</p>`;
-}
-
 function showResultsTopics(){
   setSection('Lo que noto');
   clearComposer();
@@ -1094,14 +1069,14 @@ function showSafetyMessage(){
   botSay(['Gracias por confiarme esto.']).then(async ()=>{
     if(hasEmergency){
       await revealCard(
-        '<h3>No estás sola en esto</h3>Marcaste algo que conviene revisar cuanto antes.' +
+        `<h3 class="alert-title">${ICON_CARE}No estás sola en esto</h3>Marcaste algo que conviene revisar cuanto antes.` +
         `<div class="emergency">${EMERGENCY_NOW}</div>` +
         'Para el resto de señales que marcaste, agenda una cita ginecológica lo antes posible.' +
-        '<br><br>Esto no reemplaza la valoración de un profesional de salud.', 'notice');
+        '<br><br>Esto no reemplaza la valoración de un profesional de salud.', 'alert-emergency');
     } else {
       await revealCard(
         '<h3>No estás sola en esto</h3>Marcaste algo que vale la pena conversar con tu médico(a) antes de considerar cualquier tratamiento. Es un paso de cuidado, no una emergencia. Te recomendamos agendar una cita ginecológica en los próximos días para revisarlo con calma.' +
-        '<br><br>Esto no reemplaza la valoración de un profesional de salud.', 'notice');
+        '<br><br>Esto no reemplaza la valoración de un profesional de salud.', 'alert-eval');
     }
     track('result',{level:'alert', emergency:hasEmergency});
     await botSay(['Y esto noto en tus síntomas:']);
@@ -1189,14 +1164,77 @@ function reportFullHtml(){
   return `<div class="report-full">` +
     `<section>${alertNote}${levelCard(msg)}</section>` +
     `<section><h3>Sobre tu etapa</h3><p>${stageNote()}</p><span class="cite">${PERU_AGE_NOTE} Fuente: Guía HNHU (RD N° 211-2024-DG/HNHU), secciones 5.4 y 6.2.1.</span></section>` +
-    `<section>${areasCard()}</section>` +
     whySection() +
     `<section><h3>Recomendaciones de autocuidado</h3>${selfCareBody()}</section>` +
-    `<section><h3>Para tu consulta</h3>${consultBody()}</section>` +
+    `<section><h3>Preguntas para tu médica</h3>${consultBody()}</section>` +
     `<section><h3>Tus 11 respuestas</h3>${reportAnswersList()}</section>` +
     `<p class="topics-disclaimer">${DISCLAIMER}</p>` +
     `</div>`;
 }
+
+/* Resumen del reporte (10.4): Escala MRS, síntoma principal y banderas rojas, con el valor en
+   --magenta-text. Síntoma principal = el ítem con el puntaje más alto (el primero si empatan). */
+function reportSummary(){
+  let top = null;
+  MRS_ITEMS.forEach(it=>{ const v = state.answers[it.id]; if(v && (!top || v > state.answers[top.id])) top = it; });
+  const flags = hasFlag() ? state.redFlags.length : 0;
+  return `<dl class="report-summary">` +
+    `<div><dt>Escala MRS</dt><dd>${state.scores.total} de 44</dd></div>` +
+    `<div><dt>Síntoma principal</dt><dd>${top ? top.short : 'Ninguno'}</dd></div>` +
+    `<div><dt>Banderas rojas</dt><dd>${flags ? `Sí (${flags})` : 'Ninguna'}</dd></div>` +
+    `</dl>`;
+}
+
+/* "Compartir con mi médica": comparte el PDF como archivo si el celular lo permite; si no, el
+   enlace; si tampoco, lo copia. El archivo se descarga apenas está listo, porque Safari solo deja
+   compartir justo después del toque (sin esperas de red en medio). */
+const SHARE_TITLE = 'Mi reporte de Mindi';
+function setupShare(btn, url){
+  let file = null;
+  if(navigator.canShare){
+    fetch(url).then(r=> r.ok ? r.blob() : null).then(b=>{
+      if(!b) return;
+      const f = new File([b], 'reporte-mindi.pdf', {type:'application/pdf'});
+      if(navigator.canShare({files:[f]})) file = f;
+    }).catch(()=>{});
+  }
+  btn.hidden = false;
+  btn.addEventListener('click', async ()=>{
+    track('report_share_click');
+    try{
+      if(file){ await navigator.share({files:[file], title:SHARE_TITLE}); return track('report_share', {method:'file'}); }
+      if(navigator.share){ await navigator.share({title:SHARE_TITLE, url}); return track('report_share', {method:'link'}); }
+      await navigator.clipboard.writeText(url);
+      track('report_share', {method:'copy'});
+      if(!btn.nextElementSibling || !btn.nextElementSibling.classList.contains('report-share-ok'))
+        btn.insertAdjacentHTML('afterend', '<p class="report-share-ok" role="status">Copiamos el enlace a tu PDF. Vence en 24 horas.</p>');
+    }catch(e){
+      if(e && e.name === 'AbortError') return; // cerró el menú de compartir
+      track('report_share_failed', {error:(e && e.name) || 'unknown'});
+      window.open(url, '_blank', 'noopener');
+    }
+  });
+}
+
+/* Del resultado al chat con IA (10.5.1, paso 6): /chat recibe los 4 puntajes y la señal de alerta
+   por sessionStorage (solo esta pestaña; sin respuestas una por una ni datos de contacto). */
+const RESULT_STORE = 'mindi_resultado';
+function chatButton(withResult){
+  if(!AGENT_ENABLED) return '';
+  const label = withResult ? 'Pregúntale a Mindi sobre tu resultado' : 'Pregúntale a Mindi';
+  return `<button type="button" class="btn btn-ghost" data-to-chat="${withResult ? 'resultado' : 'filtro'}">${label}</button>`;
+}
+document.addEventListener('click', (e)=>{
+  const b = e.target.closest && e.target.closest('[data-to-chat]');
+  if(!b) return;
+  const withResult = b.dataset.toChat === 'resultado';
+  track('test_to_chat', {source:b.dataset.toChat});
+  try{
+    if(withResult) sessionStorage.setItem(RESULT_STORE, JSON.stringify(agentMrsResult(state.scores, hasFlag())));
+    else sessionStorage.removeItem(RESULT_STORE);
+  }catch{}
+  location.href = '/chat';
+});
 
 let reportSeq = 0;
 function showReport(){
@@ -1205,8 +1243,11 @@ function showReport(){
   const inApp = IN_APP_BROWSER
     ? `<p class="report-inapp">Si la descarga no abre aquí, abre esta página en tu navegador (menú ··· › Abrir en el navegador) o recíbelo en tu correo.</p>` : '';
   revealCard(
-    `<h3>Tu reporte</h3><p class="card-note">Todo lo que vimos, para llevarlo a tu consulta.</p>` +
-    `<div class="report-actions"><a class="btn btn-sm" id="${id}" aria-disabled="true">Preparando tu PDF…</a>` +
+    `<h3>Reporte para tu consulta</h3><p class="card-note">Todo lo que vimos, para llevarlo a tu consulta.</p>` +
+    reportSummary() +
+    `<div class="report-actions"><a class="btn" id="${id}" aria-disabled="true">Preparando tu PDF…</a>` +
+    `<button type="button" class="btn btn-ghost" id="${id}s" hidden>Compartir con mi médica</button>` +
+    chatButton(true) +
     `${whatsappButton('resultado', 'Tengo una duda sobre mi resultado')}</div>` +
     inApp + reportFullHtml(), 'report'
   ).then(()=>{
@@ -1217,8 +1258,9 @@ function showReport(){
       if(url){
         btn.href = url; btn.target = '_blank'; btn.rel = 'noopener';
         btn.removeAttribute('aria-disabled');
-        btn.textContent = 'Descargar mi reporte';
+        btn.textContent = 'Descargar PDF';
         btn.addEventListener('click', ()=> track('report_download', {in_app: IN_APP_BROWSER}));
+        setupShare(document.getElementById(id + 's'), url);
       } else {
         btn.textContent = 'No se pudo preparar el PDF';
         btn.insertAdjacentHTML('afterend', '<p class="card-note">Déjanos tu correo abajo y te enviamos una copia.</p>');
@@ -1315,55 +1357,60 @@ if(symptomsEl){
   syncSymptomsFade();
 }
 
-/* ---------- Modo libre: preguntas al agente de IA (bloque 5) ----------
-   Una sola conversación con dos modos. Guiado: el test de siempre, con botones (start() y las
-   mismas funciones de arriba, sin copias). Libre: el campo "Escribe tu pregunta", en el mismo
-   lugar donde van los botones, así que nunca se ven los dos a la vez. Solo con AGENT_ENABLED. */
-let agentConsented = false; // el aviso de IA se acepta una vez por visita
-let freeSource = 'landing'; // 'landing' (sin test) o 'resultado' (con resultado_mrs)
-
-/* Al terminar el modo guiado (test completo o salida del filtro), la conversación sigue libre. */
+/* ---------- Al terminar el test ----------
+   El test (claro) y el chat con IA (oscuro) son sesiones separadas (10.5): la conversación no sigue
+   libre aquí. Al final se ofrece ir a /chat, con el resultado si lo hay (10.5.1, paso 6). */
 function afterGuided(withResult){
-  if(!AGENT_ENABLED) return;
-  enterFreeMode(withResult ? {from:'resultado', resultado: agentMrsResult(state.scores, hasFlag())} : {from:'landing'});
+  const cta = chatButton(withResult);
+  if(!cta) return;
+  const row = document.createElement('div');
+  row.className = 'row bot';
+  row.innerHTML = `<div class="chat-cta">${cta}</div>`;
+  chat.appendChild(row);
+  scrollBottom();
 }
 
-function enterFreeMode({from, resultado}){
-  freeActive = true;
-  freeSource = from;
-  syncFocus();
-  setSection('Preguntas a Mindi');
-  agentClient.setResult(resultado || null);
-  track('agent_open', {source:from});
-  if(agentConsented) return greetFree();
+/* ---------- Chat con IA: /chat (tema oscuro, 10.5 y 10.5.1) ----------
+   Solo con AGENT_ENABLED. El agente primero responde la duda y, si corresponde, devuelve la acción
+   recommend_test: aquí se dibuja el botón "Haz el test de 5 min →", que abre /test?origen=chat en
+   esta pestaña con una sesión nueva. El test nunca se hace dentro del chat. La web también aplica
+   las reglas del agente: como máximo dos veces y nunca si ya hay resultado. */
+const MAX_TEST_RECOMMENDATIONS = 2;
+let chatSource = 'landing';  // 'landing' (sin test) o 'resultado' (con resultado_mrs)
+let chatResult = null;
+let testRecommendations = 0;
+
+/* Lo que dejó el resultado en sessionStorage: solo 4 puntajes y la señal (el servidor lo valida). */
+function storedResult(){
+  try{
+    const r = JSON.parse(sessionStorage.getItem(RESULT_STORE) || 'null');
+    const ok = r && ['total','somatico','psicologico','urogenital'].every(k=> Number.isFinite(r[k]));
+    return ok ? {total:r.total, somatico:r.somatico, psicologico:r.psicologico, urogenital:r.urogenital, senal_alerta:r.senal_alerta === true} : null;
+  }catch{ return null; }
+}
+
+function openAiChat(){
+  aiMode = true;
+  document.body.classList.add('chat-ai');
+  chatResult = storedResult();
+  chatSource = chatResult ? 'resultado' : 'landing';
+  openChatShell();
+  setStatus(false);
+  agentClient.setResult(chatResult);
+  track('agent_open', {source:chatSource});
   revealCard(`<p>${AI_NOTICE}</p>`, 'notice').then(()=>{
     renderChips([{label:'Entendido', primary:true}], ()=>{
-      agentConsented = true;
-      track('agent_consent', {source:freeSource});
-      greetFree();
+      track('agent_consent', {source:chatSource});
+      botSay([GREETING[chatSource]]).then(renderQuestionInput);
     });
   });
 }
-function greetFree(){ botSay([GREETING[freeSource]]).then(()=> renderQuestionInput(false)); }
 
-/* Campo de pregunta. offerTest: el agente llamó a la herramienta que ofrece el test → botón
-   "Hacer mi test aquí" (solo si el test no se hizo todavía en esta visita). */
-function renderQuestionInput(offerTest){
+function renderQuestionInput(){
   clearComposer();
-  if(offerTest && !started){
-    const wrap = document.createElement('div');
-    wrap.className = 'chips';
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'chip primary';
-    btn.textContent = 'Hacer mi test aquí';
-    btn.onclick = startTestFromAgent;
-    wrap.appendChild(btn);
-    composer.appendChild(wrap);
-  }
   const form = document.createElement('form');
   form.className = 'inputRow free-input';
-  form.innerHTML = `<input type="text" maxlength="1000" placeholder="Escribe tu pregunta" aria-label="Escribe tu pregunta" autocomplete="off">` +
+  form.innerHTML = `<input type="text" maxlength="1000" placeholder="Escribe tu duda…" aria-label="Escribe tu duda" autocomplete="off">` +
     `<button type="submit" class="sendBtn" aria-label="Enviar">${ICON_SEND}</button>`;
   const input = form.querySelector('input');
   form.onsubmit = (e)=>{ e.preventDefault(); const t = input.value.trim(); if(t) askAgent(t); };
@@ -1380,8 +1427,26 @@ function addAgentBubble(text){
   scrollBottom();
 }
 
-/* Si el agente falla o no responde a tiempo: mensaje y WhatsApp en la conversación; el test y el
-   reporte siguen disponibles, y se puede volver a preguntar. */
+/* Botón dentro del chat, justo debajo de la respuesta (10.5.1, paso 3). */
+function recommendTest(){
+  if(chatResult || testRecommendations >= MAX_TEST_RECOMMENDATIONS) return;
+  testRecommendations++;
+  const row = document.createElement('div');
+  row.className = 'row bot';
+  row.innerHTML = `<div class="chat-cta"><a class="btn" href="/test?origen=chat" data-chat-to-test>Haz el test de 5 min →</a></div>`;
+  chat.appendChild(row);
+  scrollBottom();
+  track('chat_test_recommended', {n:testRecommendations});
+}
+document.addEventListener('click', (e)=>{
+  if(!(e.target.closest && e.target.closest('[data-chat-to-test]'))) return;
+  track('chat_to_test');
+  releaseSessionId(); // el test va en una sesión nueva
+  try{ sessionStorage.removeItem(RESULT_STORE); }catch{}
+});
+
+/* Si el agente falla o no responde a tiempo: mensaje y WhatsApp en la conversación, y se puede
+   volver a preguntar. */
 function agentFallback(text){
   addCard(`<p>${text}</p>` + (whatsappButton('agente') ? `<div class="card-actions">${whatsappButton('agente')}</div>` : ''), '');
 }
@@ -1389,35 +1454,20 @@ function agentFallback(text){
 async function askAgent(text){
   addBubble(text.slice(0, 1000), 'user');
   clearComposer();
-  if(agentClient.limitReached){ agentFallback(LIMIT_TEXT); return renderQuestionInput(false); }
+  if(agentClient.limitReached){ agentFallback(LIMIT_TEXT); return renderQuestionInput(); }
   showTyping();
   try{
     const reply = await agentClient.ask(text.slice(0, 1000));
     hideTyping();
-    if(reply.text) addAgentBubble(reply.text);
-    track('agent_message', {source:freeSource, area:reply.area || 'otro'});
-    renderQuestionInput(!!reply.offerTest);
+    addAgentBubble(reply.text);
+    track('agent_message', {source:chatSource, area:reply.area || 'otro'});
+    if(reply.action === 'recommend_test') recommendTest();
   }catch(e){
     hideTyping();
-    track('agent_error', {source:freeSource, code:e.status || 0});
+    track('agent_error', {source:chatSource, code:e.status || 0});
     agentFallback(ERROR_TEXT);
-    renderQuestionInput(false);
   }
-}
-
-/* "Hacer mi test aquí": el chat pasa a modo guiado y corre el test normal desde el consentimiento.
-   Es el mismo start() que el botón "Acepto y empiezo" de la tarjeta de inicio. */
-function startTestFromAgent(){
-  track('test_offer_click', {source:freeSource});
-  testFromAgent = true;
-  freeActive = false;
-  clearComposer();
-  revealCard(`<p class="consent-inline">${CONSENT_HTML}</p>`, '').then(()=>{
-    renderChips([{label:'Acepto y empiezo', primary:true}], ()=>{
-      track('consent_accept', {version:CONSENT_VERSION});
-      start();
-    });
-  });
+  renderQuestionInput();
 }
 
 /* ---------- Entrada ----------
@@ -1425,20 +1475,20 @@ function startTestFromAgent(){
    (vercel.json reescribe las dos rutas a index.html; #conversar sigue funcionando). */
 const PATH = location.pathname.replace(/\/+$/, '') || '/';
 const APP_VIEW = PATH === '/test' || PATH === '/chat' || location.hash === '#conversar';
-if(APP_VIEW){
-  document.body.classList.remove('landing-view');
-  document.body.classList.add('app-view');
-  setFocus(true);
-  if(PATH === '/chat' && AGENT_ENABLED){ track('cta_click', {source:'ruta_chat'}); openChatShell(); enterFreeMode({from:'landing'}); }
-}
+// Los botones se conectan antes de abrir /chat: openAiChat quita la tarjeta de inicio (y su botón).
 document.getElementById('restartBtn').addEventListener('click', ()=>{ track('restart'); location.hash = 'conversar'; location.reload(); });
-
 document.getElementById('exitBtn').addEventListener('click', ()=>{ location.href = '/'; });
 document.getElementById('startBtn').addEventListener('click', ()=>{
   track('cta_click',{source:'chat'});
   if(!started) track('consent_accept',{version:CONSENT_VERSION});
   start();
 });
+if(APP_VIEW){
+  document.body.classList.remove('landing-view');
+  document.body.classList.add('app-view');
+  setFocus(true);
+  if(PATH === '/chat' && AGENT_ENABLED){ track('cta_click', {source:'ruta_chat'}); openAiChat(); }
+}
 
 /* ---------- Landing (src/landing.js) ---------- */
 if(!APP_VIEW){

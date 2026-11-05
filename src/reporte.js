@@ -1,4 +1,6 @@
-import './landing.css';
+import './ds.css';
+import './site.css';
+import './reporte.css';
 
 // Página pública de solo lectura para el reporte, usada cuando la usuaria dejó
 // un número en vez de un correo (no hay API oficial de WhatsApp para enviarlo

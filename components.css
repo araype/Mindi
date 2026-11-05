@@ -80,7 +80,7 @@
 .m-bubble{max-width:86%;padding:12px 14px;font-size:16px;line-height:1.45;animation:m-pop var(--duration-pop) ease both}
 .m-bubble--bot{align-self:flex-start;background:#fff;border:1.5px solid var(--bubble-bot-border);border-radius:16px 16px 16px 4px;color:var(--plum)}
 .m-bubble--bot small,.m-bubble__example{display:block;margin-top:6px;color:var(--plum-soft);font-size:13px;line-height:1.4}
-.m-bubble--me{align-self:flex-end;background:var(--magenta-btn);color:#fff;border-radius:16px 16px 4px 16px}
+.m-bubble--me{align-self:flex-end;background:var(--magenta-text);color:#fff;border-radius:16px 16px 4px 16px}
 @keyframes m-pop{from{opacity:0;transform:translateY(8px) scale(.97)}to{opacity:1;transform:none}}
 
 .m-typing{align-self:flex-start;display:inline-flex;gap:4px;padding:12px 14px;background:#fff;border:1.5px solid var(--bubble-bot-border);border-radius:16px 16px 16px 4px}
@@ -98,6 +98,7 @@
 .m-scale button:nth-child(3){background:var(--scale-2)}
 .m-scale button:nth-child(4){background:var(--scale-3);color:#fff}
 .m-scale button:nth-child(5){background:var(--scale-4);color:#fff}
+.m-scale button:nth-child(3) small{color:var(--plum)} /* plum-soft sobre scale-2 da 4,4:1 */
 .m-scale button:nth-child(n+4) small{color:#fff}
 .m-scale button[aria-pressed="true"]{box-shadow:0 0 0 2px var(--plum)}
 .m-scale button:focus-visible{outline:3px solid var(--plum);outline-offset:2px}

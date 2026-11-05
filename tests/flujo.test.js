@@ -1,5 +1,5 @@
-// Tests del modo guiado del chat: debe ser el MISMO test que siempre, sin copias.
-// El flujo vive una sola vez en src/main.js; el modo libre (agente) solo lo llama. Correr con: npm test
+// Tests del flujo del chat: el test es el MISMO de siempre, sin copias, y el chat con IA (/chat) es
+// una sesión aparte que solo puede recomendar el test con un botón (handoff 10.5.1). Correr con: npm test
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
@@ -17,11 +17,11 @@ test('cada paso del test está definido una sola vez', () => {
   assert.equal(count(/const RED_FLAGS = \[/g), 1);
 });
 
-test('las dos entradas al test usan el mismo start(), después del consentimiento', () => {
+test('el test tiene una sola entrada, después del consentimiento; nunca dentro del chat con IA', () => {
   const startBtn = main.slice(main.indexOf("getElementById('startBtn').addEventListener"));
   assert.match(startBtn.slice(0, 300), /track\('consent_accept'[\s\S]*start\(\);/);
-  const fromAgent = main.slice(main.indexOf('function startTestFromAgent('));
-  assert.match(fromAgent.slice(0, 700), /Acepto y empiezo[\s\S]*track\('consent_accept'[\s\S]*start\(\);/);
+  assert.equal(count(/\bstart\(\);/g), 1); // solo el botón "Acepto y empiezo"
+  assert.doesNotMatch(main, /startTestFromAgent|Hacer mi test aquí/);
 });
 
 test('el puntaje y el nivel salen solo del módulo compartido', () => {
@@ -30,15 +30,24 @@ test('el puntaje y el nivel salen solo del módulo compartido', () => {
   assert.match(main, /from '\.\.\/supabase\/functions\/_shared\/mrs\.js'/);
 });
 
-test('el modo libre no muestra el campo de texto durante el test', () => {
-  // start() (modo guiado) apaga el modo libre; el campo solo se dibuja en renderQuestionInput,
-  // que se llama desde el modo libre, nunca desde los pasos del test.
-  assert.match(main.slice(main.indexOf('async function start('), main.indexOf('async function start(') + 300), /freeActive = false/);
-  const steps = main.slice(main.indexOf('function askAge('), main.indexOf('/* ---------- Modo libre'));
+test('el campo de texto del chat con IA nunca aparece durante el test (sesiones separadas, 10.5)', () => {
+  const steps = main.slice(main.indexOf('function askAge('), main.indexOf('/* ---------- Al terminar el test'));
   assert.doesNotMatch(steps, /renderQuestionInput\(/);
+  const ai = main.slice(main.indexOf('/* ---------- Chat con IA: /chat'), main.indexOf('/* ---------- Entrada'));
+  assert.doesNotMatch(ai, /\bstart\(|askAge\(/);
 });
 
-test('al terminar el test o la salida del filtro, la conversación sigue en modo libre', () => {
+test('del chat al test: botón solo con recommend_test, máximo dos veces, nunca con resultado; abre /test?origen=chat', () => {
+  assert.match(main, /if\(reply\.action === 'recommend_test'\) recommendTest\(\);/);
+  const fn = main.slice(main.indexOf('function recommendTest('), main.indexOf('function recommendTest(') + 600);
+  assert.match(fn, /if\(chatResult \|\| testRecommendations >= MAX_TEST_RECOMMENDATIONS\) return;/);
+  assert.match(fn, /href="\/test\?origen=chat"/);
+  assert.match(fn, /track\('chat_test_recommended'/);
+  assert.match(main, /const MAX_TEST_RECOMMENDATIONS = 2;/);
+  assert.match(main, /track\('chat_to_test'\);\s*releaseSessionId\(\);/);
+});
+
+test('al terminar el test o la salida del filtro se ofrece ir al chat con IA', () => {
   assert.match(main, /channelInvite\('final'\)\)\.then\(\(\)=> afterGuided\(true\)\)/);
   assert.equal(count(/channelInvite\('filtro'\)\)\.then\(\(\)=> afterGuided\(false\)\)/g), 2);
 });

@@ -22,6 +22,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
 import { PDFDocument, StandardFonts, rgb } from 'https://esm.sh/pdf-lib@1.17.1';
+import fontkit from 'https://esm.sh/@pdf-lib/fontkit@1.1.1';
 import { encodeBase64 } from 'https://deno.land/std@0.224.0/encoding/base64.ts';
 // Puntaje MRS, cortes de la Guía HNHU y textos del resultado: el mismo módulo que usa el chat.
 import {
@@ -76,8 +77,18 @@ function sessionScores(session: Record<string, any>) {
   };
 }
 const skippedIntimate = (session: Record<string, any>) => session.skipped_intimate === true;
-const AREA_COLOR = { over: '#A4502F', under: '#33421F', incomplete: '#5F5F57' } as const;
-const AREA_BAR = { over: '#A4502F', under: '#A3B58D', incomplete: '#C9C6BA' } as const;
+/* Paleta de marca (handoff, sección 3): texto ciruela, magenta solo en acentos. Los correos no
+   cargan fuentes web: se nombran Special Gothic y Signika con respaldos del sistema. */
+const C = {
+  plum: '#2A1026', plumSoft: '#6A4560', magentaText: '#C0128C', magentaBtn: '#FF3CC7',
+  line: '#F6B8E2', lineSoft: '#F3CFE4', pinkTint: '#FFE3F5', pinkBg: '#FDEBF6', sevBg: '#FFE0F3',
+  testBg: '#FFF8FC', okText: '#1F7A4D', okBg: '#E6F6EE',
+} as const;
+const FONT_DISPLAY = "'Special Gothic','Archivo','Arial Black',Arial,sans-serif";
+const FONT_BODY = "Signika,'Segoe UI',Arial,sans-serif";
+const H2 = `font-family:${FONT_DISPLAY};font-weight:700;color:${C.plum};font-size:18px;`;
+const AREA_COLOR = { over: C.magentaText, under: C.plumSoft, incomplete: C.plumSoft } as const;
+const AREA_BAR = { over: C.magentaBtn, under: '#F9A8DB', incomplete: C.lineSoft } as const;
 
 /* Bloque para el médico: puntaje total, cada subescala con su máximo y su relación con el
    corte de la guía, la categoría de Heinemann del total (dato descriptivo aparte) y, si
@@ -166,7 +177,7 @@ function row2col(left: string, right: string, style = '') {
 function meterBar(pct: number, color: string) {
   return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;margin-top:6px;"><tr>
     <td style="background:${color};height:10px;font-size:1px;line-height:1px;width:${pct}%;border-radius:999px 0 0 999px;">&nbsp;</td>
-    <td style="background:#E8E6DA;height:10px;font-size:1px;line-height:1px;border-radius:0 999px 999px 0;">&nbsp;</td>
+    <td style="background:${C.lineSoft};height:10px;font-size:1px;line-height:1px;border-radius:0 999px 999px 0;">&nbsp;</td>
   </tr></table>`;
 }
 
@@ -174,28 +185,28 @@ function meterBar(pct: number, color: string) {
    La lista viene de _shared/autocuidado.js, igual que en el chat. */
 function selfCareFragment(session: Record<string, any>) {
   const rows = selfCareItems(session).map(([t, d]) => `<li style="margin:6px 0;"><b>${t}:</b> ${d}</li>`).join('');
-  return `<h2 style="font-family:Georgia,serif;font-size:18px;margin:24px 0 4px;">Algunas cosas que pueden ayudarte</h2>
-    <p style="color:#5F5F57;font-size:13px;margin:0 0 8px;">No reemplazan un tratamiento si tu médico(a) lo indica — son medidas seguras para cualquier momento de esta etapa.</p>
+  return `<h2 style="${H2}margin:24px 0 4px;">Algunas cosas que pueden ayudarte</h2>
+    <p style="color:${C.plumSoft};font-size:13px;margin:0 0 8px;">No reemplazan un tratamiento si tu médico(a) lo indica — son medidas seguras para cualquier momento de esta etapa.</p>
     <ul style="padding-left:20px;margin:0;">${rows}</ul>
-    <p style="color:#5F5F57;font-size:12px;margin-top:10px;">Fuente: ${SELF_CARE_SOURCE}</p>`;
+    <p style="color:${C.plumSoft};font-size:12px;margin-top:10px;">Fuente: ${SELF_CARE_SOURCE}</p>`;
 }
 
 /* "Para tu consulta": preguntas siempre útiles + los puntos de contexto ya calculados.
    Mismo contenido que src/main.js (consultCard) — mantener sincronizado. */
 function consultFragment(pts: string[]) {
-  let html = `<h2 style="font-family:Georgia,serif;font-size:18px;margin:24px 0 8px;">Para tu consulta</h2>` +
-    `<p style="color:#5F5F57;font-size:13px;margin:0 0 8px;">Puedes llevar contigo lo que viste arriba (tu puntaje por áreas) y, si quieres, estas preguntas:</p>` +
+  let html = `<h2 style="${H2}margin:24px 0 8px;">Preguntas para tu médica</h2>` +
+    `<p style="color:${C.plumSoft};font-size:13px;margin:0 0 8px;">Puedes llevar contigo lo que viste arriba (tu puntaje por áreas) y, si quieres, estas preguntas:</p>` +
     `<ul style="padding-left:20px;margin:0;">${CONSULT_GENERIC.map((g) => `<li style="margin:4px 0;">${g}</li>`).join('')}</ul>`;
   if (pts.length) {
     html += `<p style="margin:10px 0 4px;font-weight:600;">También ten en cuenta:</p><ul style="padding-left:20px;margin:0;">${pts.map((p) => `<li style="margin:4px 0;">${p}</li>`).join('')}</ul>` +
-      `<p style="color:#5F5F57;font-size:12px;margin-top:8px;">${CONSULT_SOURCE}</p>`;
+      `<p style="color:${C.plumSoft};font-size:12px;margin-top:8px;">${CONSULT_SOURCE}</p>`;
   }
   return html;
 }
 
 /** Recomendación de ir al médico (_shared/mrs.js), justo después del título: mismo texto que el chat. */
 function doctorRecoHtml(level: string) {
-  return `<div style="background:#FFF6EE;border-left:4px solid #D33D17;border-radius:8px;padding:12px 14px;margin:4px 0 14px;font-weight:600;color:#1B1B19;">${esc(doctorRecommendation(level))}</div>`;
+  return `<div style="background:${C.pinkTint};border-left:4px solid ${C.magentaBtn};border-radius:10px;padding:12px 14px;margin:4px 0 14px;font-weight:600;color:${C.plum};">${esc(doctorRecommendation(level))}</div>`;
 }
 
 /** "Por qué puede pasarte": solo los síntomas en 2 o más (_shared/notas.js). Vacío si no hay ninguno. */
@@ -203,13 +214,13 @@ function whyFragment(session: Record<string, any>) {
   const notes = whyNotes(session.answers || {});
   if (!notes.length) return '';
   const rows = notes.map((n: any) => `<li style="margin:6px 0;"><b>${n.label}:</b> ${n.text}</li>`).join('');
-  return `<h2 style="font-family:Georgia,serif;font-size:18px;margin:24px 0 4px;">${WHY_TITLE}</h2>
+  return `<h2 style="${H2}margin:24px 0 4px;">${WHY_TITLE}</h2>
     <ul style="padding-left:20px;margin:0;">${rows}</ul>`;
 }
 
 /** Badge del nivel (mismo texto que en el chat). */
 function badgeHtml(text: string) {
-  return `<span style="display:inline-block;background:#F3EDE4;color:#6E3A4E;border:1px solid #E9D9C7;border-radius:999px;padding:3px 10px;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;">${text}</span>`;
+  return `<span style="display:inline-block;background:${C.sevBg};color:${C.magentaText};border-radius:999px;padding:5px 12px;font-size:13px;font-weight:600;">${text}</span>`;
 }
 
 /** Fragmento HTML con estilos en línea (para que se vea bien tanto en el correo como en la página del enlace). */
@@ -226,13 +237,13 @@ function buildFragment(session: Record<string, any>, lead: Record<string, any>) 
     const emergency = (session.red_flags || []).includes('rf2');
     const lvl = levelMessage(sessionScores(session));
     opening = `
-      <h1 style="font-family:Georgia,serif;font-size:24px;margin:0 0 12px;">Un paso de cuidado</h1>
+      <h1 style="font-family:${FONT_DISPLAY};font-weight:700;color:${C.plum};font-size:26px;margin:0 0 12px;">Un paso de cuidado</h1>
       <p>${greeting} Marcaste algo que conviene revisar con tu médico(a).</p>
-      ${emergency ? `<div style="background:#FAE9E4;border:1px solid #D58B7E;color:#6E2519;padding:14px 16px;border-radius:12px;font-weight:600;margin:16px 0;">${EMERGENCY_NOW}</div>` : ''}
+      ${emergency ? `<div style="background:${C.testBg};border:1.5px solid ${C.plum};border-left-width:5px;color:${C.plum};padding:14px 16px;border-radius:12px;font-weight:600;margin:16px 0;">${EMERGENCY_NOW}</div>` : ''}
       <p>Para el resto de señales que marcaste, agenda una cita ginecológica lo antes posible.</p>
-      <p style="color:#5F5F57;font-size:13px;">Esto no reemplaza la valoración de un profesional de salud.</p>
+      <p style="color:${C.plumSoft};font-size:13px;">Esto no reemplaza la valoración de un profesional de salud.</p>
       ${badgeHtml(lvl.badge)}
-      <h2 style="font-family:Georgia,serif;font-size:18px;margin:8px 0 4px;">${lvl.title}</h2>
+      <h2 style="${H2}margin:8px 0 4px;">${lvl.title}</h2>
       ${doctorRecoHtml(session.level)}
       <p>De todas formas, esto es lo que notamos en el resto de tus respuestas.</p>
       ${lvl.paragraphs.map((t: string) => `<p>${t}</p>`).join('')}`;
@@ -240,7 +251,7 @@ function buildFragment(session: Record<string, any>, lead: Record<string, any>) 
     const lvl = levelMessage(sessionScores(session));
     opening = `
       ${badgeHtml(lvl.badge)}
-      <h1 style="font-family:Georgia,serif;font-size:24px;margin:8px 0 12px;">${lvl.title}</h1>
+      <h1 style="font-family:${FONT_DISPLAY};font-weight:700;color:${C.plum};font-size:26px;line-height:1.1;margin:10px 0 12px;">${lvl.title}</h1>
       ${doctorRecoHtml(session.level)}
       <p>${greeting} Esto es lo que noté en lo que me contaste.</p>
       ${lvl.paragraphs.map((t: string) => `<p>${t}</p>`).join('')}`;
@@ -257,19 +268,19 @@ function buildFragment(session: Record<string, any>, lead: Record<string, any>) 
       ${row2col(label, tag)}
       ${meterBar(pct, AREA_BAR[status])}
     </div>`;
-  }).join('') + (skipped ? `<p style="color:#5F5F57;font-size:13px;margin:4px 0 0;">${SKIPPED_INTIMATE_NOTE}</p>` : '');
+  }).join('') + (skipped ? `<p style="color:${C.plumSoft};font-size:13px;margin:4px 0 0;">${SKIPPED_INTIMATE_NOTE}</p>` : '');
 
   const doc = doctorRows(session);
-  const docRow = (l: string, r: string) => `<div style="padding:5px 0;border-bottom:1px solid #EEEEE3;">${row2col(`<span style="font-size:14px;">${l}</span>`, `<span style="font-size:14px;color:#33332F;">${r}</span>`)}</div>`;
+  const docRow = (l: string, r: string) => `<div style="padding:5px 0;border-bottom:1px solid ${C.lineSoft};">${row2col(`<span style="font-size:14px;">${l}</span>`, `<span style="font-size:14px;color:${C.plum};">${r}</span>`)}</div>`;
   const doctorHtml = `
-    <div style="border:1px solid #DDDDD1;border-radius:12px;padding:14px 16px;margin-top:20px;">
-      <h2 style="font-family:Georgia,serif;font-size:17px;margin:0 0 4px;">Para tu médico(a): puntaje MRS</h2>
-      <p style="color:#5F5F57;font-size:12px;margin:0 0 8px;">Menopause Rating Scale, 11 ítems de 0 a 4.</p>
+    <div style="border:1.5px solid ${C.line};border-radius:14px;padding:14px 16px;margin-top:20px;">
+      <h2 style="${H2}font-size:17px;margin:0 0 4px;">Para tu médico(a): puntaje MRS</h2>
+      <p style="color:${C.plumSoft};font-size:12px;margin:0 0 8px;">Menopause Rating Scale, 11 ítems de 0 a 4.</p>
       ${docRow('<b>Puntaje total</b>', `<b>${doc.total}</b>`)}
-      ${doc.areas.map((a) => docRow(a.label, `${a.value}<br><span style="font-size:12px;color:#5F5F57;">${a.tag}</span>`)).join('')}
+      ${doc.areas.map((a) => docRow(a.label, `${a.value}<br><span style="font-size:12px;color:${C.plumSoft};">${a.tag}</span>`)).join('')}
       ${docRow('Categoría del total según Heinemann', doc.heinemann)}
-      ${doc.skipped ? `<p style="background:#F6E9C9;border:1px solid #DCB671;color:#6B4308;padding:10px 12px;border-radius:10px;font-size:13px;margin:10px 0 0;">${SKIPPED_INTIMATE_NOTE_DOCTOR}</p>` : ''}
-      <p style="color:#5F5F57;font-size:11px;margin:10px 0 0;">${CUTS_SOURCE}<br>Categoría de intensidad: ${HEINEMANN_SOURCE}</p>
+      ${doc.skipped ? `<p style="background:${C.pinkBg};border:1px solid ${C.line};color:${C.plum};padding:10px 12px;border-radius:10px;font-size:13px;margin:10px 0 0;">${SKIPPED_INTIMATE_NOTE_DOCTOR}</p>` : ''}
+      <p style="color:${C.plumSoft};font-size:11px;margin:10px 0 0;">${CUTS_SOURCE}<br>Categoría de intensidad: ${HEINEMANN_SOURCE}</p>
     </div>`;
 
   const pts = contextPoints(session);
@@ -279,42 +290,43 @@ function buildFragment(session: Record<string, any>, lead: Record<string, any>) 
     const v = answers[id];
     const has = v !== null && v !== undefined;
     const l = `<span style="font-size:14px;">${label}</span>`;
-    const r = `<span style="color:#5F5F57;font-size:14px;">${has ? SCALE_LABELS[v] : 'Sin responder'}</span>`;
-    return `<div style="padding:4px 0;border-bottom:1px solid #EEEEE3;">${row2col(l, r)}</div>`;
+    const r = `<span style="color:${C.plumSoft};font-size:14px;">${has ? SCALE_LABELS[v] : 'Sin responder'}</span>`;
+    return `<div style="padding:4px 0;border-bottom:1px solid ${C.lineSoft};">${row2col(l, r)}</div>`;
   }).join('');
 
   return `
     ${opening}
-    <h2 style="font-family:Georgia,serif;font-size:18px;margin:24px 0 4px;">Sobre tu etapa</h2>
+    <h2 style="${H2}margin:24px 0 4px;">Sobre tu etapa</h2>
     <p>${stageNote(session)}</p>
-    <p style="color:#5F5F57;font-size:12px;">${PERU_AGE_NOTE} ${STAGE_SOURCE}</p>
-    <h2 style="font-family:Georgia,serif;font-size:18px;margin:24px 0 4px;">Lo que noto por áreas</h2>
-    <p style="color:#5F5F57;font-size:13px;margin:0 0 8px;">Es una mirada de conjunto, no una calificación.</p>
+    <p style="color:${C.plumSoft};font-size:12px;">${PERU_AGE_NOTE} ${STAGE_SOURCE}</p>
+    <h2 style="${H2}margin:24px 0 4px;">Lo que noto por áreas</h2>
+    <p style="color:${C.plumSoft};font-size:13px;margin:0 0 8px;">Es una mirada de conjunto, no una calificación.</p>
     ${areasHtml}
     ${whyFragment(session)}
-    <h2 style="font-family:Georgia,serif;font-size:18px;margin:24px 0 8px;">Tus 11 respuestas</h2>
+    <h2 style="${H2}margin:24px 0 8px;">Tus 11 respuestas</h2>
     ${itemRows}
     ${doctorHtml}
-    ${session.score_psicologico >= CUTS.psicologico ? `<p style="background:#EDF1E6;border:1px solid #A3B58D;padding:12px 14px;border-radius:12px;margin-top:16px;">${PSICOLOGICO_NOTE}<br><span style="font-size:11px;color:#5F5F57;">${PSICOLOGICO_SOURCE}</span></p>` : ''}
+    ${session.score_psicologico >= CUTS.psicologico ? `<p style="background:${C.pinkBg};border:1px solid ${C.line};padding:12px 14px;border-radius:12px;margin-top:16px;">${PSICOLOGICO_NOTE}<br><span style="font-size:11px;color:${C.plumSoft};">${PSICOLOGICO_SOURCE}</span></p>` : ''}
     ${selfCareFragment(session)}
     ${consultFragment(pts)}
-    <p style="color:#5F5F57;font-size:13px;margin-top:16px;">Esto es solo orientación informativa. Solo un profesional de salud puede evaluarte con exámenes clínicos.</p>
+    <p style="color:${C.plumSoft};font-size:13px;margin-top:16px;">Esto es solo orientación informativa. Solo un profesional de salud puede evaluarte con exámenes clínicos.</p>
     ${footer()}`;
 }
 
 function footer() {
-  return `<hr style="margin:28px 0;border:none;border-top:1px solid #DDDDD1;">
-  <p style="font-size:12px;color:#5F5F57;">Recibiste esto porque dejaste tu contacto en Mindi. Tú decidiste qué compartir.</p>`;
+  return `<hr style="margin:28px 0;border:none;border-top:1px solid ${C.lineSoft};">
+  <p style="font-size:12px;color:${C.plumSoft};">Recibiste esto porque dejaste tu contacto en Mindi. Tú decidiste qué compartir.</p>`;
 }
 
 /** Documento completo (con doctype/body) — solo para el envío por Resend. */
 function wrapForEmail(fragment: string, hasPdf: boolean) {
   const pdfNote = hasPdf
-    ? `<p style="background:#EDF1E6;border:1px solid #A3B58D;color:#33421F;padding:10px 14px;border-radius:10px;font-size:13px;margin:0 0 18px;">También te dejamos este reporte en PDF adjunto, para guardar o imprimir.</p>`
+    ? `<p style="background:${C.okBg};color:${C.okText};padding:10px 14px;border-radius:10px;font-size:13px;margin:0 0 18px;">También te dejamos este reporte en PDF adjunto, para guardar o imprimir.</p>`
     : '';
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"></head>
-  <body style="margin:0;padding:24px 16px;background:#F3F1E8;font-family:Georgia,serif;color:#1B1B19;">
-    <div style="max-width:560px;margin:0 auto;background:#FBFBF8;border:1px solid #DDDDD1;border-radius:16px;padding:28px 24px;">
+  <body style="margin:0;padding:24px 16px;background:${C.testBg};font-family:${FONT_BODY};color:${C.plum};line-height:1.5;">
+    <div style="max-width:560px;margin:0 auto;background:#FFFFFF;border:1.5px solid ${C.line};border-radius:24px;padding:28px 24px;">
+      <p style="margin:0 0 18px;font-family:${FONT_DISPLAY};font-weight:700;font-size:26px;color:${C.magentaBtn};">Mindi</p>
       ${pdfNote}
       ${fragment}
     </div>
@@ -323,24 +335,51 @@ function wrapForEmail(fragment: string, hasPdf: boolean) {
 
 /* ---------- PDF adjunto (pdf-lib: se dibuja a mano, sin navegador ni servicio externo) ----------
    Deno Deploy no permite correr Chrome/Puppeteer, así que no se puede "convertir" el HTML.
-   Este PDF es más simple que el correo (texto + rectángulos, sin la tipografía de marca),
-   pero usa el mismo contenido (selfCareItems, contextPoints, levelMessage, etc.) para que
-   nunca diga algo distinto al correo o a la página del enlace. */
+   Usa el mismo contenido (selfCareItems, contextPoints, levelMessage, etc.) para que nunca diga
+   algo distinto al correo o a la página del enlace, y la misma identidad que la web (10.4):
+   Special Gothic en títulos, Signika en el texto, ciruela para el texto y magenta solo en acentos.
+   Las fuentes (OFL, TTF estáticos) se sirven desde el sitio: public/fonts/pdf/. Si no se pueden
+   descargar, el PDF sale igual con Helvetica: nunca se pierde el reporte por una fuente. */
+const PDF_FONTS = { display: 'SpecialGothic-Bold.ttf', body: 'Signika-Regular.ttf', bodyBold: 'Signika-SemiBold.ttf' };
+let fontBytes: Promise<Record<string, Uint8Array> | null> | null = null;
+function loadBrandFonts() {
+  fontBytes ??= Promise.all(Object.entries(PDF_FONTS).map(async ([k, file]) => {
+    const r = await fetch(`${SITE_URL}/fonts/pdf/${file}`);
+    if (!r.ok) throw new Error(`font ${file}: ${r.status}`);
+    return [k, new Uint8Array(await r.arrayBuffer())] as const;
+  })).then(Object.fromEntries).catch((e) => { console.error('pdf fonts', e.message); fontBytes = null; return null; });
+  return fontBytes;
+}
 const PAGE_W = 595.28, PAGE_H = 841.89; // A4
 const MARGIN = 50;
 const CONTENT_W = PAGE_W - MARGIN * 2;
+const hex = (h: string) => rgb(parseInt(h.slice(1, 3), 16) / 255, parseInt(h.slice(3, 5), 16) / 255, parseInt(h.slice(5, 7), 16) / 255);
 const PDF_COLOR = {
-  ink: rgb(0.106, 0.106, 0.098),
-  inkSoft: rgb(0.373, 0.373, 0.341),
-  action: rgb(0.643, 0.314, 0.184),
-  calm: rgb(0.42, 0.51, 0.30),
-  border: rgb(0.867, 0.867, 0.820),
+  ink: hex(C.plum),            // texto
+  inkSoft: hex(C.plumSoft),    // texto secundario
+  action: hex(C.magentaText),  // acentos en texto (recomendación, área que alcanza el corte)
+  bar: hex(C.magentaBtn),      // barras y logo
+  calm: hex(C.plumSoft),
+  border: hex(C.lineSoft),     // separadores y pista de las barras
+  tint: hex(C.pinkTint),
 };
 
 async function buildPdf(session: Record<string, any>, lead: Record<string, any>): Promise<Uint8Array> {
   const pdfDoc = await PDFDocument.create();
-  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-  const bold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  const brand = await loadBrandFonts();
+  let font: any, bold: any, display: any;
+  if (brand) {
+    pdfDoc.registerFontkit(fontkit);
+    // Signika va entera: el subset de fontkit pierde letras. Sin sustituciones contextuales ni
+    // ligaduras: pdf-lib no las posiciona bien y dejaba un hueco después de "vi" ("Convi ene").
+    const features = { calt: false, liga: false, clig: false, rlig: false, dlig: false };
+    font = await pdfDoc.embedFont(brand.body, { features });
+    bold = await pdfDoc.embedFont(brand.bodyBold, { features });
+    display = await pdfDoc.embedFont(brand.display, { subset: true, features });
+  } else {
+    font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    bold = display = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  }
   let page = pdfDoc.addPage([PAGE_W, PAGE_H]);
   let y = PAGE_H - MARGIN;
 
@@ -369,8 +408,12 @@ async function buildPdf(session: Record<string, any>, lead: Record<string, any>)
   };
   const heading = (str: string, size = 13) => {
     ensure(size + 12); y -= 6;
-    page.drawText(str, { x: MARGIN, y: y - size, size, font: bold, color: PDF_COLOR.ink });
-    y -= size + 8;
+    for (const line of wrap(str, display, size, CONTENT_W)) {
+      ensure(size + 4);
+      page.drawText(line, { x: MARGIN, y: y - size, size, font: display, color: PDF_COLOR.ink });
+      y -= size + 3;
+    }
+    y -= 5;
   };
   const rule = () => {
     ensure(12);
@@ -403,8 +446,8 @@ async function buildPdf(session: Record<string, any>, lead: Record<string, any>)
     y -= 3;
   };
 
-  page.drawText('Mindi', { x: MARGIN, y: y - 20, size: 20, font: bold, color: PDF_COLOR.action });
-  y -= 26;
+  page.drawText('Mindi', { x: MARGIN, y: y - 24, size: 24, font: display, color: PDF_COLOR.bar });
+  y -= 30;
   page.drawText('Reporte de síntomas · perimenopausia', { x: MARGIN, y: y - 9, size: 9, font, color: PDF_COLOR.inkSoft });
   y -= 20;
   rule();
@@ -422,7 +465,7 @@ async function buildPdf(session: Record<string, any>, lead: Record<string, any>)
     heading('Un paso de cuidado', 16);
     para(`${greeting} Marcaste algo que conviene revisar con tu médico(a).`);
     if (emergency) {
-      para(EMERGENCY_NOW, { f: bold, color: PDF_COLOR.action });
+      para(EMERGENCY_NOW, { f: bold, color: PDF_COLOR.ink }); // emergencia: acento ciruela (10.3)
     }
     para('Para el resto de señales que marcaste, agenda una cita ginecológica lo antes posible.');
     para('Esto no reemplaza la valoración de un profesional de salud.', { size: 8.5, color: PDF_COLOR.inkSoft });
@@ -456,7 +499,7 @@ async function buildPdf(session: Record<string, any>, lead: Record<string, any>)
       page.drawText(tagText, { x: PAGE_W - MARGIN - tw, y: y - 10, size: 9.5, font: bold, color: tagColor });
       y -= 16;
       page.drawRectangle({ x: MARGIN, y: y - 7, width: CONTENT_W, height: 7, color: PDF_COLOR.border });
-      page.drawRectangle({ x: MARGIN, y: y - 7, width: CONTENT_W * pct, height: 7, color: tagColor });
+      page.drawRectangle({ x: MARGIN, y: y - 7, width: CONTENT_W * pct, height: 7, color: status === 'over' ? PDF_COLOR.bar : hex(AREA_BAR[status]) });
       y -= 19;
     }
     if (skipped) para(SKIPPED_INTIMATE_NOTE, { size: 8.5, color: PDF_COLOR.inkSoft, gap: 8 });
@@ -520,7 +563,7 @@ async function buildPdf(session: Record<string, any>, lead: Record<string, any>)
     for (const [t, d] of selfCareItems(session)) bulletBlock(t, d);
     para(`Fuente: ${SELF_CARE_SOURCE}`, { size: 7.5, color: PDF_COLOR.inkSoft, gap: 10 });
 
-    heading('Para tu consulta');
+    heading('Preguntas para tu médica');
     para('Puedes llevar contigo lo que viste arriba (tu puntaje por áreas) y, si quieres, estas preguntas:', { size: 9, color: PDF_COLOR.inkSoft, gap: 6 });
     for (const g of CONSULT_GENERIC) bulletText(g);
     const pts = contextPoints(session);

@@ -129,6 +129,14 @@ de 2028, cuando se cumplen 2 años de los primeros datos, para cumplir la polít
   detalles"; con señal de alerta: "si ya hiciste el test…"), aunque su lectura trae el nivel y la
   recomendación que vio la usuaria. Revisarlo en Mindi_agents (instrucción del coordinador y un
   caso nuevo en el banco de evals).
+- **Del chat al test (handoff 10.5.1).** El test y el chat con IA son sesiones separadas: `/test`
+  (claro) y `/chat` (oscuro). El agente pide el botón con la herramienta `recomendar_test`
+  (Mindi_agents, rama `feat/recomendar-test`, pendiente de aprobar y desplegar), que responde
+  `{ mostrar_boton }`; `api/agent.js` lo devuelve como `action: 'recommend_test'` y la web dibuja
+  "Haz el test de 5 min →" (abre `/test?origen=chat`). Mientras Cloud Run tenga la versión anterior
+  (`ofrecer_test`), la web la acepta igual. Eventos: `chat_test_recommended`, `chat_to_test`
+  (los del test llevan `origen: 'chat'`) y `test_to_chat` (desde el resultado, que pasa los
+  puntajes a `/chat` por sessionStorage). Falta sumarlos al panel.
 
 ## Index
 

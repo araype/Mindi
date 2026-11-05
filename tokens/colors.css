@@ -22,7 +22,7 @@
 --wordmark:#FDEEF4;      /* "Mindi" gigante del cierre */
 
 /* Escala de síntomas 0–4 (test) */
---scale-0:#FDE7F4;--scale-1:#FBCFE9;--scale-2:#F9A8DB;--scale-3:#FF3CC7;--scale-4:#E01AA5;
+--scale-0:#FDE7F4;--scale-1:#FBCFE9;--scale-2:#F9A8DB;--scale-3:#C0128C;--scale-4:#8C0C66;
 
 /* Chat del test (tema claro, sección 10.1) */
 --test-bg:#FFF8FC;

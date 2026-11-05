@@ -1,6 +1,6 @@
 // Ruta del servidor POST /api/agent (función de Vercel). Ver api/_lib/agente.js.
 //   { action: 'start', session, resultado_mrs? } → { ok: true }
-//   { action: 'message', session, text }          → { text, area }
+//   { action: 'message', session, text }          → { text, area, action: 'recommend_test' | null }
 // La URL del agente va en AGENT_URL (variable del servidor, sin prefijo VITE_: no llega al navegador).
 
 import { validSession, cleanResultado, cleanText, callAgent } from './_lib/agente.js';

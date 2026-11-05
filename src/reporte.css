@@ -1,0 +1,11 @@
+/* Mindi · Página del reporte por enlace (/reporte?t=…), con la identidad nueva (handoff 10.4).
+   El contenido lo arma send-report con estilos en línea (los mismos del correo): aquí solo va el
+   marco de la página. */
+body{margin:0;background:var(--test-bg);color:var(--plum);font-family:var(--font-body);font-size:16px;line-height:1.5}
+.report-page{max-width:640px;margin:0 auto;padding:96px var(--gutter) 64px}
+.report-page .m-eyebrow{margin-bottom:12px}
+.report-box{background:#fff;border:1.5px solid var(--line);border-radius:var(--radius-l);padding:28px 24px;box-shadow:var(--shadow-card);overflow-wrap:anywhere}
+.report-box h1{font-family:var(--font-display);font-weight:700;font-size:28px;line-height:1.1;margin:0 0 12px}
+.report-box p{margin:0 0 10px}
+.report-disclaimer{margin-top:16px;font-size:14px;color:var(--plum-soft)}
+@media (max-width:640px){.report-page{padding-top:84px}.report-box{padding:22px 18px}}

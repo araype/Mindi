@@ -9,9 +9,15 @@
 // (Carpeta _lib: Vercel no la publica como ruta.)
 
 export const APP_NAME = 'mindi_agent';
-/* Herramienta con la que el agente ofrece hacer el test: la web muestra "Hacer mi test aquí".
-   Nombre provisional hasta que el agente la despliegue: se cambia solo aquí. */
-export const OFFER_TEST_TOOL = 'ofrecer_test';
+/* Herramienta con la que el agente recomienda el test (handoff 10.5.1). Responde
+   { mostrar_boton: true | false }: la herramienta aplica las reglas (máximo dos veces, nunca si ya
+   hay resultado ni con una alerta reciente) y la web solo dibuja el botón si es true.
+   La web nunca recibe del agente URLs ni HTML: solo la acción RECOMMEND_TEST.
+   LEGACY_OFFER_TOOL es la versión anterior del agente (ofrecer_test, sin reglas): se acepta
+   mientras Cloud Run no tenga desplegada la nueva; se puede quitar después. */
+export const RECOMMEND_TEST_TOOL = 'recomendar_test';
+export const LEGACY_OFFER_TOOL = 'ofrecer_test';
+export const RECOMMEND_TEST = 'recommend_test';
 export const MAX_TEXT = 1000;
 
 /* Áreas del agente (author de cada respuesta) → nombre corto para la analítica. */
@@ -47,18 +53,23 @@ export function cleanText(t) {
   return s && s.length <= MAX_TEXT ? s : null;
 }
 
-/** Eventos de /run → { text, area, offerTest }: la última respuesta con texto del agente, y si en
- *  este turno llamó a la herramienta que ofrece el test. null si no hay ni texto ni oferta. */
+/** Eventos de /run → { text, area, action }: la última respuesta con texto del agente y, si en
+ *  este turno la herramienta pidió mostrar el botón del test, action = 'recommend_test' (si no,
+ *  null). Devuelve null si no hay texto. */
 export function extractReply(events) {
   if (!Array.isArray(events)) return null;
   const partsOf = (e) => (e && e.content && e.content.parts) || [];
-  const offerTest = events.some((e) => partsOf(e).some((p) => p.functionCall && p.functionCall.name === OFFER_TEST_TOOL));
+  const parts = events.flatMap(partsOf);
+  const recommend = parts.some((p) => p.functionResponse && p.functionResponse.name === RECOMMEND_TEST_TOOL
+      && p.functionResponse.response && p.functionResponse.response.mostrar_boton === true)
+    || parts.some((p) => p.functionCall && p.functionCall.name === LEGACY_OFFER_TOOL);
+  const action = recommend ? RECOMMEND_TEST : null;
   for (let i = events.length - 1; i >= 0; i--) {
     const e = events[i] || {};
     const text = partsOf(e).filter((p) => typeof p.text === 'string' && !p.thought).map((p) => p.text).join('').trim();
-    if (text && e.author && e.author !== 'user') return { text, area: AREA_BY_AUTHOR[e.author] || 'otro', offerTest };
+    if (text && e.author && e.author !== 'user') return { text, area: AREA_BY_AUTHOR[e.author] || 'otro', action };
   }
-  return offerTest ? { text: '', area: 'coordinador', offerTest } : null;
+  return null; // el botón nunca va solo: siempre debajo de una respuesta
 }
 
 /** Llama al agente. fetchImpl permite probarlo sin red. Lanza Error('agent_unavailable') si falla. */

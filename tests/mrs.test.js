@@ -80,13 +80,13 @@ test('B por un solo criterio íntimo: lo nombra y no habla de "varios síntomas"
   const m = msgOf({ urogenital: 3 });
   assert.equal(m.band, 'B');
   assert.equal(m.badge, 'Conviene evaluarlo con tu médico · Guía HNHU');
-  assert.match(m.paragraphs[0], /^Tu puntaje en lo íntimo alcanza el punto/);
+  assert.match(m.paragraphs[0], /^Tu puntaje en la vida íntima alcanza el punto/);
   assert.doesNotMatch(m.paragraphs.join(' '), SEVERAL_RE);
 });
 
 test('B por psicológico 6: lo nombra y no habla de "varios síntomas"', () => {
   const m = msgOf({ psicologico: 6 });
-  assert.match(m.paragraphs[0], /^Tu puntaje en ánimo y energía alcanza/);
+  assert.match(m.paragraphs[0], /^Tu puntaje en el ánimo alcanza/);
   assert.doesNotMatch(m.paragraphs.join(' '), SEVERAL_RE);
 });
 
@@ -99,7 +99,7 @@ test('B por el total: lo nombra y sí habla de "varios síntomas"', () => {
 
 test('B por varios criterios: los nombra todos, en plural', () => {
   const m = msgOf({ somatico: 8, psicologico: 6 }); // total 14
-  assert.match(m.paragraphs[0], /^Tu puntaje total, tu puntaje en el cuerpo y tu puntaje en ánimo y energía alcanzan el punto/);
+  assert.match(m.paragraphs[0], /^Tu puntaje total, tu puntaje en el cuerpo y tu puntaje en el ánimo alcanzan el punto/);
   assert.match(m.paragraphs.join(' '), SEVERAL_RE);
 });
 

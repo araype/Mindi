@@ -158,6 +158,7 @@ No tiene botones. **Recomendación:** agregar **Haz el test gratis →** (blanco
 **Reglas de uso**
 
 - Magenta brillante solo para títulos grandes, botones y acentos. En texto menor a 18 px sobre fondos claros, usar `--magenta-text`.  
+- **Contraste (decisión tomada):** el texto blanco sobre botones magenta va en negrita y a 19 px o más, para que cuente como texto grande (mínimo 3:1). El texto de los botones contorno y de los niveles 3 y 4 de la escala usa `--magenta-text` (5,7:1).  
 - No usar negro puro para texto: usar `--plum`.  
 - Sobre fotos, el texto va siempre sobre un degradado ciruela, no sobre la foto directa.
 
@@ -175,7 +176,7 @@ No tiene botones. **Recomendación:** agregar **Haz el test gratis →** (blanco
 | Etiquetas | **Space Mono** | 400 | Eyebrows ("■ PLANES"), chips, metadatos. Mayúsculas, letter-spacing 0.12–0.14em |
 | Tagline | **DM Mono** | 300 | Solo la frase bajo el wordmark del cierre |
 
-Todas están en Google Fonts.
+Todas están en Google Fonts, pero **en producción se alojan junto con el sitio** (archivos WOFF2 propios), para no enviar la IP de las visitantes a terceros y simplificar la política de seguridad (Fase 4).
 
 **Escala**
 
@@ -381,7 +382,24 @@ Referencia: sección "¿Aún no te sientes lista para el test?".
 - Tema oscuro: fondo `--chat-bg`, cabecera `--chat-header`, burbuja de la usuaria `--bubble-user`, burbuja de Mindi `--bubble-bot`, texto blanco.  
 - Estado bajo el nombre: "en línea" / "escribiendo…" mientras responde, con el indicador de 3 puntos.  
 - Campo de texto "Escribe tu duda…" con botón de envío circular magenta.  
-- **DECIDIR:** si prefieren que el chat con IA también sea claro (como el test), cambien la sección de la landing para que coincida. Lo importante es que la landing y la app muestren lo mismo.
+- El test (claro) y el chat con IA (oscuro) son **sesiones separadas**. Los temas distintos ayudan a la usuaria a reconocer en qué modo está: responder el test o conversar libremente.
+
+### 10.5.1 Del chat con IA al test (sin mezclar sesiones)
+
+El chat con IA primero **resuelve la duda** de la usuaria y luego la **invita a completar el test**. El test nunca se hace dentro del chat: se abre en su propia sesión.
+
+| Paso | Comportamiento |
+| :---- | :---- |
+| 1 | La usuaria pregunta; Mindi responde su duda primero, en lenguaje simple. |
+| 2 | Cuando la conversación trata de síntomas (o tras 1–2 respuestas), Mindi recomienda el test con un mensaje corto que explique el beneficio: *"Para saber cuánto te están afectando, te recomiendo hacer el test. Son 11 preguntas y al final tienes un reporte para llevar a tu médica."* |
+| 3 | Justo debajo, un **botón dentro del chat** (no un enlace de texto): **Haz el test de 5 min →** en magenta, que abre `/test?origen=chat` en una **sesión nueva**. |
+| 4 | Mindi recomienda el test **como máximo dos veces por conversación**. Si la usuaria no quiere, sigue respondiendo sus dudas sin insistir. |
+| 5 | Si la usuaria ya hizo el test (hay una sesión con resultado), Mindi no lo recomienda de nuevo: usa sus puntajes para responder. |
+| 6 | Al terminar el test, la pantalla de resultado ofrece **Pregúntale a Mindi sobre tu resultado** → `/chat`, con los 4 puntajes y la señal de alerta asociados (como funciona hoy con `/api/agent`). |
+
+- Si en el chat aparecen señales de alarma (dolor de pecho, falta de aire, sangrado abundante, etc.), Mindi no recomienda el test: deriva primero a atención médica, con el mismo tono suave de las alertas (10.3).  
+- Eventos: `chat_test_recommended` (cuando se muestra el botón), `chat_to_test` (clic) y `test_to_chat` (clic desde el resultado).  
+- El agente devuelve la recomendación como una acción estructurada (por ejemplo, `{ "action": "recommend_test" }`) y el frontend dibuja el botón. Así el agente no escribe URLs ni HTML.
 
 ### 10.6 Reglas que aplican a todo el flujo
 

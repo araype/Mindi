@@ -34,7 +34,7 @@ test('respuesta del agente: el último texto y el área que respondió', () => {
     { author: 'mindi', content: { parts: [{ functionCall: { name: 'transfer_to_agent' } }] } },
     { author: 'hormonal', content: { parts: [{ text: 'Los bochornos ' }, { text: 'son frecuentes.' }] } },
   ];
-  assert.deepEqual(extractReply(events), { text: 'Los bochornos son frecuentes.', area: 'hormonal', offerTest: false });
+  assert.deepEqual(extractReply(events), { text: 'Los bochornos son frecuentes.', area: 'hormonal', action: null });
   assert.equal(extractReply([]), null);
   assert.equal(extractReply({}), null);
 });
@@ -102,15 +102,21 @@ test('si el agente falla al despertar (5xx), se reintenta una sola vez', async (
   assert.equal(g.calls.length, 1); // ante 4xx no se reintenta
 });
 
-test('el agente ofrece el test: se detecta la herramienta ofrecer_test', async () => {
-  const { OFFER_TEST_TOOL } = await import('../api/_lib/agente.js');
-  const events = [
-    { author: 'mindi', content: { parts: [{ functionCall: { name: OFFER_TEST_TOOL, args: {} } }] } },
-    { author: 'mindi', content: { parts: [{ functionResponse: { name: OFFER_TEST_TOOL, response: {} } }] } },
-    { author: 'mindi', content: { parts: [{ text: 'Para orientarte mejor, puedes hacer el test.' }] } },
+test('recomendar el test: solo si la herramienta dice mostrar_boton (10.5.1)', async () => {
+  const { RECOMMEND_TEST_TOOL, LEGACY_OFFER_TOOL } = await import('../api/_lib/agente.js');
+  const turn = (mostrar) => [
+    { author: 'mindi', content: { parts: [{ functionCall: { name: RECOMMEND_TEST_TOOL, args: {} } }] } },
+    { author: 'mindi', content: { parts: [{ functionResponse: { name: RECOMMEND_TEST_TOOL, response: { mostrar_boton: mostrar } } }] } },
+    { author: 'mindi', content: { parts: [{ text: 'Para saber cuánto te están afectando, te recomiendo hacer el test.' }] } },
   ];
-  assert.equal(extractReply(events).offerTest, true);
-  assert.equal(extractReply(events.slice(0, 2)).offerTest, true); // solo la herramienta, sin texto
+  assert.equal(extractReply(turn(true)).action, 'recommend_test');
+  assert.equal(extractReply(turn(false)).action, null); // la herramienta lo negó (tercera vez, ya hay resultado, alerta)
+  assert.equal(extractReply(turn(true).slice(0, 2)), null); // el botón nunca va sin respuesta
+  const legacy = [
+    { author: 'mindi', content: { parts: [{ functionCall: { name: LEGACY_OFFER_TOOL, args: {} } }] } },
+    { author: 'mindi', content: { parts: [{ text: 'Puedes hacer el test.' }] } },
+  ];
+  assert.equal(extractReply(legacy).action, 'recommend_test'); // agente aún sin desplegar
 });
 
 test('cliente del chat: crea la sesión con el resultado, y una nueva si el resultado cambia', async () => {
@@ -118,7 +124,7 @@ test('cliente del chat: crea la sesión con el resultado, y una nueva si el resu
   const calls = [];
   const fetchImpl = async (url, init) => {
     const b = JSON.parse(init.body); calls.push(b);
-    return { ok: true, status: 200, json: async () => (b.action === 'message' ? { text: 'ok', area: 'coordinador', offerTest: false } : { ok: true }) };
+    return { ok: true, status: 200, json: async () => (b.action === 'message' ? { text: 'ok', area: 'coordinador', action: null } : { ok: true }) };
   };
   let n = 0;
   const c = createAgentClient({ newId: () => `00000000-0000-4000-8000-00000000000${++n}`, fetchImpl });

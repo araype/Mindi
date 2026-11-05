@@ -50,15 +50,16 @@ export function levelTriggers(scores) {
   return out;
 }
 
-/** Áreas del resultado, con el corte de la guía para cada subescala. */
+/** Áreas del resultado, con el corte de la guía para cada subescala. Nombres del handoff (10.2):
+ *  nunca "somático/psicológico/urogenital" en lo que ve la usuaria. */
 export const AREAS = [
   { key: 'somatico',    label: 'Cuerpo',          max: 16, cut: CUTS.somatico },
-  { key: 'psicologico', label: 'Ánimo y energía', max: 16, cut: CUTS.psicologico },
-  { key: 'urogenital',  label: 'Lo íntimo',       max: 12, cut: CUTS.urogenital },
+  { key: 'psicologico', label: 'Ánimo',           max: 16, cut: CUTS.psicologico },
+  { key: 'urogenital',  label: 'Vida íntima',     max: 12, cut: CUTS.urogenital },
 ];
 
 /** Estado de un área: 'over' (alcanza el corte), 'under' (no lo alcanza) o 'incomplete'
- *  (lo íntimo con alguna pregunta omitida y sin alcanzar el corte: podría estar subestimado). */
+ *  (vida íntima con alguna pregunta omitida y sin alcanzar el corte: podría estar subestimado). */
 export function areaStatus(key, value, skippedIntimate) {
   const area = AREAS.find((a) => a.key === key);
   if ((value || 0) >= area.cut) return 'over';
@@ -71,7 +72,7 @@ export const AREA_TAG = {
 };
 export const SKIPPED_INTIMATE_NOTE_DOCTOR = 'La paciente omitió al menos una pregunta íntima (ítems 9 y/o 11 de la MRS). Las omitidas se suman como 0, así que el puntaje urogenital y el total podrían estar subestimados.';
 export const CUTS_SOURCE = 'Puntos de corte: Guía de Práctica Clínica para Diagnóstico y Tratamiento del Climaterio, Hospital Nacional Hipólito Unanue (RD N° 211-2024-DG/HNHU), Figura 6.';
-export const SKIPPED_INTIMATE_NOTE ='Preferiste no responder alguna pregunta íntima, y está bien. Por eso, el puntaje de "Lo íntimo" podría ser más bajo de lo que de verdad sientes. Si quieres, coméntalo directamente en tu consulta médica.';
+export const SKIPPED_INTIMATE_NOTE ='Preferiste no responder alguna pregunta íntima, y está bien. Por eso, el puntaje de "Vida íntima" podría ser más bajo de lo que de verdad sientes. Si quieres, coméntalo directamente en tu consulta médica.';
 
 /** Categoría del puntaje total según Heinemann et al. (2004). Es un dato descriptivo de
  *  intensidad, aparte de los cortes de la guía: no decide el nivel A/B/C. */
@@ -90,8 +91,8 @@ export function heinemannCategory(total) {
 const TRIGGER_TEXT = {
   total: 'tu puntaje total',
   somatico: 'tu puntaje en el cuerpo',
-  psicologico: 'tu puntaje en ánimo y energía',
-  urogenital: 'tu puntaje en lo íntimo',
+  psicologico: 'tu puntaje en el ánimo',
+  urogenital: 'tu puntaje en la vida íntima',
 };
 const SEVERAL = 'Puede que ningún síntoma se sienta insoportable por separado, pero tener varios presentes a la vez, incluso en un nivel moderado, suma una carga real. Por eso lo que noto toma en cuenta el conjunto, no solo el síntoma más fuerte.';
 const joinEs = (xs) => xs.length <= 1 ? (xs[0] || '') : `${xs.slice(0, -1).join(', ')} y ${xs[xs.length - 1]}`;

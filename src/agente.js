@@ -65,7 +65,7 @@ export function createAgentClient({ newId, fetchImpl = (...a) => fetch(...a), ti
       if (JSON.stringify(next) !== JSON.stringify(resultado)) { resultado = next; started = false; }
     },
     get limitReached() { return sent >= MAX_MESSAGES; },
-    /** → { text, area, offerTest }. Lanza un Error con .status si falla. */
+    /** → { text, area, action } (action: 'recommend_test' o null). Lanza un Error con .status si falla. */
     async ask(text) {
       sent++;
       try {

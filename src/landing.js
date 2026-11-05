@@ -9,8 +9,11 @@ export const WAITLISTS = {
   plus: { title: 'Mindi Plus', lead: 'Quiero acceso anticipado.', fields: ['name', 'email', 'whatsapp'] },
   consultas: { title: 'Consultas con especialistas', lead: 'Próximamente.', fields: ['name', 'email', 'whatsapp'] },
   especialistas: { title: 'Para especialistas', lead: 'Red Mindi · próximamente.', fields: ['name', 'email', 'whatsapp'] },
-  empresas: { title: 'Mindi Enterprise', lead: 'Agenda una demo.', fields: ['company', 'job_title', 'team_size', 'email'] },
+  empresas: { title: 'Mindi Enterprise', lead: 'Agenda una demo.', fields: ['company', 'job_title', 'team_size', 'email'], submit: 'Solicitar demo', done: '¡Gracias! Te escribiremos pronto para coordinar.' },
 };
+const WAITLIST_SUBMIT = 'Unirme a la lista';
+const WAITLIST_DONE = '¡Listo! Te avisaremos cuando esté disponible.';
+const WAITLIST_ERROR = 'No pudimos enviar tus datos. Inténtalo de nuevo en un momento.';
 const FIELD = {
   name: { label: 'Nombre', type: 'text', autocomplete: 'name', required: true, max: 80 },
   email: { label: 'Correo', type: 'email', autocomplete: 'email', required: true, max: 120 },
@@ -316,7 +319,7 @@ export function initLanding({ track, sb, backendOn, consentVersion, isTest, orig
       ${inputs}
       <label class="m-check"><input type="checkbox" name="consent"><span>Acepto la <a href="/privacidad" target="_blank" rel="noopener">Política de privacidad</a>. Usaremos estos datos solo para contactarte sobre Mindi.</span></label>
       <p class="l-err" role="alert" hidden></p>
-      <button class="m-btn" type="submit">Enviar</button>
+      <button class="m-btn" type="submit">${cfg.submit || WAITLIST_SUBMIT}</button>
     </form>`;
     const form = dialog.querySelector('form');
     dialog.querySelector('.l-dialog-x').addEventListener('click', () => dialog.close());
@@ -334,9 +337,12 @@ export function initLanding({ track, sb, backendOn, consentVersion, isTest, orig
       sb('interest_signups', full).then((ok) => {
         const saved = ok || !backendOn; // sin backend (prototipo local) no hay dónde guardar
         track('waitlist_join', { list, captured: !!ok });
-        form.innerHTML = saved
-          ? `<button class="l-dialog-x" type="button" aria-label="Cerrar">×</button><h2 id="waitlistTitle">${cfg.title}</h2><p class="l-ok">Listo, te avisaremos.</p>`
-          : `<button class="l-dialog-x" type="button" aria-label="Cerrar">×</button><h2 id="waitlistTitle">${cfg.title}</h2><p class="l-ok">Algo no salió bien. Inténtalo de nuevo en un momento.</p>`;
+        if (!saved) { // se queda el formulario lleno para reintentar
+          err.textContent = WAITLIST_ERROR; err.hidden = false;
+          form.querySelector('[type=submit]').disabled = false;
+          return;
+        }
+        form.innerHTML = `<button class="l-dialog-x" type="button" aria-label="Cerrar">×</button><h2 id="waitlistTitle">${cfg.title}</h2><p class="l-ok">${cfg.done || WAITLIST_DONE}</p>`;
         form.querySelector('.l-dialog-x').addEventListener('click', () => dialog.close());
       });
     });
