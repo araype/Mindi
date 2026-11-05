@@ -286,3 +286,5 @@ body.no-scroll{overflow:hidden}
 .email-done{margin:0;padding:10px 12px;border-radius:12px;background:var(--pink-bg);font-size:14.5px}
 .report-email .hint{margin:6px 2px 0;font-size:13px;color:var(--plum-soft)}
 .report-email .opt{font-size:13px}
+.share-opt-inline{margin:8px 4px 0;font-size:12.5px;color:var(--plum-soft)}
+.share-opt-inline input{width:18px;height:18px}

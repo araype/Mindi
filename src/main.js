@@ -1488,6 +1488,21 @@ function storedResult(){
   }catch{ return null; }
 }
 
+let chatShareCtx = {}, chatShareOn = false;
+function setChatShare(on){
+  chatShareOn = !!on;
+  agentClient.setContext(chatShareOn ? {...chatShareCtx, compartir:true, consent_text_version:SHARE_QUESTIONS_VERSION} : {...chatShareCtx});
+  document.querySelectorAll('[data-chat-share]').forEach(b=>{ b.checked = chatShareOn; });
+}
+document.addEventListener('change', (e)=>{
+  const b = e.target;
+  if(!(b && b.matches && b.matches('[data-chat-share]'))) return;
+  // Antes de "Empecemos" solo cuenta al aceptar; después, cada cambio vale desde la próxima pregunta.
+  if(b.id === 'chatShare' && !chatAccepted) return;
+  setChatShare(b.checked);
+  track('chat_share_change', {captured: b.checked});
+});
+let chatAccepted = false;
 function storedAlertType(){ try{ return sessionStorage.getItem(ALERT_STORE) || null; }catch{ return null; } }
 
 function openAiChat(){
@@ -1510,25 +1525,25 @@ function openAiChat(){
   agentClient.setContext(ctx);
   // Nivel 2: casilla sin marcar, solo si está activado (hasta aprobar la política, no se muestra).
   const share = CHAT_RESEARCH_ENABLED
-    ? `<label class="opt share-opt"><input type="checkbox" id="chatShare"><span>${SHARE_QUESTIONS_TEXT}</span></label>` : '';
+    ? `<label class="opt share-opt"><input type="checkbox" id="chatShare" data-chat-share><span>${SHARE_QUESTIONS_TEXT}</span></label>` : '';
   // Saludo primero; debajo, el aviso de IA en letra pequeña y "Empecemos" (consentimiento explícito,
   // Ley 29733). Tocar una sugerencia también acepta el aviso y envía esa pregunta (5 nov. 2026).
   const greeting = chatGreeting(chatResult, storedAlertType(), topic);
+  // Nivel 2: la casilla se puede marcar o desmarcar en cualquier momento (al inicio y junto al campo de
+  // escribir). Cada pregunta lleva el estado del momento: al desmarcarla, desde ese mensaje no se guarda.
+  chatShareCtx = ctx;
   const accept = ()=>{
     track('agent_consent', {source:chatSource});
+    chatAccepted = true;
     const box = document.getElementById('chatShare');
-    if(box){
-      if(box.checked) agentClient.setContext({...ctx, compartir:true, consent_text_version:SHARE_QUESTIONS_VERSION});
-      box.disabled = true;
-      track('chat_share', {captured: box.checked});
-    }
+    if(box){ setChatShare(box.checked); track('chat_share', {captured: box.checked}); }
   };
   botSay([greeting.text]).then(()=>{
     const row = document.createElement('div');
     row.className = 'row bot ai-notice-row';
     row.innerHTML = `<p class="ai-notice">${AI_NOTICE}</p>${share}`;
     chat.appendChild(row);
-    const options = [{label:START_LABEL, primary:true, value:null}, ...greeting.suggestions.map(q=>({label:q, value:q}))];
+    const options = [{label:START_LABEL, primary:true, value:''}, ...greeting.suggestions.map(q=>({label:q, value:q}))];
     renderChips(options, (q)=>{
       accept();
       if(q){ track('chat_suggestion', {q: greeting.suggestions.indexOf(q) === 0 ? 'resultado' : 'sentirme_mejor'}); askAgent(q, {echo:false}); }
@@ -1546,6 +1561,12 @@ function renderQuestionInput(){
   const input = form.querySelector('input');
   form.onsubmit = (e)=>{ e.preventDefault(); const t = input.value.trim(); if(t) askAgent(t); };
   composer.appendChild(form);
+  if(CHAT_RESEARCH_ENABLED){
+    const opt = document.createElement('label');
+    opt.className = 'opt share-opt share-opt-inline';
+    opt.innerHTML = `<input type="checkbox" data-chat-share${chatShareOn ? ' checked' : ''}><span>Compartir mis preguntas, sin mis datos de contacto</span>`;
+    composer.appendChild(opt);
+  }
   scrollBottom();
   if(!isTouch) input.focus({preventScroll:true});
 }

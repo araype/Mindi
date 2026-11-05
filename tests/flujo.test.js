@@ -60,3 +60,8 @@ test('reporte: banderas rojas en palabras y "Compartir con mi médico" comparte 
   assert.match(main, /Copiamos el enlace a tu reporte\. Vence en 30 días\./);
   assert.match(main, />Compartir con mi médico</);
 });
+
+test('"Empecemos" no se envía al agente como pregunta (solo las sugerencias)', () => {
+  assert.match(main, /label:START_LABEL, primary:true, value:''/);
+  assert.match(main, /if\(q\)\{ track\('chat_suggestion'/);
+});

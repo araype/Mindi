@@ -47,3 +47,11 @@ Cada evento de `events` lleva `props.flujo` desde cierre-v2. Los eventos sin `fl
 - **Cierre sin correo:** el correo es una opción dentro de la tarjeta del reporte (sin "No, gracias") y el cierre
   (canal y "Pregúntale a Mindi") aparece siempre. `lead` ahora solo se registra con `captured=true`.
   La tasa de contacto puede bajar; la llegada al chat desde el resultado (`test_to_chat`) debería subir.
+
+## Chat nivel 2 encendido (5 nov. 2026, tarde)
+
+- `VITE_CHAT_RESEARCH_ENABLED=true` y `CHAT_RESEARCH_ENABLED=true` en Production. Casilla "Quiero que mis preguntas se
+  usen…" sin marcar bajo el aviso de IA, y una versión corta junto al campo de escribir: se puede marcar o desmarcar en
+  cualquier momento y vale desde la próxima pregunta (`chat_share` al aceptar, `chat_share_change` en cada cambio).
+- Se corrigió que "Empecemos" se enviaba al agente como pregunta (desde el despliegue de saludos de esta tarde):
+  esos chats tienen un primer mensaje "Empecemos" que no escribió la usuaria.
