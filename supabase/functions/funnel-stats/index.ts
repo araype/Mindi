@@ -11,13 +11,15 @@
 // Configurar una vez:  npx supabase secrets set ADMIN_KEY=<una-clave-larga>
 // Desplegar:           npx supabase functions deploy funnel-stats
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
+// Paquete de npm con versión exacta; deno.lock (en esta carpeta) fija su hash (hallazgo 12).
+import { createClient } from 'npm:@supabase/supabase-js@2.45.4';
+import { serverKey } from '../_shared/clave.js';
 
 const ADMIN_KEY = Deno.env.get('ADMIN_KEY') ?? '';
 
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL')!,
-  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+  serverKey(),
 );
 
 const CORS = {

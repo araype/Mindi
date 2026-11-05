@@ -7,7 +7,7 @@ export const turnstileOn = () => !!process.env.TURNSTILE_SECRET_KEY;
 /** → true si el token es válido (o si Turnstile no está configurado). */
 export async function verifyTurnstile(token, ip, fetchImpl = fetch) {
   const secret = process.env.TURNSTILE_SECRET_KEY;
-  if (!secret) return true;
+  if (!secret) return process.env.VERCEL_ENV !== 'production'; // en producción, sin secreto no pasa nada
   if (typeof token !== 'string' || !token || token.length > 2048) return false;
   try {
     const body = new URLSearchParams({ secret, response: token });

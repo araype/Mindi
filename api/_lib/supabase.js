@@ -26,6 +26,7 @@ export async function insert(table, row, fetchImpl = fetch) {
 export async function callFunction(name, body, extraHeaders = {}, fetchImpl = fetch) {
   const { url, key } = cfg();
   const secret = process.env.SEND_REPORT_SECRET;
+  if (!secret && process.env.VERCEL_ENV === 'production') throw Object.assign(new Error('send_report_secret'), { code: 'not_configured' });
   const r = await fetchImpl(`${url}/functions/v1/${name}`, {
     method: 'POST',
     headers: headers(key, { ...(secret ? { 'x-mindi-secret': secret } : {}), ...extraHeaders }),

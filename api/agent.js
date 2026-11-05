@@ -35,4 +35,4 @@ export default route(async (req, res) => {
     const code = e.message === 'session_lost' ? 410 : e.message === 'agent_not_configured' ? 503 : 502;
     return res.status(code).json({ error: e.message });
   }
-});
+}, { requires: ['AGENT_URL', 'GCP_SA_KEY'] });

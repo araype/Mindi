@@ -2,13 +2,14 @@
 // GCP_SA_KEY: el JSON de la cuenta de servicio con el rol roles/run.invoker (el texto del JSON, o el
 // mismo en base64). Se firma un JWT con su clave privada y Google devuelve un ID token para la URL
 // del agente (audience). Se guarda en memoria hasta 5 minutos antes de que venza (dura 1 hora).
-// Sin GCP_SA_KEY no se manda token (Cloud Run público, como hasta ahora).
+// Sin GCP_SA_KEY: en producción falla (Cloud Run es privado); en local no se manda token.
 import { createSign } from 'node:crypto';
 
 let cache = { token: '', exp: 0, aud: '' };
 
 function serviceAccount() {
   const raw = process.env.GCP_SA_KEY || '';
+  if (!raw && process.env.VERCEL_ENV === 'production') throw new Error('gcp_sa_key_missing'); // Cloud Run es privado
   if (!raw) return null;
   const text = raw.trim().startsWith('{') ? raw : Buffer.from(raw, 'base64').toString('utf8');
   const sa = JSON.parse(text);

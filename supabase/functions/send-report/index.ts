@@ -20,13 +20,18 @@
 //   RESEND_API_KEY   clave de Resend
 //   RESEND_FROM      remitente verificado en Resend, ej. "Mindi <reportes@tudominio.com>"
 //   SITE_URL         dominio público de la landing publicada, ej. https://mindi.vercel.app
-// SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY los inyecta Supabase automáticamente,
+// SUPABASE_URL y la clave de servidor (_shared/clave.js) las inyecta Supabase automáticamente,
 // no hace falta configurarlos.
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
-import { PDFDocument, StandardFonts, rgb } from 'https://esm.sh/pdf-lib@1.17.1';
-import fontkit from 'https://esm.sh/@pdf-lib/fontkit@1.1.1';
-import { decodeBase64 } from 'https://deno.land/std@0.224.0/encoding/base64.ts';
+// Paquetes de npm con versión exacta (hallazgo 12): Deno verifica cada uno contra el hash de
+// integridad del registro de npm, y deno.lock (en esta carpeta) fija esos hashes.
+import { createClient } from 'npm:@supabase/supabase-js@2.45.4';
+import { serverKey } from '../_shared/clave.js';
+import { PDFDocument, StandardFonts, rgb } from 'npm:pdf-lib@1.17.1';
+import fontkit from 'npm:@pdf-lib/fontkit@1.1.1';
+
+/** base64 → bytes (sin dependencias). */
+const decodeBase64 = (s: string) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
 // Puntaje MRS, cortes de la Guía HNHU y textos del resultado: el mismo módulo que usa el chat.
 import {
   levelMessage, AREAS as MRS_AREAS, areaStatus, AREA_TAG, CUTS, CUTS_SOURCE,
@@ -46,24 +51,35 @@ const SEND_REPORT_SECRET = Deno.env.get('SEND_REPORT_SECRET') ?? '';
 const LEADS_ENC_KEY = Deno.env.get('LEADS_ENC_KEY') ?? '';
 /* El enlace a /reporte del correo y de "Compartir con mi médico" vence a los 30 días (SQL 019). */
 const LINK_DAYS = 30;
-/* Ruta del reporte en los enlaces: /reporte.html funciona en el sitio actual (sin URLs limpias) y en el
-   nuevo (cleanUrls la redirige a /reporte conservando ?t=). */
-const reportLink = (token: string) => `${SITE_URL}/reporte.html?t=${token}`;
+/* Enlace del reporte: el token va en el fragmento (#t=), que el navegador no manda al servidor, así no
+   queda en los registros (hallazgo 6). /reporte.html redirige a /reporte en el sitio nuevo y conserva el
+   fragmento. OJO: el sitio anterior lee ?t=, así que esta versión se despliega después del sitio nuevo. */
+const reportLink = (token: string) => `${SITE_URL}/reporte.html#t=${token}`;
 const RESEND_FROM = Deno.env.get('RESEND_FROM') ?? 'Mindi <onboarding@resend.dev>';
 const SITE_URL = (Deno.env.get('SITE_URL') ?? 'http://localhost:5173').replace(/\/$/, '');
 
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL')!,
-  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+  serverKey(),
 );
 
-const CORS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-};
+/* Sin CORS (hallazgo 10): desde la Fase 4 solo la llama el servidor de la web (/api), nunca un
+   navegador. Los errores hacia afuera son códigos genéricos; el detalle va al log, sin datos personales. */
 const json = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), { status, headers: { ...CORS, 'Content-Type': 'application/json' } });
+  new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
+/** Error interno: código genérico hacia afuera y el código técnico (nunca el mensaje ni datos) al log. */
+const fail = (code: string, err?: { code?: string } | null, status = 500) => {
+  console.error('send-report', code, err && err.code ? err.code : '');
+  return json({ error: code }, status);
+};
+/** Compara dos secretos en tiempo constante (no se puede adivinar por cuánto tarda la respuesta). */
+function safeEqual(a: string, b: string): boolean {
+  const x = new TextEncoder().encode(a), y = new TextEncoder().encode(b);
+  let diff = x.length ^ y.length;
+  for (let i = 0; i < Math.max(x.length, y.length); i++) diff |= (x[i] ?? 0) ^ (y[i] ?? 0);
+  return diff === 0;
+}
+
 
 /* ---------- Mismo contenido clínico que src/main.js — mantener sincronizado ---------- */
 const SCALE_LABELS = ['Nada', 'Leve', 'Moderado', 'Fuerte', 'Muy fuerte'];
@@ -637,9 +653,8 @@ async function buildPdf(session: Record<string, any>, lead: Record<string, any>)
 }
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
-  if (SEND_REPORT_SECRET && req.headers.get('x-mindi-secret') !== SEND_REPORT_SECRET) return json({ error: 'unauthorized' }, 401);
-  if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405);
+  if (SEND_REPORT_SECRET && !safeEqual(req.headers.get('x-mindi-secret') ?? '', SEND_REPORT_SECRET)) return json({ error: 'unauthorized' }, 401);
+  if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405);
 
   let session_id: string | undefined;
   let bodyName: string | undefined;
@@ -657,7 +672,7 @@ Deno.serve(async (req) => {
   if (!session_id) return json({ error: 'session_id requerido' }, 400);
 
   const { data: session, error: sErr } = await supabase.from('sessions').select('*').eq('id', session_id).maybeSingle();
-  if (sErr) return json({ error: sErr.message }, 500);
+  if (sErr) return fail('session_read', sErr);
   if (!session) return json({ error: 'Sesión no encontrada' }, 404);
 
   // Descarga directa, sin dejar contacto: no se guarda lead ni fila en `reports` (no hay
@@ -675,7 +690,7 @@ Deno.serve(async (req) => {
     const html = buildFragment(session, {}, { shared: true });
     const row = { session_id, html, token: crypto.randomUUID(), created_at: new Date().toISOString(), expires_at: new Date(Date.now() + 30 * 864e5).toISOString() };
     const { data: saved, error: shErr } = await supabase.from('report_shares').upsert(row, { onConflict: 'session_id' }).select('token,expires_at').single();
-    if (shErr || !saved) return json({ error: (shErr && shErr.message) || 'No se pudo crear el enlace' }, 500);
+    if (shErr || !saved) return fail('share_failed', shErr);
     return json({ ok: true, channel: 'share', url: reportLink(saved.token), expires_at: saved.expires_at });
   }
 
@@ -685,22 +700,22 @@ Deno.serve(async (req) => {
       pdfBytes = await buildPdf(session, { name: bodyName });
     } catch (e) {
       console.error('No se pudo generar el PDF de descarga:', e);
-      return json({ error: 'No se pudo generar el PDF' }, 500);
+      return fail('pdf_failed');
     }
     const path = `download/${session_id}.pdf`;
     const { error: upErr } = await supabase.storage.from('reports').upload(path, pdfBytes, {
       contentType: 'application/pdf', upsert: true,
     });
-    if (upErr) return json({ error: upErr.message }, 500);
+    if (upErr) return fail('upload_failed', upErr as any);
     const { data: signed, error: signErr } = await supabase.storage.from('reports').createSignedUrl(path, 60 * 60 * 24);
-    if (signErr || !signed?.signedUrl) return json({ error: (signErr && signErr.message) || 'No se pudo generar el enlace' }, 500);
+    if (signErr || !signed?.signedUrl) return fail('sign_failed', signErr as any);
     return json({ ok: true, channel: 'download', pdfUrl: signed.signedUrl });
   }
 
   const { data: lead, error: lErr } = await supabase
     .from('leads').select('*').eq('session_id', session_id)
     .order('created_at', { ascending: false }).limit(1).maybeSingle();
-  if (lErr) return json({ error: lErr.message }, 500);
+  if (lErr) return fail('lead_read', lErr);
   if (!lead || !lead.contact) return json({ error: 'Sin datos de contacto' }, 400);
 
   // El PDF adjunto/descargable en Storage se llama siempre "<token>.pdf" — permite
@@ -726,7 +741,7 @@ Deno.serve(async (req) => {
   // El reporte ya no se envía por WhatsApp: el contacto tiene que ser un correo. Los enlaces
   // de WhatsApp que ya se enviaron siguen abriendo (ver `existing` arriba y reporte.html).
   let to: string;
-  try { to = await decryptContact(lead.contact); } catch (e) { console.error('No se pudo descifrar el contacto'); return json({ error: 'contacto' }, 500); }
+  try { to = await decryptContact(lead.contact); } catch { return fail('contact_decrypt'); }
   const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(to);
   if (!isEmail) return json({ error: 'El reporte solo se envía por correo' }, 400);
   const fragment = buildFragment(session, lead);
@@ -737,9 +752,9 @@ Deno.serve(async (req) => {
     .upsert({ session_id, channel, contact: lead.contact, subject: 'Tu reporte de Mindi', html: fragment, status: 'pending' }, { onConflict: 'session_id' })
     .select()
     .single();
-  if (rErr) return json({ error: rErr.message }, 500);
+  if (rErr) return fail('report_write', rErr);
 
-  if (!RESEND_API_KEY) return json({ error: 'RESEND_API_KEY no configurada' }, 500);
+  if (!RESEND_API_KEY) return fail('email_not_configured');
   const reportUrl = reportLink(report.token);
 
   const r = await fetch('https://api.resend.com/emails', {
@@ -753,7 +768,7 @@ Deno.serve(async (req) => {
   if (!r.ok) {
     const errText = await r.text();
     await supabase.from('reports').update({ status: 'failed', error: errText.slice(0, 500) }).eq('id', report.id);
-    return json({ error: 'No se pudo enviar el correo' }, 502);
+    return fail('email_failed', null, 502);
   }
   await supabase.from('reports').update({ status: 'sent', sent_at: new Date().toISOString() }).eq('id', report.id);
   return json({ ok: true, channel: 'email' });

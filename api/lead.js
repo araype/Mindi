@@ -27,4 +27,4 @@ export default route(async (req, res) => {
   const sent = await callFunction('send-report', { session_id: r.session_id });
   const ok = sent.status === 200 && sent.body && sent.body.ok;
   return send(res, 200, { ok: true, report: ok ? 'sent' : 'failed', channel: ok ? sent.body.channel : undefined });
-});
+}, { requires: ['TURNSTILE_SECRET_KEY', 'LEADS_ENC_KEY', 'SEND_REPORT_SECRET'] });

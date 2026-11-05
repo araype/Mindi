@@ -8,7 +8,9 @@ import './reporte.css';
 // que escapa todo lo que escribió la usuaria.
 
 const box = document.getElementById('reportBox');
-const token = new URLSearchParams(location.search).get('t');
+// #t=<token> en los enlaces nuevos: el fragmento nunca llega al servidor ni a sus registros.
+// ?t= sigue funcionando para los enlaces que ya se enviaron.
+const token = new URLSearchParams(location.hash.slice(1)).get('t') || new URLSearchParams(location.search).get('t');
 
 const EXPIRED = 'Este enlace venció (dura 30 días) o está incompleto. Puedes hacer el test de nuevo para tener un reporte actualizado.';
 function fail(msg, cta){
@@ -19,7 +21,7 @@ function fail(msg, cta){
 async function load(){
   if(!token) return fail(EXPIRED, true);
   try{
-    const r = await fetch(`/api/report?t=${encodeURIComponent(token)}`);
+    const r = await fetch('/api/report', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'view', token}) });
     if(r.status === 404) return fail(EXPIRED, true);
     if(!r.ok) return fail('No pudimos cargar tu reporte. Intenta de nuevo en un momento.');
     const { html } = await r.json();

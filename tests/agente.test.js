@@ -76,7 +76,7 @@ test('la ruta rechaza lo que no debe llegar al agente', async () => {
     { action: 'borrar', session: SESSION },
   ]) {
     const res = fakeRes();
-    await handler({ method: 'POST', body }, res);
+    await handler({ method: 'POST', headers: { 'content-type': 'application/json' }, body }, res);
     assert.equal(res.code, 400, JSON.stringify(body));
   }
   const res = fakeRes();

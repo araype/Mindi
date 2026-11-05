@@ -16,6 +16,8 @@ function keyFor(bucket, ip) {
 export async function limit(bucket, ip, max, windowSec, fetchImpl = fetch) {
   const key = keyFor(bucket, ip);
   const url = process.env.UPSTASH_REDIS_REST_URL, token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  // En producción, sin Upstash no se atiende (route() ya lo corta antes; esto es una segunda capa).
+  if ((!url || !token) && process.env.VERCEL_ENV === 'production') return { ok: false, remaining: 0 };
   if (url && token) {
     try {
       const r = await fetchImpl(`${url.replace(/\/$/, '')}/pipeline`, {
@@ -42,10 +44,10 @@ export async function limit(bucket, ip, max, windowSec, fetchImpl = fetch) {
 export const LIMITS = {
   track: [120, 60],
   session: [10, 3600],
-  lead: [6, 3600],
+  lead: [15, 3600],
   report: [20, 3600],
   report_view: [60, 600],
-  waitlist: [6, 3600],
+  waitlist: [15, 3600],
   agent: [20, 60],
   stats: [30, 60],
 };

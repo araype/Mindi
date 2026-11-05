@@ -138,3 +138,70 @@ test('listas de espera: nombres de lista raros no rompen la validación del serv
 test('evento chat_open: el tema va como dato de uso', () => {
   assert.deepEqual(eventRow({ session_id: ID, name: 'chat_open', props: { tema: 'peso', is_test: true } }).row.props, { is_test: true, tema: 'peso' });
 });
+
+// ---------- Fase 4, segunda vuelta: hallazgos 5, 6, 7 y 13 ----------
+const fakeRes = () => { const r = { code: 0, body: null, status(c) { r.code = c; return r; }, json(b) { r.body = b; return r; }, end() { return r; }, setHeader() {} }; return r; };
+const JSONH = { 'content-type': 'application/json', origin: 'https://mindifem.com' };
+
+test('las rutas /api solo aceptan JSON (415 con text/plain o sin tipo)', async () => {
+  const { default: track } = await import('../api/track.js');
+  for (const headers of [{ 'content-type': 'text/plain' }, {}, { 'content-type': 'application/x-www-form-urlencoded' }]) {
+    const res = fakeRes(); await track({ method: 'POST', url: '/api/track', headers, body: '{}' }, res);
+    assert.equal(res.code, 415, JSON.stringify(headers));
+  }
+  const res = fakeRes(); await track({ method: 'POST', url: '/api/track', headers: { 'content-type': 'application/json; charset=utf-8' }, body: '{}' }, res);
+  assert.equal(res.code, 400); // pasa el filtro de tipo; falla por el cuerpo vacío
+});
+
+test('en producción, si falta una variable de seguridad la ruta no atiende (falla cerrado)', async () => {
+  const saved = { ...process.env };
+  try {
+    process.env.VERCEL_ENV = 'production';
+    for (const k of ['SUPABASE_URL', 'SUPABASE_KEY', 'ALLOWED_ORIGINS', 'UPSTASH_REDIS_REST_URL', 'UPSTASH_REDIS_REST_TOKEN', 'RATE_LIMIT_SALT', 'TURNSTILE_SECRET_KEY', 'SEND_REPORT_SECRET', 'LEADS_ENC_KEY', 'GCP_SA_KEY', 'AGENT_URL']) delete process.env[k];
+    for (const name of ['track', 'session', 'lead', 'report', 'waitlist', 'stats', 'agent']) {
+      const { default: h } = await import(`../api/${name}.js`);
+      const res = fakeRes(); await h({ method: 'POST', url: `/api/${name}`, headers: JSONH, body: '{}' }, res);
+      assert.equal(res.code, 503, name);
+    }
+    const { originAllowed } = await import('../api/_lib/http.js');
+    assert.equal(originAllowed({ headers: { origin: 'https://otro.com' } }), false); // sin ALLOWED_ORIGINS: cerrado
+    assert.equal(await verifyTurnstile('', '1.1.1.1'), false);                      // sin secreto: no pasa
+    assert.equal((await limit('x', '9.9.9.9', 100, 60)).ok, false);                  // sin Upstash: no pasa
+  } finally {
+    for (const k of Object.keys(process.env)) if (!(k in saved)) delete process.env[k];
+    Object.assign(process.env, saved);
+  }
+});
+
+test('el token del reporte no va en la URL: /api/report lo recibe en el cuerpo y no registra la consulta', async () => {
+  const report = await readFile(new URL('../api/report.js', import.meta.url), 'utf8');
+  assert.doesNotMatch(report, /searchParams|methods: \['GET'/);
+  const http = await readFile(new URL('../api/_lib/http.js', import.meta.url), 'utf8');
+  assert.doesNotMatch(http, /console\.error\([^)]*req\.url/);
+  const page = await readFile(new URL('../src/reporte.js', import.meta.url), 'utf8');
+  assert.match(page, /location\.hash/);
+  assert.doesNotMatch(page, /api\/report\?t=/);
+  const fn = await readFile(new URL('../supabase/functions/send-report/index.ts', import.meta.url), 'utf8');
+  assert.match(fn, /reporte\.html#t=\$\{token\}/);
+});
+
+test('límites: 15 por hora para la copia por correo y las listas de espera', async () => {
+  const { LIMITS } = await import('../api/_lib/limite.js');
+  assert.deepEqual(LIMITS.lead, [15, 3600]);
+  assert.deepEqual(LIMITS.waitlist, [15, 3600]);
+});
+
+test('funciones de Supabase: usan la clave secreta nueva si está, y la service_role antigua si no', async () => {
+  const { serverKey } = await import('../supabase/functions/_shared/clave.js');
+  const env = (vars) => { globalThis.Deno = { env: { get: (k) => vars[k] } }; };
+  try {
+    env({ SUPABASE_SECRET_KEYS: JSON.stringify({ default: 'sb_secret_nueva' }), SUPABASE_SERVICE_ROLE_KEY: 'eyJ.antigua' });
+    assert.equal(serverKey(), 'sb_secret_nueva');
+    env({ SUPABASE_SECRET_KEYS: JSON.stringify({ otra: 'sb_secret_otra' }), SUPABASE_SERVICE_ROLE_KEY: 'eyJ.antigua' });
+    assert.equal(serverKey(), 'sb_secret_otra');
+    env({ SUPABASE_SECRET_KEYS: 'no es json', SUPABASE_SERVICE_ROLE_KEY: 'eyJ.antigua' });
+    assert.equal(serverKey(), 'eyJ.antigua');
+    env({ SUPABASE_SERVICE_ROLE_KEY: 'eyJ.antigua' });
+    assert.equal(serverKey(), 'eyJ.antigua');
+  } finally { delete globalThis.Deno; }
+});

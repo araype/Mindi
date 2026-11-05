@@ -30,3 +30,19 @@ hasta después del lanzamiento.
 - `.l-hero-bg img` y `.l-photo img` ya usan `object-fit: cover`. Si se envuelven en `<picture>`,
   agregar `.l-hero-bg picture, .l-photo picture { display: contents }` para no alterar el
   tamaño.
+
+## Rotar la clave de la cuenta `mindi-web` (cada 90 días)
+
+La clave JSON de `mindi-web@beefocus-476502.iam.gserviceaccount.com` (variable `GCP_SA_KEY` en Vercel)
+se creó el **5 de noviembre de 2026**. **Próxima rotación: 3 de febrero de 2027**, y luego cada 90 días
+(4 de mayo de 2027, 2 de agosto de 2027, …).
+
+1. Crear una clave nueva y cargarla en Vercel (Preview y Production), sin mostrarla:
+   `gcloud iam service-accounts keys create <ruta-fuera-del-repo>.json --iam-account=mindi-web@beefocus-476502.iam.gserviceaccount.com`
+   `npx vercel env add GCP_SA_KEY --environment production --sensitive --force < <archivo>` (y lo mismo con `preview`)
+2. Volver a desplegar y probar que el chat responda.
+3. Borrar el archivo local y la clave anterior:
+   `gcloud iam service-accounts keys list --iam-account=mindi-web@…` → `gcloud iam service-accounts keys delete <ID-anterior> --iam-account=mindi-web@…`
+
+Después del lanzamiento: cambiar la clave por Workload Identity Federation con el OIDC de Vercel (sin
+claves guardadas) y quitar este recordatorio.

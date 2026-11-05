@@ -28,4 +28,4 @@ export default route(async (req, res) => {
   if (!supabaseOn()) return send(res, 503, { error: 'not_configured' });
   if (!(await verifyTurnstile(b.turnstile, ip))) return send(res, 403, { error: 'captcha' });
   return (await insert('interest_signups', row)) ? send(res, 200, { ok: true }) : send(res, 502, { error: 'not_saved' });
-});
+}, { requires: ['TURNSTILE_SECRET_KEY'] });
