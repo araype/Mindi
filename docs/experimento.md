@@ -37,3 +37,13 @@ Cada evento de `events` lleva `props.flujo` desde cierre-v2. Los eventos sin `fl
   nuevo `chat_suggestion` (`q`: `resultado` o `sentirme_mejor`). **La tasa de aceptación del chat puede subir.**
 - **Inicio del test:** bienvenida nueva y botón "Empezar" (antes "Acepto y empiezo"); el aviso del 106 pasa a
   la tarjeta de inicio, debajo del botón. El texto de consentimiento no cambió. Desde el chat: "Hola de nuevo".
+
+## consentimiento-inicio y cierre sin correo (5 nov. 2026, tarde)
+
+- **consentimiento-inicio:** la casilla de investigación ("(Opcional) Acepto que mis respuestas, sin mi nombre ni mi
+  contacto, se usen…") pasa del final a la tarjeta de bienvenida, sin marcar. Se guarda en `research_consents` cuando la
+  sesión existe. Evento nuevo `research_consent` (`captured`, `desde: inicio`). **La tasa de consentimiento no es
+  comparable con la anterior** (antes solo la veía quien llegaba al final).
+- **Cierre sin correo:** el correo es una opción dentro de la tarjeta del reporte (sin "No, gracias") y el cierre
+  (canal y "Pregúntale a Mindi") aparece siempre. `lead` ahora solo se registra con `captured=true`.
+  La tasa de contacto puede bajar; la llegada al chat desde el resultado (`test_to_chat`) debería subir.

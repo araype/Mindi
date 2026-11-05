@@ -923,6 +923,7 @@ function askRedFlags(){
       state.redFlags = selected;
       computeScores();
       saveSession();
+      if(state.research) sendLead({research:true}); // research_consents, sin nombre ni contacto
       track('redflags_answered');
       if(hasFlag()) showSafetyMessage(); else showResultsTopics();
     }, 'none');
@@ -1348,6 +1349,7 @@ function showReport(){
     `<div class="report-links"><button type="button" class="link-btn" id="${id}s" hidden>Compartir con mi médico</button></div>` +
     // Con el chat con IA encendido, la duda va al chat (al cierre); apagado, se ofrece WhatsApp.
     `${AGENT_ENABLED ? '' : `<div class="report-actions">${whatsappButton('resultado', 'Tengo una duda sobre mi resultado')}</div>`}` +
+    `<div class="report-email" id="${id}e"></div>` +
     inApp + reportFullHtml(), 'report'
   ).then(()=>{
     track('report_shown', {in_app: IN_APP_BROWSER});
@@ -1362,66 +1364,47 @@ function showReport(){
         btn.insertAdjacentHTML('afterend', '<p class="card-note">Déjanos tu correo abajo y te enviamos una copia.</p>');
       }
     });
-    askEmailCopy();
+    mountEmailForm(document.getElementById(id + 'e'));
+    clearComposer();
+    closeFlow();
   });
 }
 
-/* Copia opcional por correo + las dos casillas opcionales (avisos e investigación).
-   Si no deja el correo, igual ya vio y puede descargar su reporte. */
-function askEmailCopy(){
-  botSay([{text:'Recíbelo también en tu correo, para no perderlo:', cls:'question'}]).then(()=>{
-    clearComposer();
-    const form = document.createElement('form');
-    form.className = 'email-offer';
-    form.noValidate = true;
-    form.innerHTML =
-      `<div class="inputRow"><input type="email" name="email" placeholder="correo@ejemplo.com" autocomplete="email" aria-label="Tu correo">` +
-      `<button type="submit" class="sendBtn" aria-label="Enviarme una copia">${ICON_SEND}</button></div>` +
-      `<p class="hint">Usaremos tu correo solo para enviarte una copia de tu reporte.</p>` +
-      `<label class="opt"><input type="checkbox" name="news"><span>(Opcional) También quiero que Mindi me avise por correo cuando lance su acompañamiento.</span></label>` +
-      `<label class="opt"><input type="checkbox" name="research"><span>(Opcional) Acepto que mis respuestas, sin mi nombre ni mi contacto, se usen para mejorar Mindi y para estudios sobre la menopausia.</span></label>` +
-      `<div class="chips suggestRow"><button type="button" class="chip quiet" data-skip>No, gracias</button></div>`;
-    composer.appendChild(form);
-    const captcha = mountTurnstile(tsBox);
-    const input = form.elements.email;
-    const showErr = (text)=>{
-      let err = form.querySelector('.hint.err');
-      if(!err){ err = document.createElement('p'); err.className = 'hint err'; err.setAttribute('role','alert'); form.querySelector('.inputRow').after(err); }
-      err.textContent = text;
-      scrollBottom();
-    };
-    const finish = (email, turnstile)=>{
-      const news = !!email && form.elements.news.checked;
-      const research = form.elements.research.checked;
-      captcha.remove();
-      addBubble(email || 'No, gracias', 'user');
-      clearComposer();
-      advance();
-      state.contact = email || null;
-      track('lead', {captured: !!email, news, research});
-      if(email || research) sendLead({email, news, research, turnstile});
-      if(email){
-        botSay(['Listo, te llegará en unos minutos.']).then(closeFlow);
-      } else {
-        closeFlow();
-      }
-    };
-    form.onsubmit = async (e)=>{
-      e.preventDefault();
-      const v = input.value.trim();
-      if(!validEmail(v)) return showErr(v ? 'Revisa el correo, o elige "No, gracias".' : 'Escribe tu correo, o elige "No, gracias".');
-      const btn = form.querySelector('.sendBtn');
-      btn.disabled = true;
-      const token = await captcha.token(); // casi siempre ya está listo: Turnstile corre al aparecer el formulario
-      finish(v, token);
-    };
-    form.querySelector('[data-skip]').onclick = ()=>{
-      if(form.elements.news.checked) return showErr('Para recibir avisos, escribe tu correo.');
-      finish(null);
-    };
-    scrollBottom();
-    if(!isTouch) input.focus({preventScroll:true});
-  });
+/* Copia opcional por correo, dentro de la tarjeta del reporte (5 nov. 2026): no bloquea el cierre. La casilla
+   de avisos va con el correo; la de investigación ya se respondió en la bienvenida (consentimiento-inicio). */
+function mountEmailForm(box){
+  if(!box || !BACKEND_ON) return;
+  const form = document.createElement('form');
+  form.className = 'email-offer';
+  form.noValidate = true;
+  form.innerHTML =
+    `<p class="email-title"><strong>Recíbelo también en tu correo</strong>, para no perderlo:</p>` +
+    `<div class="inputRow"><input type="email" name="email" placeholder="correo@ejemplo.com" autocomplete="email" aria-label="Tu correo">` +
+    `<button type="submit" class="sendBtn" aria-label="Enviarme una copia">${ICON_SEND}</button></div>` +
+    `<p class="hint">Usaremos tu correo solo para enviarte una copia de tu reporte.</p>` +
+    `<label class="opt"><input type="checkbox" name="news"><span>(Opcional) También quiero que Mindi me avise por correo cuando lance su acompañamiento.</span></label>`;
+  box.appendChild(form);
+  const captcha = mountTurnstile(tsBox);
+  const input = form.elements.email;
+  const showErr = (text)=>{
+    let err = form.querySelector('.hint.err');
+    if(!err){ err = document.createElement('p'); err.className = 'hint err'; err.setAttribute('role','alert'); form.querySelector('.inputRow').after(err); }
+    err.textContent = text;
+  };
+  form.onsubmit = async (e)=>{
+    e.preventDefault();
+    const v = input.value.trim();
+    if(!validEmail(v)) return showErr(v ? 'Revisa el correo.' : 'Escribe tu correo.');
+    const btn = form.querySelector('.sendBtn');
+    btn.disabled = true;
+    const token = await captcha.token(); // casi siempre ya está listo: Turnstile corre al aparecer el formulario
+    const news = form.elements.news.checked;
+    captcha.remove();
+    state.contact = v;
+    track('lead', {captured:true, news});
+    sendLead({email:v, news, research:false, turnstile:token});
+    form.innerHTML = '<p class="email-done" role="status">Listo, te llegará en unos minutos.</p>';
+  };
 }
 
 /* Mide cómo se sintió la conversación en sí (distinto de si pagaría) — se guarda como
@@ -1453,7 +1436,7 @@ function askSatisfaction(next){
   scrollBottom();
 }
 
-/* Cierre, después del correo (o de "No, gracias"). */
+/* Cierre: aparece siempre debajo del reporte, deje o no su correo. */
 function closeFlow(){
   botSay(['Fue un gusto. Cuídate mucho.']).then(()=> channelInvite('final')).then(()=> afterGuided(true));
 }
@@ -1630,7 +1613,13 @@ document.getElementById('restartBtn').addEventListener('click', ()=>{ track('res
 document.getElementById('exitBtn').addEventListener('click', ()=>{ location.href = '/'; });
 document.getElementById('startBtn').addEventListener('click', ()=>{
   track('cta_click',{source:'chat'});
-  if(!started) track('consent_accept',{version:CONSENT_VERSION});
+  if(!started){
+    track('consent_accept',{version:CONSENT_VERSION});
+    // consentimiento-inicio (5 nov. 2026): la casilla de investigación está en la bienvenida.
+    const box = document.getElementById('researchStart');
+    state.research = !!(box && box.checked);
+    track('research_consent', {captured: state.research, desde:'inicio'});
+  }
   start();
 });
 /* Llega desde el chat (?origen=chat): bienvenida de reencuentro. */

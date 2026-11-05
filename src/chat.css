@@ -276,3 +276,13 @@ body.no-scroll{overflow:hidden}
 .ai-notice-row .share-opt{margin-left:46px;max-width:320px;color:var(--plum-soft)}
 /* Inicio del test: aviso de emergencias bajo el botón */
 .chat-start .start-emergency{margin:10px 0 0;font-size:13.5px;color:var(--plum-soft);text-align:center}
+/* Bienvenida: casilla opcional de investigación, en letra pequeña */
+.chat-start .start-opt{display:flex;gap:10px;align-items:flex-start;margin:0 0 14px;font-size:13px;line-height:1.45;color:var(--plum-soft);cursor:pointer}
+.chat-start .start-opt input{width:20px;height:20px;margin:0;flex:none;accent-color:var(--magenta-text)}
+/* Correo dentro de la tarjeta del reporte */
+.report-email{margin-top:12px}
+.report-email .email-title{margin:0 0 8px;font-size:15px}
+.report-email .opt{margin-top:8px}
+.email-done{margin:0;padding:10px 12px;border-radius:12px;background:var(--pink-bg);font-size:14.5px}
+.report-email .hint{margin:6px 2px 0;font-size:13px;color:var(--plum-soft)}
+.report-email .opt{font-size:13px}
