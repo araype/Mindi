@@ -296,3 +296,10 @@ body.no-scroll{overflow:hidden}
 .ai-more p{margin-top:4px}
 .ai-more a{color:var(--magenta-text)}
 .chat-suggest{margin-bottom:10px}
+/* Permiso de compartir: pregunta única en el chat y enlace en "Más información" */
+.share-ask{max-width:300px;padding:12px 14px;border:1.5px solid var(--bubble-bot-border);border-radius:16px 16px 16px 4px;background:#fff;font-size:15px}
+.share-ask p{margin:0 0 10px}
+.share-ask .chips{margin:0}
+.share-done{margin:0;font-size:14px;color:var(--plum-soft)}
+.share-toggle{display:block;margin-top:4px;padding:6px 0;min-height:32px;font-size:13px}
+.chat-start .start-emergency a{color:var(--magenta-text)}

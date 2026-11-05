@@ -62,3 +62,13 @@ Cada evento de `events` lleva `props.flujo` desde cierre-v2. Los eventos sin `fl
   `inicio-v2` en las preguntas que llegan así). Si la marca, la casilla del chat aparece marcada y puede desmarcarla.
 - Chat: una línea bajo el saludo con "Más información"; sin botón "Empecemos". `agent_consent` se registra con la
   primera pregunta o la primera sugerencia, así que **la tasa de aceptación cuenta a quienes escriben**, no a quienes abren.
+
+## Permiso después del resultado (5 nov. 2026, noche) — `permiso-resultado`
+
+- Bienvenida sin casillas: un botón "Empezar" y una línea mínima (Términos, Política, 106).
+- Permiso de investigación una sola vez, tras el resultado y en lugar del botón "Continuar" (no suma pasos):
+  "Sí, compartir" / "No, gracias". `research_consent` (`desde: resultado`, versión `resultado-v1`). Si acepta, cubre
+  también el chat (no se le vuelve a preguntar).
+- Chat sin casilla. Quien no aceptó: una pregunta única después de la primera respuesta (`chat_share`, `desde: chat`).
+  Cambiar de opinión: enlace en "Más información" (`chat_share_change`).
+- **La tasa de consentimiento no es comparable con `consentimiento-inicio`.**

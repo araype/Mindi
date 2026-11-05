@@ -11,7 +11,7 @@ import { prioritizedSelfCare, SELF_CARE_SOURCE } from '../supabase/functions/_sh
 import { whyNotes, WHY_TITLE } from '../supabase/functions/_shared/notas.js';
 import { stageFilter, STAGE_EXIT } from './etapa.js';
 import { whatsappUrl, WHATSAPP_TEXT, channelUrl } from './whatsapp.js';
-import { createAgentClient, agentHtml, AI_NOTICE, AI_LINE, chatGreeting, chatTopic, SHARE_FROM_TEST_VERSION, ERROR_TEXT, LIMIT_TEXT, SHARE_QUESTIONS_VERSION } from './agente.js';
+import { createAgentClient, agentHtml, AI_NOTICE, AI_LINE, chatGreeting, chatTopic, ERROR_TEXT, LIMIT_TEXT, SHARE_QUESTIONS_VERSION } from './agente.js';
 import { glossaryMore } from './glosario.js';
 import { initLanding } from './landing.js';
 import { mountTurnstile } from './turnstile.js';
@@ -155,10 +155,10 @@ function saveSession(){
 /* Copia por correo y casillas opcionales → /api/lead, que guarda el correo cifrado, la casilla de
    investigación (sin nombre ni contacto) y pide el envío a send-report. Espera a que la sesión
    exista (clave foránea). */
-function sendLead({email, news, research, turnstile}){
+function sendLead({email, news, research, turnstile, version}){
   return (state.sessionSaved || Promise.resolve()).then(()=> api('lead', {
     session_id:SESSION_ID, email:email || undefined, name: email ? (state.name || undefined) : undefined,
-    news:!!news, research:!!research, consent_text_version:CONSENT_VERSION, is_test:TEST_MODE, turnstile,
+    news:!!news, research:!!research, consent_text_version:version || CONSENT_VERSION, is_test:TEST_MODE, turnstile,
   })).then(r=>{
     if(!email) return;
     const b = r && r.body;
@@ -417,7 +417,8 @@ function revealCardWithPause(introMsg, html, kind, isLast = false, continueText 
 /* Secuencia de cards de resultado compartida entre el flujo normal y el de banderas rojas */
 async function showResultsCardSequence(){
   const msg = levelMessage(state.scores);
-  await revealCardWithPause(null, resultCard(msg), '', false, 'Continuar');
+  await revealCard(resultCard(msg), '', 400);
+  await askResearchConsent(); // reemplaza el botón "Continuar": no agrega pasos
   // "Preguntas para tu médico" ya no va aquí (cierre-v2): está en el reporte, igual que en el PDF.
   // Las recomendaciones de autocuidado y el aviso "solo orientación" ya no van aquí: están en
   // "Tu reporte" (ver reportFullHtml), al final del chat, igual que en el PDF y el correo.
@@ -923,7 +924,6 @@ function askRedFlags(){
       state.redFlags = selected;
       computeScores();
       saveSession();
-      if(state.research) sendLead({research:true}); // research_consents, sin nombre ni contacto
       track('redflags_answered');
       if(hasFlag()) showSafetyMessage(); else showResultsTopics();
     }, 'none');
@@ -1041,6 +1041,25 @@ function resultCard(msg){
   return html;
 }
 const MENTAL_HEALTH_LINE = 'Por tu puntaje en el ánimo, vale la pena comentarlo también con un profesional de salud mental.';
+
+/* Permiso de investigación (5 nov. 2026): una sola vez, después del resultado, sin nada marcado.
+   "Sí, compartir" cubre sus respuestas del test y sus preguntas del chat (no se le vuelve a preguntar). */
+const RESEARCH_ASK = '¿Me ayudas a mejorar Mindi? Si quieres, uso tus respuestas, sin tus datos de contacto, para entender mejor qué necesitan otras mujeres.';
+const RESEARCH_MORE = 'Guardamos tus respuestas del test y, si usas el chat, tus preguntas, sin tu nombre, correo ni teléfono. Las usamos solo para mejorar Mindi y para estudios sobre la menopausia. Puedes cambiar de opinión cuando quieras desde el chat, en "Más información".';
+const RESEARCH_VERSION = 'resultado-v1';
+function askResearchConsent(){
+  return new Promise(resolve=>{
+    revealCard(`<p>${RESEARCH_ASK}</p><details class="ai-more"><summary>Más información</summary>` +
+      `<p>${RESEARCH_MORE} <a href="/privacidad" target="_blank" rel="noopener">Política de privacidad</a>.</p></details>`, 'calm', 300).then(()=>{
+      renderChips([{label:'Sí, compartir', primary:true, value:'si'}, {label:'No, gracias', value:'no'}], (v)=>{
+        state.research = v === 'si';
+        track('research_consent', {captured: state.research, desde:'resultado'});
+        if(state.research) sendLead({research:true, version:RESEARCH_VERSION}); // research_consents, sin nombre ni contacto
+        resolve();
+      });
+    });
+  });
+}
 
 function consultCard(){
   return `<h3>¿Qué preguntarle a tu médico?</h3>` + consultBody();
@@ -1267,7 +1286,7 @@ function setupShare(btn){
    por sessionStorage (solo esta pestaña; sin respuestas una por una ni datos de contacto). */
 const RESULT_STORE = 'mindi_resultado';
 const ALERT_STORE = 'mindi_alerta';
-const SHARE_STORE = 'mindi_compartir'; // marcó la casilla única al inicio del test
+const SHARE_STORE = 'mindi_compartir'; // aceptó compartir después del resultado
 function chatButton(withResult){
   if(!AGENT_ENABLED) return '';
   const label = withResult ? 'Pregúntale a Mindi sobre tu resultado' : 'Pregúntale a Mindi';
@@ -1495,15 +1514,37 @@ function setChatShare(on, version){
   chatShareOn = !!on;
   if(version) chatShareVersion = version;
   agentClient.setContext(chatShareOn ? {...chatShareCtx, compartir:true, consent_text_version:chatShareVersion} : {...chatShareCtx});
-  document.querySelectorAll('[data-chat-share]').forEach(b=>{ b.checked = chatShareOn; });
+  document.querySelectorAll('[data-share-toggle]').forEach(b=>{ b.textContent = chatShareOn ? SHARE_STOP_LABEL : SHARE_START_LABEL; });
 }
-document.addEventListener('change', (e)=>{
-  const b = e.target;
-  if(!(b && b.matches && b.matches('[data-chat-share]'))) return;
-  // Cada cambio vale desde la próxima pregunta; desmarcarla deja de guardar desde ahí.
-  setChatShare(b.checked, b.checked ? SHARE_QUESTIONS_VERSION : null);
-  track('chat_share_change', {captured: b.checked});
+/* En "Más información": cambiar de opinión cuando quiera. Vale desde la próxima pregunta. */
+const SHARE_STOP_LABEL = 'Dejar de compartir mis respuestas', SHARE_START_LABEL = 'Compartir mis respuestas';
+document.addEventListener('click', (e)=>{
+  const b = e.target.closest && e.target.closest('[data-share-toggle]');
+  if(!b) return;
+  const on = !chatShareOn;
+  setChatShare(on, on ? SHARE_QUESTIONS_VERSION : null);
+  chatShareAsked = true; // ya decidió: no se le pregunta después
+  track('chat_share_change', {captured: on});
 });
+let chatShareAsked = false;
+/* Quien no aceptó en el resultado: la pregunta aparece una sola vez, después de la primera respuesta útil. */
+const CHAT_SHARE_ASK = '¿Me ayudas a mejorar Mindi? Si quieres, uso tus preguntas, sin tus datos de contacto, para entender mejor qué necesitan otras mujeres.';
+function maybeAskChatShare(){
+  if(!CHAT_RESEARCH_ENABLED || chatShareOn || chatShareAsked) return;
+  chatShareAsked = true;
+  const row = document.createElement('div');
+  row.className = 'row bot';
+  row.innerHTML = `<div class="share-ask"><p>${CHAT_SHARE_ASK}</p>` +
+    `<div class="chips"><button type="button" class="chip primary" data-ans="si">Sí, compartir</button><button type="button" class="chip" data-ans="no">No, gracias</button></div></div>`;
+  row.querySelectorAll('[data-ans]').forEach(btn=> btn.onclick = ()=>{
+    const yes = btn.dataset.ans === 'si';
+    if(yes) setChatShare(true, SHARE_QUESTIONS_VERSION);
+    track('chat_share', {captured: yes, desde:'chat'});
+    row.querySelector('.chips').outerHTML = `<p class="share-done" role="status">${yes ? 'Gracias. Desde ahora guardo tus preguntas, sin tus datos de contacto.' : 'Está bien, no guardo tus preguntas.'}</p>`;
+  });
+  chat.appendChild(row); // justo debajo de la respuesta (el campo de escribir se vuelve a poner después)
+  scrollBottom();
+}
 let chatAccepted = false;
 function storedShare(){ try{ return sessionStorage.getItem(SHARE_STORE) === '1'; }catch{ return false; } }
 function storedAlertType(){ try{ return sessionStorage.getItem(ALERT_STORE) || null; }catch{ return null; } }
@@ -1529,13 +1570,15 @@ function openAiChat(){
   // Saludo; debajo, una línea cálida con "Más información" (el aviso completo, con OpenAI y el 106).
   // Enviar la primera pregunta o tocar una sugerencia es la aceptación (agent_consent).
   chatShareCtx = ctx;
-  if(CHAT_RESEARCH_ENABLED && storedShare()) setChatShare(true, SHARE_FROM_TEST_VERSION); // casilla del test → marcada
+  if(CHAT_RESEARCH_ENABLED && storedShare()){ setChatShare(true, RESEARCH_VERSION); chatShareAsked = true; } // aceptó en el resultado
   const greeting = chatGreeting(chatResult, storedAlertType(), topic);
   botSay([greeting.text]).then(()=>{
     const row = document.createElement('div');
     row.className = 'row bot ai-notice-row';
     row.innerHTML = `<div class="ai-notice"><p>${AI_LINE}</p>` +
-      `<details class="ai-more"><summary>Más información</summary><p>${AI_NOTICE} <a href="/privacidad" target="_blank" rel="noopener">Política de privacidad</a>.</p></details></div>`;
+      `<details class="ai-more"><summary>Más información</summary><p>${AI_NOTICE} <a href="/privacidad" target="_blank" rel="noopener">Política de privacidad</a>.</p>` +
+      (CHAT_RESEARCH_ENABLED ? `<button type="button" class="link-btn share-toggle" data-share-toggle>${chatShareOn ? SHARE_STOP_LABEL : SHARE_START_LABEL}</button>` : '') +
+      `</details></div>`;
     chat.appendChild(row);
     chatSuggestions = greeting.suggestions;
     renderQuestionInput();
@@ -1546,7 +1589,6 @@ function acceptChat(){
   if(chatAccepted) return;
   chatAccepted = true;
   track('agent_consent', {source:chatSource});
-  if(CHAT_RESEARCH_ENABLED) track('chat_share', {captured: chatShareOn});
 }
 
 function renderQuestionInput(){
@@ -1570,12 +1612,6 @@ function renderQuestionInput(){
     composer.appendChild(wrap);
   }
   composer.appendChild(form);
-  if(CHAT_RESEARCH_ENABLED){
-    const opt = document.createElement('label');
-    opt.className = 'opt share-opt share-opt-inline';
-    opt.innerHTML = `<input type="checkbox" data-chat-share${chatShareOn ? ' checked' : ''}><span>Compartir mis preguntas, sin mis datos de contacto</span>`;
-    composer.appendChild(opt);
-  }
   scrollBottom();
   if(!isTouch) input.focus({preventScroll:true});
 }
@@ -1623,6 +1659,7 @@ async function askAgent(text, {echo = true} = {}){
     agentAnswered = true;
     hideTyping();
     addAgentBubble(reply.text);
+    maybeAskChatShare();
     track('agent_message', {source:chatSource, area:reply.area || 'otro'});
     if(reply.action === 'recommend_test') recommendTest();
   }catch(e){
@@ -1645,10 +1682,6 @@ document.getElementById('startBtn').addEventListener('click', ()=>{
   track('cta_click',{source:'chat'});
   if(!started){
     track('consent_accept',{version:CONSENT_VERSION});
-    // consentimiento-inicio (5 nov. 2026): la casilla de investigación está en la bienvenida.
-    const box = document.getElementById('researchStart');
-    state.research = !!(box && box.checked);
-    track('research_consent', {captured: state.research, desde:'inicio'});
   }
   start();
 });

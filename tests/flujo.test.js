@@ -62,8 +62,18 @@ test('reporte: banderas rojas en palabras y "Compartir con mi médico" comparte 
 });
 
 test('chat: sin botón "Empecemos"; la primera pregunta o una sugerencia aceptan el aviso', () => {
-  assert.doesNotMatch(main, /START_LABEL|Empecemos/);
+  assert.doesNotMatch(main, /bSTART_LABEL|Empecemos/);
   assert.match(main, /if\(t\)\{ acceptChat\(\);/);
   assert.match(main, /btn\.onclick = \(\)=>\{ acceptChat\(\);/);
   assert.match(main, /track\('agent_consent'/);
+});
+
+test('permiso de investigación: una vez tras el resultado, sin casillas en la bienvenida ni junto al campo', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+  assert.doesNotMatch(html.slice(html.indexOf('id="chatStart"'), html.indexOf('id="tsBox"')), /type="checkbox"/);
+  assert.match(main, /await askResearchConsent\(\);/);
+  assert.match(main, /label:'Sí, compartir', primary:true, value:'si'\}, \{label:'No, gracias', value:'no'\}/);
+  assert.doesNotMatch(main, /data-chat-share|share-opt-inline/);
+  assert.match(main, /if\(!CHAT_RESEARCH_ENABLED \|\| chatShareOn \|\| chatShareAsked\) return;/);
 });

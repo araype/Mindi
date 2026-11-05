@@ -60,3 +60,9 @@ claves guardadas) y quitar este recordatorio.
 Los 11 textos de `supabase/functions/_shared/notas.js` no tienen fuente de la guía y quedan ocultos en el chat,
 el correo y el PDF (cierre-v2, ver `docs/experimento.md`). Para volver a mostrar uno: que lo valide un especialista,
 agregarle `source: 'Fuente: Guía HNHU (…), sección …'` y desplegar el sitio y `send-report`.
+
+## Versión genérica de las preguntas del chat: pendiente de opinión legal (5 nov. 2026)
+
+Idea: que el agente reescriba cada pregunta sin datos personales ("¿Cómo dormir mejor con bochornos?") y guardar esa
+versión de todas las conversaciones. **No implementar** hasta consultar con un abogado de protección de datos (Ley 29733):
+deriva de información de salud. Si se aprueba, agregar una línea en la política antes de activarla.

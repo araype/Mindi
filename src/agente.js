@@ -44,7 +44,6 @@ export const chatTopic = (v) => (typeof v === 'string' && Object.hasOwn(CHAT_TOP
 /* Nivel 2: casilla del inicio del chat (oculta hasta aprobar la política: VITE_CHAT_RESEARCH_ENABLED). */
 export const SHARE_QUESTIONS_TEXT = 'Quiero que mis preguntas se usen, sin mis datos de contacto, para entender mejor qué necesitan las mujeres en esta etapa.';
 export const SHARE_QUESTIONS_VERSION = 'chat-v1';
-export const SHARE_FROM_TEST_VERSION = 'inicio-v2'; // casilla única al inicio del test (respuestas y preguntas)
 export const ERROR_TEXT = 'Ahora no puedo responder. Intenta de nuevo en unos minutos, o escríbele al equipo de Mindi.';
 export const LIMIT_TEXT = 'Llegaste al límite de esta conversación. Si tienes más dudas, escríbele al equipo de Mindi.';
 /* Si el agente no responde en este tiempo, se trata como falla: aparece el botón de WhatsApp. */
