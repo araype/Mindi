@@ -58,3 +58,14 @@ test('resultado que se le pasa al agente: puntajes y señal de alerta, nada más
 test('el aviso de emergencia da el mismo número que el agente', () => {
   assert.match(EMERGENCY_NOW, /106 \(SAMU\)/);
 });
+
+test('reporte: las 3 recomendaciones más prioritarias completas (síntomas con más puntaje primero) y el resto en una línea', async () => {
+  const { prioritizedSelfCare, SELF_CARE_SPECIFIC } = await import('../supabase/functions/_shared/autocuidado.js');
+  const r = prioritizedSelfCare({ p3: 2, p6: 4, p12: 3, p13: 4 });
+  assert.deepEqual(r.top.map(([t]) => t), ['Para dormir mejor', 'Para la sequedad íntima', 'Para las molestias al orinar']);
+  assert.equal(r.rest.length, 1 + SELF_CARE_UNIVERSAL.length); // bochornos + las universales
+  assert.equal(r.rest[0], SELF_CARE_SPECIFIC.find((s) => s.ids.includes('p3')).short);
+  const none = prioritizedSelfCare({ p3: 1 }); // sin síntomas en 2 o más: solo las universales
+  assert.deepEqual(none.top.map(([t]) => t), SELF_CARE_UNIVERSAL.map((s) => s.t));
+  assert.deepEqual(none.rest, []);
+});

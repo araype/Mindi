@@ -1,7 +1,7 @@
 // Mindi · Recomendaciones de autocuidado (Guía HNHU, sección 6.4.1).
 //
 // Una sola lista para el chat y para el reporte (correo y PDF, en send-report):
-//   - el reporte muestra todas: las específicas de cada ítem respondido con 2-4, y las universales
+//   - el reporte muestra las 3 más prioritarias completas y el resto en una línea (prioritizedSelfCare)
 //   - el chat muestra máximo 2, en una línea cada una, del área más afectada (topSelfCare)
 // JavaScript plano y sin dependencias, igual que mrs.js.
 
@@ -72,4 +72,18 @@ export function topSelfCare(answers, scores, max = 2) {
         .sort((a, b) => peak(b) - peak(a))
     : [];
   return [...specific, ...SELF_CARE_UNIVERSAL].slice(0, max).map((s) => s.short);
+}
+
+/** Reporte (chat, página, correo y PDF): las `max` más prioritarias, completas, y el resto en una
+ *  línea (su versión corta). Prioridad: las específicas de los síntomas con más puntaje (empate:
+ *  orden P3→P13) y después las universales. → { top: [título, texto][], rest: string[] } */
+export function prioritizedSelfCare(answers, max = 3) {
+  const peak = (s) => Math.max(...s.ids.map((id) => answers?.[id] || 0));
+  const specific = SELF_CARE_SPECIFIC
+    .map((s, i) => ({ s, i }))
+    .filter(({ s }) => s.ids.some((id) => counts(answers, id)))
+    .sort((a, b) => peak(b.s) - peak(a.s) || a.i - b.i)
+    .map(({ s }) => s);
+  const all = [...specific, ...SELF_CARE_UNIVERSAL];
+  return { top: all.slice(0, max).map((s) => [s.t, s.d]), rest: all.slice(max).map((s) => s.short) };
 }

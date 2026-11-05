@@ -253,3 +253,15 @@ body.no-scroll{overflow:hidden}
 }
 .ts-box{flex:none;padding:0 16px;background:var(--test-bg)}
 .ts-box:empty{display:none}
+
+/* Reporte plegado (los botones quedan a la vista) y más ideas de autocuidado */
+.report-more{margin-top:14px;border-top:1.5px solid var(--line-soft);padding-top:6px}
+.report-more > summary,.more-tips > summary{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:var(--tap-min);cursor:pointer;list-style:none;
+  font-weight:600;color:var(--magenta-text);text-decoration:underline;text-underline-offset:3px}
+.report-more > summary{font-family:var(--font-display);font-weight:700;font-size:17px;text-decoration:none}
+.report-more > summary::-webkit-details-marker,.more-tips > summary::-webkit-details-marker{display:none}
+.report-more > summary::after,.more-tips > summary::after{content:'+';font-size:20px;text-decoration:none}
+.report-more[open] > summary::after,.more-tips[open] > summary::after{content:'–'}
+.report-more .report-full{margin-top:8px}
+.more-tips{margin-top:8px}
+.more-tips > summary{font-size:14.5px}

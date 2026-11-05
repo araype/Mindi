@@ -6,7 +6,7 @@ import {
   computeScores as mrsScores, computeLevel as mrsLevel, levelMessage, CUTS,
   AREAS, areaStatus, AREA_TAG, SKIPPED_INTIMATE_NOTE, doctorRecommendation, EMERGENCY_NOW, agentMrsResult,
 } from '../supabase/functions/_shared/mrs.js';
-import { selfCareItems, SELF_CARE_SOURCE } from '../supabase/functions/_shared/autocuidado.js';
+import { prioritizedSelfCare, SELF_CARE_SOURCE } from '../supabase/functions/_shared/autocuidado.js';
 import { whyNotes, WHY_TITLE } from '../supabase/functions/_shared/notas.js';
 import { stageFilter, STAGE_EXIT } from './etapa.js';
 import { whatsappUrl, WHATSAPP_TEXT, channelUrl } from './whatsapp.js';
@@ -999,10 +999,15 @@ function consultCard(){
 
 /* Recomendaciones de autocuidado del reporte (lista completa, desde
    supabase/functions/_shared/autocuidado.js, igual que send-report). */
+/* Recomendaciones del reporte: las 3 más prioritarias según sus respuestas, completas, y el resto
+   (en una línea cada una) en un desplegable, para que no sea una lista larga. */
 function selfCareBody(){
-  const rows = selfCareItems(state.answers).map(([t,d])=>`<li><strong>${t}:</strong> ${d}</li>`).join('');
+  const { top, rest } = prioritizedSelfCare(state.answers);
+  const rows = top.map(([t,d])=>`<li><strong>${t}:</strong> ${d}</li>`).join('');
+  const more = rest.length
+    ? `<details class="more-tips"><summary>Ver más ideas (${rest.length})</summary><ul class="card-list">${rest.map(r=>`<li>${r}</li>`).join('')}</ul></details>` : '';
   return `<p class="card-note">No reemplazan un tratamiento si tu médico lo indica — son medidas seguras para cualquier momento de esta etapa.</p>` +
-    `<ul class="card-list">${rows}</ul>` +
+    `<ul class="card-list">${rows}</ul>` + more +
     `<span class="cite">Fuente: ${SELF_CARE_SOURCE}</span>`;
 }
 
@@ -1144,7 +1149,7 @@ function reportFullHtml(){
   const msg = levelMessage(state.scores);
   const alertNote = hasFlag()
     ? `<p class="card-note"><strong>Marcaste una señal de alerta.</strong> Conviene revisarla con tu médico antes de considerar cualquier tratamiento.</p>` : '';
-  return `<div class="report-full">` +
+  return `<details class="report-more"><summary>Ver el reporte completo</summary><div class="report-full">` +
     `<section>${alertNote}${levelCard(msg)}</section>` +
     `<section><h3>Sobre tu etapa</h3><p>${stageNote()}</p><span class="cite">${PERU_AGE_NOTE} Fuente: Guía HNHU (RD N° 211-2024-DG/HNHU), secciones 5.4 y 6.2.1.</span></section>` +
     whySection() +
@@ -1152,7 +1157,7 @@ function reportFullHtml(){
     `<section><h3>Preguntas para tu médico</h3>${consultBody()}</section>` +
     `<section><h3>Tus 11 respuestas</h3>${reportAnswersList()}</section>` +
     `<p class="topics-disclaimer">${DISCLAIMER}</p>` +
-    `</div>`;
+    `</div></details>`;
 }
 
 /* Resumen del reporte (10.4): Escala MRS, síntoma principal y banderas rojas, con el valor en
@@ -1239,9 +1244,11 @@ function showReport(){
     `<h3>Reporte para tu consulta</h3><p class="card-note">Todo lo que vimos, para llevarlo a tu consulta.</p>` +
     reportSummary() +
     `<div class="report-actions"><a class="btn" id="${id}" aria-disabled="true">Preparando tu PDF…</a>` +
-    `<button type="button" class="btn btn-ghost" id="${id}s" hidden>Compartir con mi médico</button>` +
     chatButton(true) +
-    `${whatsappButton('resultado', 'Tengo una duda sobre mi resultado')}</div>` +
+    `<button type="button" class="btn btn-ghost" id="${id}s" hidden>Compartir con mi médico</button>` +
+    // Con el chat con IA encendido, la duda sobre el resultado va ahí (sigue con sus puntajes);
+    // WhatsApp queda dentro del chat si el agente falla. Apagado, se ofrece WhatsApp.
+    `${AGENT_ENABLED ? '' : whatsappButton('resultado', 'Tengo una duda sobre mi resultado')}</div>` +
     inApp + reportFullHtml(), 'report'
   ).then(()=>{
     track('report_shown', {in_app: IN_APP_BROWSER});

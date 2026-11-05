@@ -34,7 +34,7 @@ import {
   doctorRecommendation, EMERGENCY_NOW,
 } from '../_shared/mrs.js';
 // Autocuidado: la misma lista que el chat (allí se muestran 2; aquí, todas).
-import { selfCareItems as sharedSelfCareItems, SELF_CARE_SOURCE } from '../_shared/autocuidado.js';
+import { prioritizedSelfCare, SELF_CARE_SOURCE } from '../_shared/autocuidado.js';
 // "Por qué puede pasarte": las mismas notas por síntoma que el reporte del chat.
 import { whyNotes, WHY_TITLE } from '../_shared/notas.js';
 
@@ -128,8 +128,10 @@ function esc(s: unknown) {
 /* ---------- Contenido compartido entre el HTML (correo/enlace) y el PDF ----------
    Un solo lugar para cada texto: así el correo, la página del enlace y el PDF adjunto
    nunca dicen cosas distintas. Mantener sincronizado con src/main.js. */
-function selfCareItems(session: Record<string, any>): [string, string][] {
-  return sharedSelfCareItems(session.answers || {});
+/* Las 3 recomendaciones más prioritarias según sus respuestas, completas, y el resto en una línea
+   (mismo criterio que el chat: _shared/autocuidado.js, prioritizedSelfCare). */
+function selfCare(session: Record<string, any>) {
+  return prioritizedSelfCare(session.answers || {});
 }
 
 const CONSULT_GENERIC = [
@@ -197,10 +199,13 @@ function meterBar(pct: number, color: string) {
 /* Autocuidado seguro para cualquier nivel (A/B/C) — no reemplaza tratamiento.
    La lista viene de _shared/autocuidado.js, igual que en el chat. */
 function selfCareFragment(session: Record<string, any>) {
-  const rows = selfCareItems(session).map(([t, d]) => `<li style="margin:6px 0;"><b>${t}:</b> ${d}</li>`).join('');
+  const { top, rest } = selfCare(session);
+  const rows = top.map(([t, d]) => `<li style="margin:6px 0;"><b>${t}:</b> ${d}</li>`).join('');
+  const more = rest.length
+    ? `<p style="margin:12px 0 4px;font-weight:600;">Otras ideas:</p><ul style="padding-left:20px;margin:0;color:${C.plumSoft};font-size:14px;">${rest.map((r) => `<li style="margin:3px 0;">${r}</li>`).join('')}</ul>` : '';
   return `<h2 style="${H2}margin:24px 0 4px;">Algunas cosas que pueden ayudarte</h2>
     <p style="color:${C.plumSoft};font-size:13px;margin:0 0 8px;">No reemplazan un tratamiento si tu médico lo indica — son medidas seguras para cualquier momento de esta etapa.</p>
-    <ul style="padding-left:20px;margin:0;">${rows}</ul>
+    <ul style="padding-left:20px;margin:0;">${rows}</ul>${more}
     <p style="color:${C.plumSoft};font-size:12px;margin-top:10px;">Fuente: ${SELF_CARE_SOURCE}</p>`;
 }
 
@@ -379,7 +384,7 @@ function wrapForEmail(fragment: string, hasPdf: boolean) {
 
 /* ---------- PDF adjunto (pdf-lib: se dibuja a mano, sin navegador ni servicio externo) ----------
    Deno Deploy no permite correr Chrome/Puppeteer, así que no se puede "convertir" el HTML.
-   Usa el mismo contenido (selfCareItems, contextPoints, levelMessage, etc.) para que nunca diga
+   Usa el mismo contenido (prioritizedSelfCare, contextPoints, levelMessage, etc.) para que nunca diga
    algo distinto al correo o a la página del enlace, y la misma identidad que la web (10.4):
    Special Gothic en títulos, Signika en el texto, ciruela para el texto y magenta solo en acentos.
    Las fuentes (OFL, TTF estáticos) se sirven desde el sitio: public/fonts/pdf/. Si no se pueden
@@ -604,7 +609,12 @@ async function buildPdf(session: Record<string, any>, lead: Record<string, any>)
 
     heading('Algunas cosas que pueden ayudarte');
     para('No reemplazan un tratamiento si tu médico lo indica — son medidas seguras para cualquier momento de esta etapa.', { size: 8.5, color: PDF_COLOR.inkSoft, gap: 8 });
-    for (const [t, d] of selfCareItems(session)) bulletBlock(t, d);
+    const care = selfCare(session);
+    for (const [t, d] of care.top) bulletBlock(t, d);
+    if (care.rest.length) {
+      para('Otras ideas:', { size: 9.5, f: bold, gap: 2 });
+      for (const r of care.rest) bulletText(r, 9);
+    }
     para(`Fuente: ${SELF_CARE_SOURCE}`, { size: 7.5, color: PDF_COLOR.inkSoft, gap: 10 });
 
     heading('Preguntas para tu médico');
