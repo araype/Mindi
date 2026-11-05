@@ -6,7 +6,10 @@
 // No se guarda ninguna conversación en Mindi.
 
 /* Aviso antes de la primera pregunta (anexo de los Términos). */
-export const AI_NOTICE = 'Mindi responde con inteligencia artificial: te orienta, pero no reemplaza a tu médico y puede equivocarse. Tus mensajes se procesan con un proveedor externo de IA para generar las respuestas. Si tienes una emergencia, llama al 106.';
+/* Bajo el saludo, una línea (5 nov. 2026); "Más información" abre el aviso completo. Enviar la primera
+   pregunta o tocar una sugerencia es la aceptación (agent_consent). */
+export const AI_LINE = 'Soy Mindi IA y te oriento con información confiable. Puedes preguntarme lo que no te animas a preguntar en otro lado. No reemplazo a tu médico. Al escribirme, aceptas que tus mensajes se procesen con IA.';
+export const AI_NOTICE = 'Mindi responde con inteligencia artificial: te orienta, pero no reemplaza a tu médico y puede equivocarse. Tus mensajes se procesan con OpenAI para generar las respuestas, según sus propias políticas. Si es una emergencia, llama al 106.';
 /* Saludo según cómo llega (5 nov. 2026). Con señal de alerta, el de emergencia (dolor de pecho o falta de
    aire en el test) o el de evaluación. El de emergencia no lleva botones de sugerencia. */
 export const GREETING = {
@@ -18,7 +21,6 @@ export const GREETING = {
 /* Botones de sugerencia: solo cuando llega desde el resultado (y no en el saludo de emergencia).
    Tocar uno acepta el aviso de IA y envía la pregunta en el mismo toque. */
 export const RESULT_SUGGESTIONS = ['¿Qué significa mi resultado?', '¿Qué puedo hacer para sentirme mejor?'];
-export const START_LABEL = 'Empecemos';
 /** chatResult (o null), tipo de alerta guardado ('emergencia' | 'evaluacion' | null), tema → { text, suggestions } */
 export function chatGreeting(result, alertType, topic) {
   if (topic && CHAT_TOPICS[topic]) return { text: CHAT_TOPICS[topic], suggestions: [] };
@@ -42,6 +44,7 @@ export const chatTopic = (v) => (typeof v === 'string' && Object.hasOwn(CHAT_TOP
 /* Nivel 2: casilla del inicio del chat (oculta hasta aprobar la política: VITE_CHAT_RESEARCH_ENABLED). */
 export const SHARE_QUESTIONS_TEXT = 'Quiero que mis preguntas se usen, sin mis datos de contacto, para entender mejor qué necesitan las mujeres en esta etapa.';
 export const SHARE_QUESTIONS_VERSION = 'chat-v1';
+export const SHARE_FROM_TEST_VERSION = 'inicio-v2'; // casilla única al inicio del test (respuestas y preguntas)
 export const ERROR_TEXT = 'Ahora no puedo responder. Intenta de nuevo en unos minutos, o escríbele al equipo de Mindi.';
 export const LIMIT_TEXT = 'Llegaste al límite de esta conversación. Si tienes más dudas, escríbele al equipo de Mindi.';
 /* Si el agente no responde en este tiempo, se trata como falla: aparece el botón de WhatsApp. */

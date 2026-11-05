@@ -288,3 +288,11 @@ body.no-scroll{overflow:hidden}
 .report-email .opt{font-size:13px}
 .share-opt-inline{margin:8px 4px 0;font-size:12.5px;color:var(--plum-soft)}
 .share-opt-inline input{width:18px;height:18px}
+/* Chat: una línea bajo el saludo y "Más información" */
+.ai-notice p{margin:0}
+.ai-more{margin-top:4px}
+.ai-more summary{cursor:pointer;color:var(--magenta-text);font-weight:600;text-decoration:underline;text-underline-offset:3px;min-height:28px;list-style:none}
+.ai-more summary::-webkit-details-marker{display:none}
+.ai-more p{margin-top:4px}
+.ai-more a{color:var(--magenta-text)}
+.chat-suggest{margin-bottom:10px}

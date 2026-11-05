@@ -61,7 +61,9 @@ test('reporte: banderas rojas en palabras y "Compartir con mi médico" comparte 
   assert.match(main, />Compartir con mi médico</);
 });
 
-test('"Empecemos" no se envía al agente como pregunta (solo las sugerencias)', () => {
-  assert.match(main, /label:START_LABEL, primary:true, value:''/);
-  assert.match(main, /if\(q\)\{ track\('chat_suggestion'/);
+test('chat: sin botón "Empecemos"; la primera pregunta o una sugerencia aceptan el aviso', () => {
+  assert.doesNotMatch(main, /START_LABEL|Empecemos/);
+  assert.match(main, /if\(t\)\{ acceptChat\(\);/);
+  assert.match(main, /btn\.onclick = \(\)=>\{ acceptChat\(\);/);
+  assert.match(main, /track\('agent_consent'/);
 });

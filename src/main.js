@@ -11,7 +11,7 @@ import { prioritizedSelfCare, SELF_CARE_SOURCE } from '../supabase/functions/_sh
 import { whyNotes, WHY_TITLE } from '../supabase/functions/_shared/notas.js';
 import { stageFilter, STAGE_EXIT } from './etapa.js';
 import { whatsappUrl, WHATSAPP_TEXT, channelUrl } from './whatsapp.js';
-import { createAgentClient, agentHtml, AI_NOTICE, chatGreeting, START_LABEL, chatTopic, ERROR_TEXT, LIMIT_TEXT, SHARE_QUESTIONS_TEXT, SHARE_QUESTIONS_VERSION } from './agente.js';
+import { createAgentClient, agentHtml, AI_NOTICE, AI_LINE, chatGreeting, chatTopic, SHARE_FROM_TEST_VERSION, ERROR_TEXT, LIMIT_TEXT, SHARE_QUESTIONS_VERSION } from './agente.js';
 import { glossaryMore } from './glosario.js';
 import { initLanding } from './landing.js';
 import { mountTurnstile } from './turnstile.js';
@@ -1267,6 +1267,7 @@ function setupShare(btn){
    por sessionStorage (solo esta pestaña; sin respuestas una por una ni datos de contacto). */
 const RESULT_STORE = 'mindi_resultado';
 const ALERT_STORE = 'mindi_alerta';
+const SHARE_STORE = 'mindi_compartir'; // marcó la casilla única al inicio del test
 function chatButton(withResult){
   if(!AGENT_ENABLED) return '';
   const label = withResult ? 'Pregúntale a Mindi sobre tu resultado' : 'Pregúntale a Mindi';
@@ -1282,6 +1283,7 @@ document.addEventListener('click', (e)=>{
       sessionStorage.setItem(RESULT_STORE, JSON.stringify(agentMrsResult(state.scores, hasFlag())));
       // Solo para el saludo del chat (no va al agente): emergencia (rf2) o evaluación.
       sessionStorage.setItem(ALERT_STORE, hasFlag() ? (state.redFlags.includes('rf2') ? 'emergencia' : 'evaluacion') : '');
+      sessionStorage.setItem(SHARE_STORE, state.research ? '1' : '');
     } else { sessionStorage.removeItem(RESULT_STORE); sessionStorage.removeItem(ALERT_STORE); }
   }catch{}
   location.href = '/chat';
@@ -1488,21 +1490,22 @@ function storedResult(){
   }catch{ return null; }
 }
 
-let chatShareCtx = {}, chatShareOn = false;
-function setChatShare(on){
+let chatShareCtx = {}, chatShareOn = false, chatShareVersion = SHARE_QUESTIONS_VERSION;
+function setChatShare(on, version){
   chatShareOn = !!on;
-  agentClient.setContext(chatShareOn ? {...chatShareCtx, compartir:true, consent_text_version:SHARE_QUESTIONS_VERSION} : {...chatShareCtx});
+  if(version) chatShareVersion = version;
+  agentClient.setContext(chatShareOn ? {...chatShareCtx, compartir:true, consent_text_version:chatShareVersion} : {...chatShareCtx});
   document.querySelectorAll('[data-chat-share]').forEach(b=>{ b.checked = chatShareOn; });
 }
 document.addEventListener('change', (e)=>{
   const b = e.target;
   if(!(b && b.matches && b.matches('[data-chat-share]'))) return;
-  // Antes de "Empecemos" solo cuenta al aceptar; después, cada cambio vale desde la próxima pregunta.
-  if(b.id === 'chatShare' && !chatAccepted) return;
-  setChatShare(b.checked);
+  // Cada cambio vale desde la próxima pregunta; desmarcarla deja de guardar desde ahí.
+  setChatShare(b.checked, b.checked ? SHARE_QUESTIONS_VERSION : null);
   track('chat_share_change', {captured: b.checked});
 });
 let chatAccepted = false;
+function storedShare(){ try{ return sessionStorage.getItem(SHARE_STORE) === '1'; }catch{ return false; } }
 function storedAlertType(){ try{ return sessionStorage.getItem(ALERT_STORE) || null; }catch{ return null; } }
 
 function openAiChat(){
@@ -1523,33 +1526,27 @@ function openAiChat(){
   const nivel = chatResult ? (chatResult.senal_alerta ? 'alert' : mrsLevel(chatResult)) : null;
   const ctx = {...(nivel ? {nivel} : {}), desde_tema: !!topic, is_test: TEST_MODE};
   agentClient.setContext(ctx);
-  // Nivel 2: casilla sin marcar, solo si está activado (hasta aprobar la política, no se muestra).
-  const share = CHAT_RESEARCH_ENABLED
-    ? `<label class="opt share-opt"><input type="checkbox" id="chatShare" data-chat-share><span>${SHARE_QUESTIONS_TEXT}</span></label>` : '';
-  // Saludo primero; debajo, el aviso de IA en letra pequeña y "Empecemos" (consentimiento explícito,
-  // Ley 29733). Tocar una sugerencia también acepta el aviso y envía esa pregunta (5 nov. 2026).
-  const greeting = chatGreeting(chatResult, storedAlertType(), topic);
-  // Nivel 2: la casilla se puede marcar o desmarcar en cualquier momento (al inicio y junto al campo de
-  // escribir). Cada pregunta lleva el estado del momento: al desmarcarla, desde ese mensaje no se guarda.
+  // Saludo; debajo, una línea cálida con "Más información" (el aviso completo, con OpenAI y el 106).
+  // Enviar la primera pregunta o tocar una sugerencia es la aceptación (agent_consent).
   chatShareCtx = ctx;
-  const accept = ()=>{
-    track('agent_consent', {source:chatSource});
-    chatAccepted = true;
-    const box = document.getElementById('chatShare');
-    if(box){ setChatShare(box.checked); track('chat_share', {captured: box.checked}); }
-  };
+  if(CHAT_RESEARCH_ENABLED && storedShare()) setChatShare(true, SHARE_FROM_TEST_VERSION); // casilla del test → marcada
+  const greeting = chatGreeting(chatResult, storedAlertType(), topic);
   botSay([greeting.text]).then(()=>{
     const row = document.createElement('div');
     row.className = 'row bot ai-notice-row';
-    row.innerHTML = `<p class="ai-notice">${AI_NOTICE}</p>${share}`;
+    row.innerHTML = `<div class="ai-notice"><p>${AI_LINE}</p>` +
+      `<details class="ai-more"><summary>Más información</summary><p>${AI_NOTICE} <a href="/privacidad" target="_blank" rel="noopener">Política de privacidad</a>.</p></details></div>`;
     chat.appendChild(row);
-    const options = [{label:START_LABEL, primary:true, value:''}, ...greeting.suggestions.map(q=>({label:q, value:q}))];
-    renderChips(options, (q)=>{
-      accept();
-      if(q){ track('chat_suggestion', {q: greeting.suggestions.indexOf(q) === 0 ? 'resultado' : 'sentirme_mejor'}); askAgent(q, {echo:false}); }
-      else renderQuestionInput();
-    });
+    chatSuggestions = greeting.suggestions;
+    renderQuestionInput();
   });
+}
+let chatSuggestions = [];
+function acceptChat(){
+  if(chatAccepted) return;
+  chatAccepted = true;
+  track('agent_consent', {source:chatSource});
+  if(CHAT_RESEARCH_ENABLED) track('chat_share', {captured: chatShareOn});
 }
 
 function renderQuestionInput(){
@@ -1559,7 +1556,19 @@ function renderQuestionInput(){
   form.innerHTML = `<input type="text" maxlength="1000" placeholder="Escribe tu duda…" aria-label="Escribe tu duda" autocomplete="off">` +
     `<button type="submit" class="sendBtn" aria-label="Enviar">${ICON_SEND}</button>`;
   const input = form.querySelector('input');
-  form.onsubmit = (e)=>{ e.preventDefault(); const t = input.value.trim(); if(t) askAgent(t); };
+  form.onsubmit = (e)=>{ e.preventDefault(); const t = input.value.trim(); if(t){ acceptChat(); chatSuggestions = []; askAgent(t); } };
+  // Sugerencias (solo hasta la primera pregunta): un toque acepta y envía.
+  if(chatSuggestions.length){
+    const wrap = document.createElement('div');
+    wrap.className = 'chips chat-suggest';
+    chatSuggestions.forEach((q, n)=>{
+      const btn = document.createElement('button');
+      btn.type = 'button'; btn.className = 'chip'; btn.textContent = q;
+      btn.onclick = ()=>{ acceptChat(); chatSuggestions = []; track('chat_suggestion', {q: n === 0 ? 'resultado' : 'sentirme_mejor'}); askAgent(q); };
+      wrap.appendChild(btn);
+    });
+    composer.appendChild(wrap);
+  }
   composer.appendChild(form);
   if(CHAT_RESEARCH_ENABLED){
     const opt = document.createElement('label');
