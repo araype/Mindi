@@ -147,3 +147,28 @@ test('nivel con puntajes guardados en sessions (como los usa send-report)', () =
   });
   assert.equal(level, 'B');
 });
+
+test('notas por área: aparecen con los cortes de la Figura 6 (Somático ≥8, Psicológico ≥6, Urogenital ≥3)', async () => {
+  const { areaNotes } = await import('../supabase/functions/_shared/mrs.js');
+  const keys = (s) => areaNotes({ somatico: 0, psicologico: 0, urogenital: 0, ...s }).map((n) => n.key);
+  assert.deepEqual(keys({ somatico: 7, psicologico: 5, urogenital: 2 }), []);
+  assert.deepEqual(keys({ somatico: 8 }), ['somatico']);
+  assert.deepEqual(keys({ psicologico: 6 }), ['psicologico']);
+  assert.deepEqual(keys({ urogenital: 3 }), ['urogenital']);
+  assert.deepEqual(areaNotes({ urogenital: 3 })[0].title, 'Sobre tu vida íntima');
+  assert.deepEqual(areaNotes({ somatico: 8 })[0].title, 'Sobre tu cuerpo');
+});
+
+test('notas por área: varias se ordenan por el porcentaje del área, de mayor a menor', async () => {
+  const { areaNotes } = await import('../supabase/functions/_shared/mrs.js');
+  const r = areaNotes({ somatico: 12, psicologico: 11, urogenital: 10 }); // 75%, 69%, 83%
+  assert.deepEqual(r.map((n) => [n.key, n.pct]), [['urogenital', 83], ['somatico', 75], ['psicologico', 69]]);
+  // empate de porcentaje: cuerpo, ánimo, vida íntima
+  assert.deepEqual(areaNotes({ somatico: 8, psicologico: 8, urogenital: 6 }).map((n) => n.key), ['somatico', 'psicologico', 'urogenital']);
+});
+
+test('notas por área: no nombran medicamentos ni tratamientos concretos', async () => {
+  const { AREA_NOTES } = await import('../supabase/functions/_shared/mrs.js');
+  const banned = /estradiol|estriol|tibolona|DHEA|prasterona|testosterona|promestrieno|THM|terapia hormonal|ISRS|lubricante|humectante|óvulo|crema|pastilla|parche|gel|andrógeno/i;
+  for (const [k, n] of Object.entries(AREA_NOTES)) assert.doesNotMatch(n.text, banned, k);
+});

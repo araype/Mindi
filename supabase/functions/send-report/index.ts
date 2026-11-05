@@ -31,7 +31,7 @@ import { decodeBase64 } from 'https://deno.land/std@0.224.0/encoding/base64.ts';
 import {
   levelMessage, AREAS as MRS_AREAS, areaStatus, AREA_TAG, CUTS, CUTS_SOURCE,
   heinemannCategory, HEINEMANN_SOURCE, SKIPPED_INTIMATE_NOTE, SKIPPED_INTIMATE_NOTE_DOCTOR,
-  doctorRecommendation, EMERGENCY_NOW,
+  doctorRecommendation, EMERGENCY_NOW, areaNotes,
 } from '../_shared/mrs.js';
 // Autocuidado: la misma lista que el chat (allí se muestran 2; aquí, todas).
 import { prioritizedSelfCare, SELF_CARE_SOURCE } from '../_shared/autocuidado.js';
@@ -140,8 +140,6 @@ const CONSULT_GENERIC = [
 ];
 const CONSULT_SOURCE = 'Estas sugerencias son de la guía (Figura 6 y 7) — la decisión final siempre es de tu médico, evaluando tu caso completo.';
 
-const PSICOLOGICO_NOTE = 'Tu puntaje en la parte emocional pesa bastante en el conjunto. Cerca del 30% de las mujeres de 45 a 64 años presenta síntomas depresivos en esta etapa — no estás sola en eso. Vale la pena comentarlo también con un profesional de salud mental.';
-const PSICOLOGICO_SOURCE = 'Fuente: Guía HNHU (RD N° 211-2024-DG/HNHU), sección 6.4.1.2.';
 
 const PERU_AGE_NOTE = 'En Perú, la edad promedio de la menopausia es 47 años — cada cuerpo tiene su propio ritmo, así que esto es orientativo.';
 const STAGE_SOURCE = 'Fuente: Guía HNHU (RD N° 211-2024-DG/HNHU), secciones 5.4 y 6.2.1.';
@@ -326,7 +324,7 @@ function buildFragment(session: Record<string, any>, lead: Record<string, any>, 
     <h2 style="${H2}margin:24px 0 8px;">Tus 11 respuestas</h2>
     ${itemRows}
     ${doctorHtml}
-    ${session.score_psicologico >= CUTS.psicologico ? `<p style="background:${C.pinkBg};border:1px solid ${C.line};padding:12px 14px;border-radius:12px;margin-top:16px;">${PSICOLOGICO_NOTE}<br><span style="font-size:11px;color:${C.plumSoft};">${PSICOLOGICO_SOURCE}</span></p>` : ''}
+    ${areaNotes(sessionScores(session)).map((n: any) => `<div style="background:${C.pinkBg};border:1px solid ${C.line};padding:12px 14px;border-radius:12px;margin-top:16px;"><p style="margin:0 0 4px;font-weight:600;">${n.title}</p><p style="margin:0;">${n.text}</p><span style="font-size:11px;color:${C.plumSoft};">${n.source}</span></div>`).join('')}
     ${selfCareFragment(session)}
     ${consultFragment(pts)}
     <p style="color:${C.plumSoft};font-size:13px;margin-top:16px;">Esto es solo orientación informativa. Solo un profesional de salud puede evaluarte con exámenes clínicos.</p>
@@ -602,9 +600,11 @@ async function buildPdf(session: Record<string, any>, lead: Record<string, any>)
       para(`Categoría de intensidad: ${HEINEMANN_SOURCE}`, { size: 7.5, color: PDF_COLOR.inkSoft, gap: 10 });
     }
 
-    if (session.score_psicologico >= CUTS.psicologico) {
-      para(PSICOLOGICO_NOTE, { gap: 2 });
-      para(PSICOLOGICO_SOURCE, { size: 8, color: PDF_COLOR.inkSoft, gap: 10 });
+    // Notas por área (Cuerpo, Ánimo, Vida íntima) que alcanzan su corte, de mayor a menor porcentaje.
+    for (const n of areaNotes(sessionScores(session))) {
+      para(n.title, { f: bold, gap: 1 });
+      para(n.text, { gap: 2 });
+      para(n.source, { size: 8, color: PDF_COLOR.inkSoft, gap: 10 });
     }
 
     heading('Algunas cosas que pueden ayudarte');

@@ -5,6 +5,7 @@ import './site.css';
 import {
   computeScores as mrsScores, computeLevel as mrsLevel, levelMessage, CUTS,
   AREAS, areaStatus, AREA_TAG, SKIPPED_INTIMATE_NOTE, doctorRecommendation, EMERGENCY_NOW, agentMrsResult,
+  areaNotes as mrsAreaNotes,
 } from '../supabase/functions/_shared/mrs.js';
 import { prioritizedSelfCare, SELF_CARE_SOURCE } from '../supabase/functions/_shared/autocuidado.js';
 import { whyNotes, WHY_TITLE } from '../supabase/functions/_shared/notas.js';
@@ -958,19 +959,17 @@ function areaBars(){
   }).join('');
 }
 /* Notas que acompañan a las barras: bienestar emocional y preguntas íntimas omitidas. */
+/* Una nota por cada área que alcanza su corte de la guía (Cuerpo, Ánimo, Vida íntima), de la de
+   mayor porcentaje a la de menor. Textos y cortes en el módulo compartido (mrs.js, AREA_NOTES). */
 function areaNotes(){
-  const s = state.scores;
-  let html = '';
-  if(s.psicologico >= CUTS.psicologico){
-    html += `<div class="area-note">
+  let html = mrsAreaNotes(state.scores).map(n=>`<div class="area-note">
       <div class="area-note-header">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-        <strong>Sobre tu bienestar emocional</strong>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <strong>${n.title}</strong>
       </div>
-      <p>Tu puntaje en la parte emocional pesa bastante en el conjunto. Cerca del 30% de las mujeres de 45 a 64 años presenta síntomas depresivos en esta etapa — no estás sola en eso. Vale la pena comentarlo también con un profesional de salud mental.</p>
-      <span class="cite">Fuente: Guía HNHU (RD N° 211-2024-DG/HNHU), sección 6.4.1.2.</span>
-    </div>`;
-  }
+      <p>${n.text}</p>
+      <span class="cite">${n.source}</span>
+    </div>`).join('');
   if(state.skippedIntimate){
     html += `<p class="skipped-note">${SKIPPED_INTIMATE_NOTE}</p>`;
   }

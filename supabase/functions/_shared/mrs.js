@@ -185,3 +185,36 @@ export function agentMrsResult(scores, hasAlert) {
     senal_alerta: !!hasAlert,
   };
 }
+
+/** Notas por área del resultado (chat, página del reporte, correo y PDF). Aparecen las áreas que
+ *  alcanzan su corte de la guía (Figura 6: Somático ≥8, Psicológico ≥6, Urogenital ≥3), ordenadas
+ *  por su porcentaje, de mayor a menor (empate: cuerpo, ánimo, vida íntima). No nombran
+ *  medicamentos ni tratamientos concretos. */
+export const AREA_NOTES = {
+  somatico: {
+    title: 'Sobre tu cuerpo',
+    text: 'Los bochornos, el cansancio o los dolores que marcaste están afectando tu día a día más de lo habitual. Hay formas de aliviarlos, y tu médico puede ayudarte a elegir la que mejor se adapte a ti. Lleva este reporte a tu próxima consulta.',
+    source: 'Fuente: Guía HNHU (RD N° 211-2024-DG/HNHU), Figura 6.',
+  },
+  psicologico: {
+    title: 'Sobre tu bienestar emocional',
+    text: 'Tu puntaje en la parte emocional pesa bastante en el conjunto. Cerca del 30% de las mujeres de 45 a 64 años presenta síntomas depresivos en esta etapa — no estás sola en eso. Vale la pena comentarlo también con un profesional de salud mental.',
+    source: 'Fuente: Guía HNHU (RD N° 211-2024-DG/HNHU), sección 6.4.1.2.',
+  },
+  urogenital: {
+    title: 'Sobre tu vida íntima',
+    text: 'La sequedad, las molestias o tener menos deseo son cambios frecuentes en esta etapa, y no tienes que resignarte a ellos: hay opciones específicas para tratarlos. Vale la pena conversarlo con tu ginecólogo; lleva este reporte para que sea más fácil empezar la conversación.',
+    source: 'Fuente: Guía HNHU (RD N° 211-2024-DG/HNHU), Figuras 5, 6 y 7.',
+  },
+};
+
+/** scores → [{ key, pct, title, text, source }] de las áreas que alcanzan su corte, ordenadas. */
+export function areaNotes(scores) {
+  const s = scores || {};
+  return AREAS
+    .map((a, i) => ({ ...a, i, v: s[a.key] || 0 }))
+    .filter((a) => a.v >= a.cut)
+    .map((a) => ({ key: a.key, i: a.i, pct: Math.round((a.v / a.max) * 100), ratio: a.v / a.max, ...AREA_NOTES[a.key] }))
+    .sort((a, b) => b.ratio - a.ratio || a.i - b.i)
+    .map(({ i, ratio, ...n }) => n);
+}
