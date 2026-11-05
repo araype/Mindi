@@ -46,6 +46,9 @@ const SEND_REPORT_SECRET = Deno.env.get('SEND_REPORT_SECRET') ?? '';
 const LEADS_ENC_KEY = Deno.env.get('LEADS_ENC_KEY') ?? '';
 /* El enlace a /reporte del correo y de "Compartir con mi médico" vence a los 30 días (SQL 019). */
 const LINK_DAYS = 30;
+/* Ruta del reporte en los enlaces: /reporte.html funciona en el sitio actual (sin URLs limpias) y en el
+   nuevo (cleanUrls la redirige a /reporte conservando ?t=). */
+const reportLink = (token: string) => `${SITE_URL}/reporte.html?t=${token}`;
 const RESEND_FROM = Deno.env.get('RESEND_FROM') ?? 'Mindi <onboarding@resend.dev>';
 const SITE_URL = (Deno.env.get('SITE_URL') ?? 'http://localhost:5173').replace(/\/$/, '');
 
@@ -657,13 +660,13 @@ Deno.serve(async (req) => {
   if (share) {
     const { data: prev } = await supabase.from('report_shares').select('token,expires_at').eq('session_id', session_id).maybeSingle();
     if (prev && new Date(prev.expires_at) > new Date()) {
-      return json({ ok: true, channel: 'share', url: `${SITE_URL}/reporte?t=${prev.token}`, expires_at: prev.expires_at });
+      return json({ ok: true, channel: 'share', url: reportLink(prev.token), expires_at: prev.expires_at });
     }
     const html = buildFragment(session, {}, { shared: true });
     const row = { session_id, html, token: crypto.randomUUID(), created_at: new Date().toISOString(), expires_at: new Date(Date.now() + 30 * 864e5).toISOString() };
     const { data: saved, error: shErr } = await supabase.from('report_shares').upsert(row, { onConflict: 'session_id' }).select('token,expires_at').single();
     if (shErr || !saved) return json({ error: (shErr && shErr.message) || 'No se pudo crear el enlace' }, 500);
-    return json({ ok: true, channel: 'share', url: `${SITE_URL}/reporte?t=${saved.token}`, expires_at: saved.expires_at });
+    return json({ ok: true, channel: 'share', url: reportLink(saved.token), expires_at: saved.expires_at });
   }
 
   if (downloadOnly) {
@@ -727,7 +730,7 @@ Deno.serve(async (req) => {
   if (rErr) return json({ error: rErr.message }, 500);
 
   if (!RESEND_API_KEY) return json({ error: 'RESEND_API_KEY no configurada' }, 500);
-  const reportUrl = `${SITE_URL}/reporte?t=${report.token}`;
+  const reportUrl = reportLink(report.token);
 
   const r = await fetch('https://api.resend.com/emails', {
     method: 'POST',
