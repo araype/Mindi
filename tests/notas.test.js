@@ -9,14 +9,14 @@ test('hay una nota por cada uno de los 11 ítems, en el orden de la escala', () 
 });
 
 test('solo los síntomas en 2 o más; las omitidas (null) no cuentan', () => {
-  const ids = whyNotes({ p3: 2, p4: 1, p6: 4, p11: null, p13: 3 }).map((n) => n.id);
+  const ids = whyNotes({ p3: 2, p4: 1, p6: 4, p11: null, p13: 3 }, { includeUnsourced: true }).map((n) => n.id);
   assert.deepEqual(ids, ['p3', 'p6', 'p13']);
   assert.deepEqual(whyNotes({ p3: 1, p7: 0 }), []);
   assert.deepEqual(whyNotes({}), []);
 });
 
 test('sin cierres por intensidad: el texto es el mismo con 2 que con 4', () => {
-  assert.equal(whyNotes({ p6: 2 })[0].text, whyNotes({ p6: 4 })[0].text);
+  assert.equal(whyNotes({ p6: 2 }, { includeUnsourced: true })[0].text, whyNotes({ p6: 4 }, { includeUnsourced: true })[0].text);
 });
 
 test('la nota del corazón usa el mismo aviso de emergencia (106) que el resto de Mindi', () => {
@@ -30,4 +30,10 @@ test('ninguna nota afirma una causa solo hormonal en ánimo, articulaciones o de
     const t = WHY_NOTES.find((n) => n.id === id).text;
     assert.doesNotMatch(t, /base hormonal|explicación hormonal|el estrógeno ayuda/i, id);
   }
+});
+
+test('sin fuente de la guía no se muestran (hasta la validación médica, 5 nov. 2026)', () => {
+  const all = { p3: 4, p6: 4, p13: 4 };
+  assert.deepEqual(whyNotes(all).map((n) => n.id), WHY_NOTES.filter((n) => n.source && all[n.id] != null).map((n) => n.id));
+  assert.ok(whyNotes(all).every((n) => n.source));
 });

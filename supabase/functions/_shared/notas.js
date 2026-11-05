@@ -34,7 +34,13 @@ export const WHY_NOTES = [
     text: 'La sequedad íntima ocurre porque esos tejidos también dependen de los estrógenos. Hay opciones simples que puedes comentar con tu médico.' },
 ];
 
-/** answers: { p3: 0-4 | null, … } → [{ id, label, text }] de los síntomas en 2 o más. Vacío si ninguno. */
-export function whyNotes(answers) {
-  return WHY_NOTES.filter((n) => answers?.[n.id] != null && answers[n.id] >= 2);
+/* Decisión del 5 nov. 2026: solo se muestran las notas que tienen `source` (cita de la guía HNHU).
+   Hoy ninguna la tiene: todas quedan ocultas hasta la validación médica (docs/pendientes-post-lanzamiento.md).
+   Al validar una, agregarle `source: 'Fuente: Guía HNHU (…), sección …'` y vuelve a aparecer en el chat,
+   el correo y el PDF. */
+
+/** answers: { p3: 0-4 | null, … } → [{ id, label, text, source }] de los síntomas en 2 o más, solo los
+ *  que tienen fuente (o todos con { includeUnsourced: true }, para pruebas y revisión). */
+export function whyNotes(answers, { includeUnsourced = false } = {}) {
+  return WHY_NOTES.filter((n) => (includeUnsourced || n.source) && answers?.[n.id] != null && answers[n.id] >= 2);
 }

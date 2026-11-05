@@ -270,3 +270,23 @@ body.no-scroll{overflow:hidden}
 .share-opt{display:flex;gap:10px;align-items:flex-start;margin-top:12px;font-size:14px;line-height:1.45;cursor:pointer}
 .share-opt input{width:20px;height:20px;margin:1px 0 0;flex:none;accent-color:var(--magenta-btn)}
 .chat-ai .share-opt{color:var(--chat-muted)}
+
+/* cierre-v2 (5 nov. 2026): resultado con un mensaje principal y reporte con un botón principal */
+.card .marked-title{margin:12px 0 2px;font-weight:600}
+.card .marked{margin:0 0 6px;padding-left:20px}
+.card .marked li{margin:2px 0}
+.card .main-note{margin:8px 0 0}
+.card .bars{margin-top:14px}
+.area.is-main .area-name{font-weight:700}
+.area:not(.is-main) .meter span{opacity:.6}
+.area-also{margin:10px 0 0;font-size:14.5px}
+.mh-note{margin:10px 0 0;padding:10px 12px;border-radius:12px;background:var(--pink-bg);font-size:14.5px}
+.result-more{margin-top:12px;border-top:1px solid var(--line);padding-top:10px}
+.result-more summary{cursor:pointer;color:var(--magenta-text);font-weight:600;min-height:32px}
+.result-more p{margin:8px 0 0}
+.report-links{display:flex;flex-wrap:wrap;justify-content:center;gap:6px 18px;margin:4px 0 6px}
+.link-btn{background:none;border:0;padding:8px 2px;min-height:var(--tap-min);font:inherit;font-size:15px;font-weight:600;color:var(--magenta-text);text-decoration:underline;cursor:pointer}
+.pdf-note{margin:6px 0 0;padding:8px 12px;border-radius:12px;background:var(--pink-bg);font-size:14px}
+/* Caritas de satisfacción: los tonos --s0…--s4 se perdieron con la paleta nueva (Fase 3) y se veían negras. */
+.face-scale{--s0-bg:#FDEBF6;--s0-border:#C0128C;--s1-bg:#FDEBF6;--s1-border:#C0128C;--s2-bg:#FDEBF6;--s2-border:#C0128C;
+  --s3-bg:#F6E6F1;--s3-border:#8C6A82;--s4-bg:#F3EEF1;--s4-border:#6B5A66}

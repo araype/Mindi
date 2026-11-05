@@ -81,7 +81,7 @@ export function leadRequest(b) {
    respuestas, puntajes, niveles, señales de alerta, metas, correos ni teléfonos. */
 const EVENT_NAME = /^[a-z][a-z0-9_]{1,47}$/;
 const PROP_KEYS = new Set(['source', 'origen', 'origin', 'tester', 'q', 'channel', 'captured', 'news', 'research', 'in_app',
-  'list', 'n', 'area', 'code', 'error', 'method', 'desde', 'answer', 'score', 'version', 'tema']);
+  'list', 'n', 'area', 'code', 'error', 'method', 'desde', 'answer', 'score', 'version', 'tema', 'flujo', 'seccion']);
 const BLOCKED_EVENT_PROPS = { result: true, goals: true, redflags_answered: true, stage_filter_exit: true, interest_signup: true, interest_skip: true };
 /** → { row } o { error }. Las props de más se descartan (no se rechaza el evento). */
 export function eventRow(b) {

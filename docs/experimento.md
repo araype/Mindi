@@ -1,0 +1,28 @@
+# Experimento del test: versiones del flujo
+
+Cada evento de `events` lleva `props.flujo` desde cierre-v2. Los eventos sin `flujo` son de la versión anterior.
+
+| Versión | Desde | Qué cambia |
+| :-- | :-- | :-- |
+| v1 (sin `flujo`) | lanzamiento del rediseño (5 nov. 2026, mañana) | Resultado con 3 barras y 3 notas iguales, "Preguntas para tu médico", reporte con varios botones, satisfacción al final. |
+| **cierre-v2** | **5 nov. 2026** (despliegue de la tarde) | Ver abajo. |
+
+## cierre-v2 (5 nov. 2026)
+
+- **Resultado:** una sola tarjeta. Título con el área que más pesa ("Lo que más pesa hoy: …"), recomendación de
+  consultar, "Lo que marcaste" (los 2 síntomas más altos de esa área), su nota con fuente, barras y una línea con
+  las otras áreas. La derivación a salud mental queda visible. "Qué significa este resultado" y las otras notas, plegados.
+  "Preguntas para tu médico" sale de la secuencia (sigue en el reporte y el PDF).
+- **Orden:** resultado → metas → **satisfacción** → nombre → reporte + correo → cierre.
+- **Satisfacción:** "Mientras preparamos tu reporte: ¿te sirvió este resultado?" (antes: "¿Qué tal te pareció esta
+  experiencia?"), con "Prefiero no responder". **La pregunta cambió: no comparar puntajes v1 vs. v2 como si fueran lo mismo.**
+- **Reporte:** un botón principal ("Descargar PDF"). En el celular descarga o abre el menú de compartir sin salir del
+  chat; en computadora abre otra pestaña con el aviso "Tu PDF se abrió en otra pestaña. Aquí sigue tu conversación."
+- **"Por qué puede pasarte":** oculto (chat, correo y PDF) hasta la validación médica: ninguno tiene fuente de la guía.
+
+### Métricas que cambian
+- **Tasa de satisfacción** = `satisfaction` / `result` (debería subir: ya no está después del PDF). Nuevo: `satisfaction_skip`.
+- **Tasa de contacto** = `lead` con `captured=true` / `report_shown`.
+- **Descargas** = `report_download` (`method`: `share`, `download` o `tab`). Nuevo: `pdf_return` (volvió a la pestaña, computadora).
+- **Abandono resultado → metas** = 1 − `goals` / `result`.
+- Nuevo: `result_detail_open` (`seccion`: `significado`, `areas`, `reporte`).

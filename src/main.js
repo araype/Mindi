@@ -5,7 +5,7 @@ import './site.css';
 import {
   computeScores as mrsScores, computeLevel as mrsLevel, levelMessage, CUTS,
   AREAS, areaStatus, AREA_TAG, SKIPPED_INTIMATE_NOTE, doctorRecommendation, EMERGENCY_NOW, agentMrsResult,
-  areaNotes as mrsAreaNotes,
+  areaNotes as mrsAreaNotes, SUBSCALES,
 } from '../supabase/functions/_shared/mrs.js';
 import { prioritizedSelfCare, SELF_CARE_SOURCE } from '../supabase/functions/_shared/autocuidado.js';
 import { whyNotes, WHY_TITLE } from '../supabase/functions/_shared/notas.js';
@@ -95,12 +95,13 @@ window.dataLayer = window.dataLayer || [];
 /* Si el test se abrió desde el botón del chat con IA (/test?origen=chat, handoff 10.5.1), sus eventos
    llevan origen: 'chat' (los que ya traen su propio origen, como whatsapp_click, no se tocan). */
 const TEST_ORIGEN = new URLSearchParams(location.search).get('origen') === 'chat' ? 'chat' : null;
+const FLOW_VERSION = 'cierre-v2'; // docs/experimento.md
 function track(event, props){
   if(TEST_ORIGEN && !(props && props.origen)) props = Object.assign({}, props, {origen:TEST_ORIGEN});
   const payload = Object.assign({event:'mindi_'+event, ts:Date.now()}, props||{});
   window.dataLayer.push(payload);
   if(window.console) console.debug('[mindi]', payload);
-  const base = {is_test:TEST_MODE};
+  const base = {is_test:TEST_MODE, flujo:FLOW_VERSION};
   if(TEST_PARAM) base.tester = TEST_PARAM;
   if(ORIGIN) base.origin = ORIGIN;
   api('track', {session_id:SESSION_ID, name:event, props:Object.assign(base, props||{})});
@@ -428,8 +429,8 @@ function revealCardWithPause(introMsg, html, kind, isLast = false, continueText 
 /* Secuencia de cards de resultado compartida entre el flujo normal y el de banderas rojas */
 async function showResultsCardSequence(){
   const msg = levelMessage(state.scores);
-  await revealCardWithPause(null,                                         levelCard(msg), '',      false, '¿Y qué hago con esto?');
-  await revealCardWithPause('Preguntas para tu médico:',                consultCard(),       '',      false, 'Muy útil, ¿algo más?');
+  await revealCardWithPause(null, resultCard(msg), '', false, 'Continuar');
+  // "Preguntas para tu médico" ya no va aquí (cierre-v2): está en el reporte, igual que en el PDF.
   // Las recomendaciones de autocuidado y el aviso "solo orientación" ya no van aquí: están en
   // "Tu reporte" (ver reportFullHtml), al final del chat, igual que en el PDF y el correo.
 }
@@ -996,6 +997,62 @@ function levelCard(msg){
     areaNotes();
 }
 
+/* Resultado (cierre-v2, 5 nov. 2026): un mensaje principal (el área que más pesa), la recomendación
+   de consultar y la derivación a salud mental siempre visibles; el resto, plegado. */
+const AREA_IN_TEXT = {somatico:'tu cuerpo', psicologico:'tu ánimo', urogenital:'tu vida íntima'};
+function markedSymptoms(key){
+  return SUBSCALES[key]
+    .map(id=>({it:MRS_ITEMS.find(x=>x.id===id), v:state.answers[id]}))
+    .filter(x=>x.it && x.v != null && x.v >= 2)
+    .sort((a,b)=> b.v - a.v)
+    .slice(0, 2);
+}
+function resultCard(msg){
+  const notes = mrsAreaNotes(state.scores);
+  const main = notes[0] || null;
+  const s = state.scores;
+  const bars = AREAS.map(a=>{
+    const pct = Math.round((s[a.key]/a.max)*100);
+    const incomplete = areaStatus(a.key, s[a.key], state.skippedIntimate) === 'incomplete';
+    return `<div class="area${main && main.key === a.key ? ' is-main' : ''}">
+      <div class="area-top"><span class="area-name">${a.label}</span><span class="meter-pct">${pct}%</span></div>
+      <div class="meter" role="progressbar" aria-label="${a.label}" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"><span style="--w:${pct}%"></span></div>
+      ${incomplete ? `<span class="area-tag">${AREA_TAG.user.incomplete}</span>` : ''}
+    </div>`;
+  }).join('');
+  const meaning = `<details class="result-more" data-seccion="significado"><summary>Qué significa este resultado</summary>` +
+    `<p><strong>${msg.title}</strong></p><p>${levelText(msg)}</p>` +
+    `<p class="cite">Evaluación gráfica de conjunto según la Escala MRS (Menopause Rating Scale), no una calificación.</p></details>`;
+  let html = `<span class="result-chip">${msg.badge}</span>`;
+  if(main){
+    const marked = markedSymptoms(main.key);
+    html += `<h3>Lo que más pesa hoy: ${AREA_IN_TEXT[main.key]}</h3>` + doctorReco();
+    if(marked.length) html += `<p class="marked-title">Lo que marcaste:</p><ul class="marked">` +
+      marked.map(m=>`<li>${m.it.short} · <strong>${SCALE_LABELS[m.v]}</strong></li>`).join('') + `</ul>`;
+    html += `<p class="main-note">${main.text}</p><span class="cite">${main.source}</span>`;
+  } else {
+    html += `<h3>Tus síntomas hoy</h3>` + doctorReco() + `<p class="main-note"><strong>${msg.title}</strong><br>${levelText(msg)}</p>`;
+  }
+  html += `<div class="bars">${bars}</div>`;
+  const others = notes.slice(1);
+  if(others.length){
+    const names = others.map(n=> AREAS.find(a=>a.key===n.key).label);
+    const list = names.length > 1 ? `${names.slice(0,-1).join(', ')} y ${names[names.length-1]}` : names[0];
+    html += `<p class="area-also">${list} también ${names.length > 1 ? 'alcanzan' : 'alcanza'} el punto en que la guía sugiere comentarlo con tu médico.</p>`;
+  }
+  // Derivación a salud mental: visible siempre que Ánimo alcance su corte (si es el área principal,
+  // ya va en su nota).
+  if(others.some(n=> n.key === 'psicologico'))
+    html += `<p class="mh-note">${MENTAL_HEALTH_LINE}</p>`;
+  if(state.skippedIntimate) html += `<p class="skipped-note">${SKIPPED_INTIMATE_NOTE}</p>`;
+  if(main) html += meaning;
+  if(others.length) html += `<details class="result-more" data-seccion="areas"><summary>Ver las tres áreas en detalle</summary>` +
+    others.map(n=>`<div class="area-note"><div class="area-note-header"><strong>${n.title}</strong></div><p>${n.text}</p><span class="cite">${n.source}</span></div>`).join('') +
+    `</details>`;
+  return html;
+}
+const MENTAL_HEALTH_LINE = 'Por tu puntaje en el ánimo, vale la pena comentarlo también con un profesional de salud mental.';
+
 function consultCard(){
   return `<h3>¿Qué preguntarle a tu médico?</h3>` + consultBody();
 }
@@ -1105,7 +1162,7 @@ function askGoals(){
       const labels = selected.map(id => GOAL_OPTIONS[+id.slice(1)]);
       state.goals = labels;
       track('goals');
-      askName();
+      askSatisfaction(askName);
     });
   });
 }
@@ -1152,7 +1209,7 @@ function reportFullHtml(){
   const msg = levelMessage(state.scores);
   const alertNote = hasFlag()
     ? `<p class="card-note"><strong>Marcaste una señal de alerta.</strong> Conviene revisarla con tu médico antes de considerar cualquier tratamiento.</p>` : '';
-  return `<details class="report-more"><summary>Ver el reporte completo</summary><div class="report-full">` +
+  return `<details class="report-more" data-seccion="reporte"><summary>Ver el reporte completo</summary><div class="report-full">` +
     `<section>${alertNote}${levelCard(msg)}</section>` +
     `<section><h3>Sobre tu etapa</h3><p>${stageNote()}</p><span class="cite">${PERU_AGE_NOTE} Fuente: Guía HNHU (RD N° 211-2024-DG/HNHU), secciones 5.4 y 6.2.1.</span></section>` +
     whySection() +
@@ -1237,6 +1294,58 @@ document.addEventListener('click', (e)=>{
   location.href = '/chat';
 });
 
+/* "Descargar PDF" (cierre-v2): en el celular baja el archivo o abre el menú de compartir sin salir del
+   chat (el PDF se trae antes, para que el menú abra con el mismo toque); en computadora, pestaña nueva y
+   un aviso de que la conversación sigue aquí. */
+const PDF_NAME = 'reporte-mindi.pdf';
+const PDF_TAB_NOTE = 'Tu PDF se abrió en otra pestaña. Aquí sigue tu conversación.';
+function setupPdfButton(btn, url){
+  btn.removeAttribute('aria-disabled');
+  btn.textContent = 'Descargar PDF';
+  if(!isTouch){
+    btn.href = url; btn.target = '_blank'; btn.rel = 'noopener';
+    btn.addEventListener('click', ()=>{
+      track('report_download', {in_app: IN_APP_BROWSER, method:'tab'});
+      pdfNote(btn, PDF_TAB_NOTE);
+      const back = ()=>{ if(document.visibilityState === 'visible'){ track('pdf_return'); document.removeEventListener('visibilitychange', back); } };
+      setTimeout(()=> document.addEventListener('visibilitychange', back), 0);
+    });
+    return;
+  }
+  let file = null;
+  fetch(url).then(r=> r.ok ? r.blob() : null)
+    .then(b=>{ if(b) file = new File([b], PDF_NAME, {type:'application/pdf'}); }).catch(()=>{});
+  btn.href = url;
+  btn.addEventListener('click', async (e)=>{
+    if(!file){ btn.target = '_blank'; btn.rel = 'noopener'; track('report_download', {in_app: IN_APP_BROWSER, method:'tab'}); return; }
+    e.preventDefault();
+    if(navigator.canShare && navigator.canShare({files:[file]})){
+      track('report_download', {in_app: IN_APP_BROWSER, method:'share'}); // al tocar: el menú puede no avisar al cerrarse
+      try{ await navigator.share({files:[file], title:SHARE_TITLE}); }
+      catch(err){ if(!(err && err.name === 'AbortError')) saveBlob(file, false); }
+      return;
+    }
+    saveBlob(file);
+  });
+  function saveBlob(f, tracked = true){
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(f); a.download = PDF_NAME;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=> URL.revokeObjectURL(a.href), 30000);
+    if(tracked) track('report_download', {in_app: IN_APP_BROWSER, method:'download'});
+  }
+}
+function pdfNote(btn, text){
+  const box = btn.closest('.report-actions');
+  if(!box || box.nextElementSibling?.classList.contains('pdf-note')) return;
+  box.insertAdjacentHTML('afterend', `<p class="pdf-note" role="status">${text}</p>`);
+}
+/* Cada desplegable del resultado y del reporte se mide (result_detail_open {seccion}). */
+document.addEventListener('toggle', (e)=>{
+  const d = e.target;
+  if(d && d.open && d.dataset && d.dataset.seccion) track('result_detail_open', {seccion:d.dataset.seccion});
+}, true);
+
 let reportSeq = 0;
 function showReport(){
   setSection('Tu reporte');
@@ -1244,14 +1353,12 @@ function showReport(){
   const inApp = IN_APP_BROWSER
     ? `<p class="report-inapp">Si la descarga no abre aquí, abre esta página en tu navegador (menú ··· › Abrir en el navegador) o recíbelo en tu correo.</p>` : '';
   revealCard(
-    `<h3>Reporte para tu consulta</h3><p class="card-note">Todo lo que vimos, para llevarlo a tu consulta.</p>` +
+    `<h3>Tu reporte está listo</h3><p class="card-note">Todo lo que vimos, para llevarlo a tu consulta.</p>` +
     reportSummary() +
-    `<div class="report-actions"><a class="btn" id="${id}" aria-disabled="true">Preparando tu PDF…</a>` +
-    chatButton(true) +
-    `<button type="button" class="btn btn-ghost" id="${id}s" hidden>Compartir con mi médico</button>` +
-    // Con el chat con IA encendido, la duda sobre el resultado va ahí (sigue con sus puntajes);
-    // WhatsApp queda dentro del chat si el agente falla. Apagado, se ofrece WhatsApp.
-    `${AGENT_ENABLED ? '' : whatsappButton('resultado', 'Tengo una duda sobre mi resultado')}</div>` +
+    `<div class="report-actions"><a class="btn" id="${id}" aria-disabled="true">Preparando tu PDF…</a></div>` +
+    `<div class="report-links"><button type="button" class="link-btn" id="${id}s" hidden>Compartir con mi médico</button></div>` +
+    // Con el chat con IA encendido, la duda va al chat (al cierre); apagado, se ofrece WhatsApp.
+    `${AGENT_ENABLED ? '' : `<div class="report-actions">${whatsappButton('resultado', 'Tengo una duda sobre mi resultado')}</div>`}` +
     inApp + reportFullHtml(), 'report'
   ).then(()=>{
     track('report_shown', {in_app: IN_APP_BROWSER});
@@ -1260,10 +1367,7 @@ function showReport(){
       const btn = document.getElementById(id);
       if(!btn) return;
       if(url){
-        btn.href = url; btn.target = '_blank'; btn.rel = 'noopener';
-        btn.removeAttribute('aria-disabled');
-        btn.textContent = 'Descargar PDF';
-        btn.addEventListener('click', ()=> track('report_download', {in_app: IN_APP_BROWSER}));
+        setupPdfButton(btn, url);
       } else {
         btn.textContent = 'No se pudo preparar el PDF';
         btn.insertAdjacentHTML('afterend', '<p class="card-note">Déjanos tu correo abajo y te enviamos una copia.</p>');
@@ -1276,7 +1380,7 @@ function showReport(){
 /* Copia opcional por correo + las dos casillas opcionales (avisos e investigación).
    Si no deja el correo, igual ya vio y puede descargar su reporte. */
 function askEmailCopy(){
-  botSay([{text:'¿Quieres recibirlo también en tu correo? Así no lo pierdes.', cls:'question'}]).then(()=>{
+  botSay([{text:'Recíbelo también en tu correo, para no perderlo:', cls:'question'}]).then(()=>{
     clearComposer();
     const form = document.createElement('form');
     form.className = 'email-offer';
@@ -1308,9 +1412,9 @@ function askEmailCopy(){
       track('lead', {captured: !!email, news, research});
       if(email || research) sendLead({email, news, research, turnstile});
       if(email){
-        botSay(['Listo, te llegará en unos minutos.']).then(askSatisfaction);
+        botSay(['Listo, te llegará en unos minutos.']).then(closeFlow);
       } else {
-        askSatisfaction();
+        closeFlow();
       }
     };
     form.onsubmit = async (e)=>{
@@ -1334,19 +1438,35 @@ function askEmailCopy(){
 /* Mide cómo se sintió la conversación en sí (distinto de si pagaría) — se guarda como
    evento, sin necesidad de tocar el esquema de Supabase.
    Excepción deliberada a "sin emojis" del sistema de diseño (ver renderFaceScale). */
-function askSatisfaction(){
-  setSection('¿Qué tal estuvo?');
-  botSay(['Una última cosa:']).then(()=>{
-    addCard('<h3>¿Qué tal te pareció esta experiencia?</h3>', '');
-    renderFaceScale((score, label)=>{
-      state.satisfaction = label;
-      track('satisfaction', {answer:label, score});
-      const reply = score >= 3 ? 'Qué bueno, gracias.'
-        : score === 2 ? 'Gracias, lo tomo en cuenta.'
-        : 'Gracias, de verdad ayuda a mejorar.';
-      botSay([reply, 'Fue un gusto. Cuídate mucho.']).then(()=> channelInvite('final')).then(()=> afterGuided(true));
-    });
+/* cierre-v2 (5 nov. 2026): la satisfacción va antes del reporte, con "Prefiero no responder" visible.
+   El reporte no depende de responder. */
+const SATISFACTION_QUESTION = 'Mientras preparamos tu reporte: ¿te sirvió este resultado?';
+function askSatisfaction(next){
+  setSection('¿Te sirvió?');
+  addCard(`<h3>${SATISFACTION_QUESTION}</h3>`, '');
+  renderFaceScale((score, label)=>{
+    state.satisfaction = label;
+    track('satisfaction', {answer:label, score});
+    const reply = score >= 3 ? 'Qué bueno, gracias.'
+      : score === 2 ? 'Gracias, lo tomo en cuenta.'
+      : 'Gracias, de verdad ayuda a mejorar.';
+    botSay([reply]).then(next);
   });
+  const skip = document.createElement('div');
+  skip.className = 'chips suggestRow';
+  skip.innerHTML = '<button type="button" class="chip quiet">Prefiero no responder</button>';
+  skip.querySelector('button').onclick = ()=>{
+    addBubble('Prefiero no responder', 'user'); advance(); clearComposer();
+    track('satisfaction_skip');
+    next();
+  };
+  composer.appendChild(skip);
+  scrollBottom();
+}
+
+/* Cierre, después del correo (o de "No, gracias"). */
+function closeFlow(){
+  botSay(['Fue un gusto. Cuídate mucho.']).then(()=> channelInvite('final')).then(()=> afterGuided(true));
 }
 
 /* Oculta el degradado del carrusel de síntomas cuando ya no hay más hacia dónde

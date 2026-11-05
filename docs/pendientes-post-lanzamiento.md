@@ -54,3 +54,9 @@ claves guardadas) y quitar este recordatorio.
   elimina la espera del primer mensaje. Revisar en Cloud Run cuántas veces se apaga y cuánto tarda.
 - Mejoras del agente (evals 5 nov.): **J1 (prioridad alta)**: mencionar el resultado del test ante
   "¿por qué me siento así?"; E2: preguntar por cuál síntoma empezar cuando trae dos.
+
+## "Por qué puede pasarte": oculto hasta la validación médica (5 nov. 2026)
+
+Los 11 textos de `supabase/functions/_shared/notas.js` no tienen fuente de la guía y quedan ocultos en el chat,
+el correo y el PDF (cierre-v2, ver `docs/experimento.md`). Para volver a mostrar uno: que lo valide un especialista,
+agregarle `source: 'Fuente: Guía HNHU (…), sección …'` y desplegar el sitio y `send-report`.
