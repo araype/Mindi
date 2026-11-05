@@ -148,7 +148,11 @@ body{background:var(--paper);color:var(--plum);font-family:var(--body);font-size
 .opts{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin-top:2px}
 .opts span{text-align:center;border-radius:10px;padding:8px 0 6px;font-family:var(--display);font-weight:700;font-size:14px;color:#2a1026}
 .opts span small{display:block;font-family:var(--body);font-weight:400;font-size:8.5px;color:#6a4560;margin-top:2px}
-.me{align-self:flex-end;background:var(--magenta-btn);color:#fff;border-radius:16px 16px 4px 16px;padding:9px 12px;font-size:13px}
+.opts--list{display:flex;flex-direction:column;gap:4px}
+.opts--list span{display:flex;align-items:center;gap:8px;text-align:left;background:#fff;border:1.5px solid #f3cfe4;border-radius:10px;padding:3px 8px 3px 3px;font-family:var(--body);font-weight:400;font-size:11px;line-height:1.2}
+.opts--list span.is-sel{border-color:#2a1026}
+.opts--list b{flex:none;width:22px;height:22px;border-radius:7px;display:grid;place-items:center;font-family:var(--display);font-weight:700;font-size:12.5px;color:#2a1026}
+.me{align-self:flex-end;background:#c0128c;color:#fff;border-radius:16px 16px 4px 16px;padding:9px 12px;font-size:13px}
 .res-h{font-family:var(--display);font-weight:700;font-size:20px;color:var(--plum);margin:4px 0 0}
 .sev{display:inline-block;align-self:flex-start;background:#ffe0f3;color:#c0128c;font-weight:600;font-size:12px;border-radius:20px;padding:5px 11px}
 .rb{display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:var(--plum)}
@@ -528,10 +532,8 @@ body{background:var(--paper);color:var(--plum);font-family:var(--body);font-size
           <div class="bar-top"><span class="av">M</span>Mindi</div>
           <div class="prog"><i></i></div><div class="meta">PREGUNTA 3 DE 11</div>
           <div class="bub">¿Qué tanto te han molestado los bochornos o sudoraciones?<small>Por ejemplo: calor repentino en una reunión o despertar empapada.</small></div>
-          <div class="opts">
-            <span style="background:#fde7f4">0<small>Nada</small></span><span style="background:#fbcfe9">1<small>Leve</small></span><span style="background:#f9a8db">2<small>Moder.</small></span><span style="background:#ff3cc7;color:#fff;box-shadow:0 0 0 2px #2a1026">3<small style="color:#fff">Fuerte</small></span><span style="background:#e01aa5;color:#fff">4<small style="color:#fff">Muy f.</small></span>
-          </div>
-          <div class="me">3 · Fuerte</div>
+          <div class="opts opts--list"><span><b style="background:#fde7f4">0</b>No los noto</span><span><b style="background:#fbcfe9">1</b>Los noto, pero sigo mi día</span><span><b style="background:#f9a8db">2</b>Me interrumpen un poco</span><span class="is-sel"><b style="background:#c0128c;color:#fff">3</b>Me cuesta seguir lo que hacía</span></div>
+          <div class="me">3 · Me cuesta seguir lo que hacía</div>
           <div class="bub">Gracias por contármelo. Sigamos con el sueño.</div>
         </div>
         <div class="scr">
