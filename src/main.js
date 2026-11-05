@@ -167,18 +167,6 @@ function sendLead({email, news, research, turnstile}){
   });
 }
 
-/* El PDF que toda usuaria puede descargar al terminar (con el apodo que haya escrito, si
-   escribió alguno). No guarda lead ni fila en `reports`. → Promise<url del PDF | null>. */
-function requestDownloadOnly(){
-  return (state.sessionSaved || Promise.resolve()).then(()=>
-    api('report', {action:'download', session_id:SESSION_ID, name: state.name || undefined})
-  ).then(r=>{
-    if(r && r.ok && r.body && r.body.pdfUrl){ track('report_sent', {channel:'download'}); return r.body.pdfUrl; }
-    track('report_failed', {error: r ? (r.body && r.body.error) || String(r.status) : 'network', channel:'download'});
-    return null;
-  });
-}
-
 function computeLevel(){ return mrsLevel(state.scores); }
 
 /* ---------- Contenido clínico: MRS oficial (11 ítems, 3 subescalas) — sin cambios de lógica ---------- */
@@ -1294,51 +1282,48 @@ document.addEventListener('click', (e)=>{
   location.href = '/chat';
 });
 
-/* "Descargar PDF" (cierre-v2): en el celular baja el archivo o abre el menú de compartir sin salir del
-   chat (el PDF se trae antes, para que el menú abra con el mismo toque); en computadora, pestaña nueva y
-   un aviso de que la conversación sigue aquí. */
+/* "Descargar PDF" (5 nov. 2026): una descarga real, sin abrir páginas. El PDF se trae por /api/report
+   (action 'pdf') apenas aparece el reporte, para que el toque abra el menú de compartir en el acto (iOS
+   exige que navigator.share salga directo del gesto). Celular: menú nativo de compartir con el archivo
+   (guardar, WhatsApp, correo…) si el navegador comparte archivos; si no, descarga directa. Computadora:
+   descarga directa. */
 const PDF_NAME = 'reporte-mindi.pdf';
-const PDF_TAB_NOTE = 'Tu PDF se abrió en otra pestaña. Aquí sigue tu conversación.';
-function setupPdfButton(btn, url){
+function requestPdfFile(){
+  if(!BACKEND_ON) return Promise.resolve(null);
+  return (state.sessionSaved || Promise.resolve()).then(()=> fetch('/api/report', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({action:'pdf', session_id:SESSION_ID, name: state.name || undefined}),
+  })).then(async r=>{
+    const ok = r.ok && (r.headers.get('content-type') || '').includes('application/pdf');
+    if(!ok){ track('report_failed', {error:String(r.status), channel:'download'}); return null; }
+    track('report_sent', {channel:'download'});
+    return new File([await r.blob()], PDF_NAME, {type:'application/pdf'});
+  }).catch(()=>{ track('report_failed', {error:'network', channel:'download'}); return null; });
+}
+function savePdf(file){
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(file); a.download = PDF_NAME; a.rel = 'noopener';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=> URL.revokeObjectURL(a.href), 60000);
+}
+function setupPdfButton(btn, file){
   btn.removeAttribute('aria-disabled');
+  btn.setAttribute('role','button'); btn.tabIndex = 0;
   btn.textContent = 'Descargar PDF';
-  if(!isTouch){
-    btn.href = url; btn.target = '_blank'; btn.rel = 'noopener';
-    btn.addEventListener('click', ()=>{
-      track('report_download', {in_app: IN_APP_BROWSER, method:'tab'});
-      pdfNote(btn, PDF_TAB_NOTE);
-      const back = ()=>{ if(document.visibilityState === 'visible'){ track('pdf_return'); document.removeEventListener('visibilitychange', back); } };
-      setTimeout(()=> document.addEventListener('visibilitychange', back), 0);
-    });
-    return;
-  }
-  let file = null;
-  fetch(url).then(r=> r.ok ? r.blob() : null)
-    .then(b=>{ if(b) file = new File([b], PDF_NAME, {type:'application/pdf'}); }).catch(()=>{});
-  btn.href = url;
-  btn.addEventListener('click', async (e)=>{
-    if(!file){ btn.target = '_blank'; btn.rel = 'noopener'; track('report_download', {in_app: IN_APP_BROWSER, method:'tab'}); return; }
+  const canShareFile = isTouch && !!navigator.canShare && (()=>{ try{ return navigator.canShare({files:[file]}); }catch{ return false; } })();
+  btn.addEventListener('click', (e)=>{
     e.preventDefault();
-    if(navigator.canShare && navigator.canShare({files:[file]})){
-      track('report_download', {in_app: IN_APP_BROWSER, method:'share'}); // al tocar: el menú puede no avisar al cerrarse
-      try{ await navigator.share({files:[file], title:SHARE_TITLE}); }
-      catch(err){ if(!(err && err.name === 'AbortError')) saveBlob(file, false); }
+    if(canShareFile){
+      track('report_download', {in_app: IN_APP_BROWSER, method:'share'});
+      // Sin await antes: el menú tiene que abrirse con este mismo toque.
+      navigator.share({files:[file], title:SHARE_TITLE})
+        .then(()=> track('report_share', {method:'file'}))
+        .catch((err)=>{ if(!(err && err.name === 'AbortError')) savePdf(file); });
       return;
     }
-    saveBlob(file);
+    savePdf(file);
+    track('report_download', {in_app: IN_APP_BROWSER, method:'download'});
   });
-  function saveBlob(f, tracked = true){
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(f); a.download = PDF_NAME;
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(()=> URL.revokeObjectURL(a.href), 30000);
-    if(tracked) track('report_download', {in_app: IN_APP_BROWSER, method:'download'});
-  }
-}
-function pdfNote(btn, text){
-  const box = btn.closest('.report-actions');
-  if(!box || box.nextElementSibling?.classList.contains('pdf-note')) return;
-  box.insertAdjacentHTML('afterend', `<p class="pdf-note" role="status">${text}</p>`);
 }
 /* Cada desplegable del resultado y del reporte se mide (result_detail_open {seccion}). */
 document.addEventListener('toggle', (e)=>{
@@ -1363,11 +1348,11 @@ function showReport(){
   ).then(()=>{
     track('report_shown', {in_app: IN_APP_BROWSER});
     setupShare(document.getElementById(id + 's'));
-    requestDownloadOnly().then(url=>{
+    requestPdfFile().then(file=>{
       const btn = document.getElementById(id);
       if(!btn) return;
-      if(url){
-        setupPdfButton(btn, url);
+      if(file){
+        setupPdfButton(btn, file);
       } else {
         btn.textContent = 'No se pudo preparar el PDF';
         btn.insertAdjacentHTML('afterend', '<p class="card-note">Déjanos tu correo abajo y te enviamos una copia.</p>');

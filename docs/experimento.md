@@ -16,13 +16,15 @@ Cada evento de `events` lleva `props.flujo` desde cierre-v2. Los eventos sin `fl
 - **Orden:** resultado → metas → **satisfacción** → nombre → reporte + correo → cierre.
 - **Satisfacción:** "Mientras preparamos tu reporte: ¿te sirvió este resultado?" (antes: "¿Qué tal te pareció esta
   experiencia?"), con "Prefiero no responder". **La pregunta cambió: no comparar puntajes v1 vs. v2 como si fueran lo mismo.**
-- **Reporte:** un botón principal ("Descargar PDF"). En el celular descarga o abre el menú de compartir sin salir del
-  chat; en computadora abre otra pestaña con el aviso "Tu PDF se abrió en otra pestaña. Aquí sigue tu conversación."
+- **Reporte:** un botón principal ("Descargar PDF"), una descarga real de `reporte-mindi.pdf` (servido por `/api/report`).
+  En el celular abre el menú nativo de compartir con el archivo (o lo descarga si el navegador no comparte archivos);
+  en computadora lo descarga directo. Sin pestañas nuevas.
 - **"Por qué puede pasarte":** oculto (chat, correo y PDF) hasta la validación médica: ninguno tiene fuente de la guía.
 
 ### Métricas que cambian
 - **Tasa de satisfacción** = `satisfaction` / `result` (debería subir: ya no está después del PDF). Nuevo: `satisfaction_skip`.
 - **Tasa de contacto** = `lead` con `captured=true` / `report_shown`.
-- **Descargas** = `report_download` (`method`: `share`, `download` o `tab`). Nuevo: `pdf_return` (volvió a la pestaña, computadora).
+- **Descargas** = `report_download` (`method`: `share` o `download`). Si compartió el archivo: `report_share` con `method: file`
+  (el enlace de 30 días sigue siendo `report_share` con `link`, `copy` o `manual`).
 - **Abandono resultado → metas** = 1 − `goals` / `result`.
 - Nuevo: `result_detail_open` (`seccion`: `significado`, `areas`, `reporte`).
