@@ -100,3 +100,15 @@ Cada evento de `events` lleva `props.flujo` desde cierre-v2. Los eventos sin `fl
   va al test que Mindi recomendó, o llegó desde su resultado). Panel: tarjeta "Conversaciones" (`024_conversaciones.sql`).
 - Eventos nuevos: `agent_feedback` (`answer` sí/no, una vez por conversación, tras la 2.ª respuesta), `agent_latency`
   (`ms`), `agent_limit`. `chat_test_recommended` y `chat_to_test` ya existían.
+
+## Chat: compartir la conversación completa (6 nov. 2026)
+
+- La tarjeta del chat (corta, como Geocito: el aviso "Para poder ayudarte…" va en su burbuja; sin la línea del 106,
+  que sigue en el saludo de emergencia) dice "Autorizo que Mindi me responda con IA (OpenAI) y guarde esta conversación, sin mis datos de
+  contacto". Enlace debajo: "Prefiero no compartir esta conversación". Versión `chat-v3`.
+- Al aceptar se guardan, en `chat_messages_research` (`026_conversaciones_chat.sql`), la pregunta y la respuesta de
+  Mindi, unidas por un código al azar por cada apertura de /chat (no la sesión del test). Ambas con el filtro de datos
+  personales. 12 meses. Panel → Listas: "Conversaciones del chat" en texto (bloques) o CSV (una fila por mensaje).
+- Cambio respecto de `chat-v2`: "Prefiero no compartir" aparece también para quien aceptó el permiso del resultado,
+  y lo apaga para el chat. Las preguntas sueltas siguen en `chat_questions_research` (pestaña Chat con IA).
+- Lo guardado antes (chat-v1/v2, resultado-v1) son solo preguntas sueltas: no se convierte en conversaciones.

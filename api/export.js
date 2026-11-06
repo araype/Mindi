@@ -5,7 +5,7 @@ import { route, readJson, send, clientIp, header } from './_lib/http.js';
 import { limit, LIMITS } from './_lib/limite.js';
 import { supabaseOn } from './_lib/supabase.js';
 
-const LISTS = new Set(['plus', 'consultas', 'especialistas', 'empresas', 'interes', 'conversatorios', 'avisos', 'preguntas']);
+const LISTS = new Set(['plus', 'consultas', 'especialistas', 'empresas', 'interes', 'conversatorios', 'avisos', 'preguntas', 'conversaciones', 'conversaciones-txt']);
 
 export default route(async (req, res) => {
   if (!(await limit('stats', clientIp(req), ...LIMITS.stats)).ok) return send(res, 429, { error: 'rate_limited' });
@@ -22,8 +22,9 @@ export default route(async (req, res) => {
   });
   if (!r.ok) return send(res, r.status === 401 ? 401 : 502, { error: r.status === 401 ? 'unauthorized' : 'export_failed' });
   res.setHeader('Cache-Control', 'no-store');
-  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-  res.setHeader('Content-Disposition', `attachment; filename="mindi-${b.list}.csv"`);
+  const txt = b.list === 'conversaciones-txt';
+  res.setHeader('Content-Type', `${txt ? 'text/plain' : 'text/csv'}; charset=utf-8`);
+  res.setHeader('Content-Disposition', `attachment; filename="${txt ? 'mindi-conversaciones.txt' : `mindi-${b.list}.csv`}"`);
   res.status(200);
   return res.end ? res.end(await r.text()) : res.json({});
 }, { requires: ['SEND_REPORT_SECRET'] });

@@ -245,10 +245,11 @@ document.querySelectorAll('#exportGrid [data-list]').forEach((b)=> b.addEventLis
     if(r.status === 401){ setKey(''); status.hidden = true; showGate('Esa clave no coincide con ADMIN_KEY.'); return; }
     if(!r.ok){ status.textContent = 'No se pudo exportar. Vuelve a intentarlo.'; return; }
     const url = URL.createObjectURL(await r.blob());
-    const a = Object.assign(document.createElement('a'), {href:url, download:`mindi-${b.dataset.list}.csv`});
+    const file = b.dataset.list === 'conversaciones-txt' ? 'mindi-conversaciones.txt' : `mindi-${b.dataset.list}.csv`;
+    const a = Object.assign(document.createElement('a'), {href:url, download:file});
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(()=> URL.revokeObjectURL(url), 10000);
-    status.textContent = `Descargado: mindi-${b.dataset.list}.csv`;
+    status.textContent = `Descargado: ${file}`;
   } catch {
     status.textContent = 'Sin conexión. Vuelve a intentarlo.';
   } finally {

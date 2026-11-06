@@ -228,3 +228,33 @@ test('listas: /api/waitlist guarda nombre, correo y WhatsApp cifrados; la export
   assert.match(src, /const ENCRYPTED = \['name', 'contact', 'whatsapp'\]/);
   delete process.env.LEADS_ENC_KEY;
 });
+
+test('chat-v3: guarda la pregunta y la respuesta de Mindi unidas por la conversación; con chat-v2 solo la pregunta', async () => {
+  const { redact } = await import('../api/_lib/redactar.js');
+  assert.equal(redact('Hola, soy Mindi. Soy Ana Pérez'), 'Hola, soy Mindi. Soy [nombre]');
+  Object.assign(process.env, { SUPABASE_URL: 'https://x.supabase.co', SUPABASE_KEY: 'k', CHAT_RESEARCH_ENABLED: 'true' });
+  const rows = [], real = globalThis.fetch;
+  globalThis.fetch = async (url, o) => { rows.push([url.split('/').pop(), JSON.parse(o.body)]); return { ok: true }; };
+  try {
+    const { saveChatData } = await import('../api/agent.js');
+    const conv = '3f2b8c1e-5d4a-4b6f-9e21-7a0c9d8e1f23';
+    const out = { text: 'Es frecuente. Llámame al 987 654 321', area: 'hormonal', topic: 'sueno' };
+    await saveChatData({ compartir: true, consent_text_version: 'chat-v3', conversacion: conv }, out, 'Me llamo Ana Pérez, ¿por qué no duermo?');
+    const msgs = rows.filter(([t]) => t === 'chat_messages_research').map(([, r]) => r);
+    assert.deepEqual(msgs.map((r) => [r.rol, r.texto, r.conversacion, r.tema]), [
+      ['usuaria', 'Me llamo [nombre], ¿por qué no duermo?', conv, 'sueno'],
+      ['mindi', 'Es frecuente. Llámame al [teléfono]', conv, 'sueno'],
+    ]);
+    assert.ok(rows.some(([t]) => t === 'chat_questions_research'));
+    rows.length = 0;
+    await saveChatData({ compartir: true, consent_text_version: 'chat-v2', conversacion: conv }, out, 'otra');
+    assert.ok(!rows.some(([t]) => t === 'chat_messages_research'));
+    await saveChatData({ compartir: true, consent_text_version: 'chat-v3', conversacion: 'sesion-123' }, out, 'otra');
+    assert.ok(!rows.some(([t]) => t === 'chat_messages_research'));
+    await saveChatData({ compartir: false, consent_text_version: 'chat-v3', conversacion: conv }, out, 'otra');
+    assert.ok(!rows.some(([t]) => t === 'chat_messages_research'));
+  } finally {
+    globalThis.fetch = real;
+    delete process.env.SUPABASE_URL; delete process.env.SUPABASE_KEY; delete process.env.CHAT_RESEARCH_ENABLED;
+  }
+});

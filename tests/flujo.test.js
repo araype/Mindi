@@ -81,10 +81,13 @@ test('permiso de investigación: una vez tras el resultado, sin casillas en la b
   assert.match(main, /idleT = setTimeout\(askShareAtEnd, 120000\)/);
 });
 
-test('chat: tarjeta de un botón (Aceptar) y la opción "Prefiero no compartir mis preguntas"', () => {
+test('chat: tarjeta de un botón (Aceptar) y la opción "Prefiero no compartir esta conversación" (chat-v3)', () => {
   assert.match(main, /class="consent-accept" data-accept>Aceptar<\/button>/);
-  assert.match(main, /data-accept="sin">Prefiero no compartir mis preguntas<\/button>/);
-  assert.match(main, /Si es una emergencia, llama al 106\./);
+  assert.match(main, /data-accept="sin">Prefiero no compartir esta conversación<\/button>/);
+  assert.match(main, /me responda con IA \(OpenAI\)` \+\n\s+\(share \? ` y guarde esta conversación, sin mis datos de contacto`/);
+  assert.match(main, /botSay\(\[greeting\.text, CONSENT_LEAD\]\)/);
+  assert.match(main, /const SHARE_ACCEPT_VERSION = 'chat-v3';/);
+  assert.match(main, /if\(share\) setChatShare\(!sin, sin \? null : SHARE_ACCEPT_VERSION\);/);
   assert.match(main, /const sin = btn\.dataset\.accept === 'sin';\n\s+acceptChat\(\);/);
 });
 

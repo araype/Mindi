@@ -11,7 +11,7 @@ import { prioritizedSelfCare, SELF_CARE_SOURCE } from '../supabase/functions/_sh
 import { whyNotes, WHY_TITLE } from '../supabase/functions/_shared/notas.js';
 import { stageFilter, STAGE_EXIT } from './etapa.js';
 import { whatsappUrl, WHATSAPP_TEXT, channelUrl } from './whatsapp.js';
-import { createAgentClient, agentHtml, chatGreeting, chatTopic, ERROR_TEXT, LIMIT_TEXT, SHARE_QUESTIONS_VERSION } from './agente.js';
+import { createAgentClient, agentHtml, chatGreeting, chatTopic, ERROR_TEXT, LIMIT_TEXT, SHARE_QUESTIONS_VERSION, RESULT_SUGGESTIONS } from './agente.js';
 import { glossaryMore } from './glosario.js';
 import { initLanding } from './landing.js';
 import { mountTurnstile } from './turnstile.js';
@@ -1517,10 +1517,19 @@ function storedResult(){
 }
 
 let chatShareCtx = {}, chatShareOn = false, chatShareVersion = SHARE_QUESTIONS_VERSION;
+/* Conversación compartida (6 nov. 2026, chat-v3): un identificador al azar por cada apertura de /chat une
+   las preguntas y las respuestas que se guardan. No es la sesión del test ni se guarda en el navegador. */
+let chatConvId = null;
+function newConvId(){
+  if(crypto.randomUUID) return crypto.randomUUID();
+  const b = crypto.getRandomValues(new Uint8Array(16)); b[6] = (b[6] & 15) | 64; b[8] = (b[8] & 63) | 128;
+  const h = [...b].map(x=> x.toString(16).padStart(2,'0')).join('');
+  return `${h.slice(0,8)}-${h.slice(8,12)}-${h.slice(12,16)}-${h.slice(16,20)}-${h.slice(20)}`;
+}
 function setChatShare(on, version){
   chatShareOn = !!on;
   if(version) chatShareVersion = version;
-  agentClient.setContext(chatShareOn ? {...chatShareCtx, compartir:true, consent_text_version:chatShareVersion} : {...chatShareCtx});
+  agentClient.setContext(chatShareOn ? {...chatShareCtx, compartir:true, consent_text_version:chatShareVersion, ...(chatConvId ? {conversacion:chatConvId} : {})} : {...chatShareCtx});
   document.querySelectorAll('[data-share-toggle]').forEach(b=>{ b.textContent = chatShareOn ? SHARE_STOP_LABEL : SHARE_START_LABEL; });
 }
 /* Compartir las preguntas sin cortar la conversación (5 nov. 2026):
@@ -1528,7 +1537,7 @@ function setChatShare(on, version){
    - Al salir (botón "Salir") o tras 2 min sin escribir, una sola pregunta: "Antes de irte…".
    Si acepta (en cualquiera de los dos), se guardan las preguntas de ESTA conversación, que hasta entonces
    solo estaban en la memoria del navegador; si no, se descartan. */
-const SHARE_STOP_LABEL = 'Dejar de compartir', SHARE_START_LABEL = 'Compartir mis preguntas';
+const SHARE_STOP_LABEL = 'Dejar de compartir', SHARE_START_LABEL = 'Compartir esta conversación';
 const SHARE_END_VERSION = 'chat-fin-v1';
 const SHARE_END_ASK = 'Antes de irte: ¿nos dejas guardar las preguntas de hoy, sin tus datos, para mejorar Mindi?';
 let chatPending = []; // preguntas aún no compartidas (solo en memoria)
@@ -1538,14 +1547,14 @@ function flushPending(version){
   const preguntas = chatPending.splice(0);
   return api('agent', {action:'share', preguntas, consent_text_version:version, is_test:TEST_MODE});
 }
-function shareLabel(){ return chatShareOn ? `✓ Compartes tus preguntas · <button type="button" class="link-btn share-toggle" data-share-toggle>${SHARE_STOP_LABEL}</button>`
-  : `No compartes tus preguntas · <button type="button" class="link-btn share-toggle" data-share-toggle>${SHARE_START_LABEL}</button>`; }
+function shareLabel(){ return chatShareOn ? `✓ Compartes esta conversación · <button type="button" class="link-btn share-toggle" data-share-toggle>${SHARE_STOP_LABEL}</button>`
+  : `No compartes esta conversación · <button type="button" class="link-btn share-toggle" data-share-toggle>${SHARE_START_LABEL}</button>`; }
 function syncShareLine(){ document.querySelectorAll('.share-line').forEach(el=>{ el.innerHTML = shareLabel(); }); }
 document.addEventListener('click', (e)=>{
   const b = e.target.closest && e.target.closest('[data-share-toggle]');
   if(!b) return;
   const on = !chatShareOn;
-  setChatShare(on, on ? SHARE_QUESTIONS_VERSION : null);
+  setChatShare(on, on ? SHARE_ACCEPT_VERSION : null); // el texto de la tarjeta (chat-v3) está arriba
   if(on) flushPending(SHARE_QUESTIONS_VERSION); else chatPending = [];
   chatShareAsked = true; // ya decidió: no se le pregunta al final
   syncShareLine();
@@ -1598,24 +1607,24 @@ function openAiChat(){
   // servicio: política, términos y, si no aceptó en el resultado, compartir sus preguntas. Dos botones: el de
   // compartir destacado y "Aceptar sin compartir" (el chat no depende de compartir: consentimiento libre).
   chatShareCtx = ctx;
+  chatConvId = newConvId();
   if(CHAT_RESEARCH_ENABLED && storedShare()){ setChatShare(true, RESEARCH_VERSION); chatShareAsked = true; } // aceptó en el resultado
   const greeting = chatGreeting(chatResult, storedAlertType(), topic);
-  botSay([greeting.text]).then(()=>{
+  // Como Geocito: el aviso va en su propia burbuja y la tarjeta queda corta (6 nov. 2026).
+  botSay([greeting.text, CONSENT_LEAD]).then(()=>{
     // Tarjeta al estilo Geocito (5 nov. 2026): un solo botón "Aceptar" dentro de la tarjeta. Debajo, un enlace
-    // discreto "Prefiero no compartir mis preguntas": el chat no depende de compartir (consentimiento libre).
+    // discreto "Prefiero no compartir esta conversación": el chat no depende de compartir (consentimiento libre).
     const share = CHAT_RESEARCH_ENABLED;
     const row = document.createElement('div');
     row.className = 'row bot consent-row';
     row.innerHTML = `<div class="consent-card">` +
-      `<p class="consent-h">Para poder ayudarte, revisa esta información por favor:</p>` +
-      `<p><em>Política de privacidad</em><br>Autorizo que Mindi procese mis mensajes con inteligencia artificial (OpenAI) para responderme` +
-      (share ? ` y que guarde mis preguntas, sin mis datos de contacto, para mejorar Mindi` : '') +
+      `<p><em>Política de privacidad</em><br>Autorizo que Mindi me responda con IA (OpenAI)` +
+      (share ? ` y guarde esta conversación, sin mis datos de contacto` : '') +
       `. <a href="/privacidad" target="_blank" rel="noopener">mindifem.com/privacidad</a></p>` +
-      `<p><em>Términos y condiciones</em><br>Estoy de acuerdo con los Términos y condiciones que regulan el uso de Mindi. <a href="/terminos" target="_blank" rel="noopener">mindifem.com/terminos</a></p>` +
-      `<p>Mindi te orienta, pero no reemplaza a tu médico. Si es una emergencia, llama al 106.</p>` +
+      `<p><em>Términos y condiciones</em><br>Estoy de acuerdo con los Términos y condiciones de Mindi. <a href="/terminos" target="_blank" rel="noopener">mindifem.com/terminos</a></p>` +
       `<p>Al tocar Aceptar, confirmas que has leído y aceptas ambas políticas.</p>` +
       `<button type="button" class="consent-accept" data-accept>Aceptar</button></div>` +
-      (share && !chatShareOn ? `<button type="button" class="link-btn consent-optout" data-accept="sin">Prefiero no compartir mis preguntas</button>` : '');
+      (share ? `<button type="button" class="link-btn consent-optout" data-accept="sin">Prefiero no compartir esta conversación</button>` : '');
     chat.appendChild(row);
     clearComposer();
     scrollBottom();
@@ -1623,7 +1632,9 @@ function openAiChat(){
       const sin = btn.dataset.accept === 'sin';
       acceptChat();
       chatShareAsked = true;
-      if(share && !chatShareOn && !sin) setChatShare(true, SHARE_ACCEPT_VERSION);
+      // Aceptar (con el texto de la conversación) vale también si ya aceptó en el resultado; "Prefiero no
+      // compartir" lo apaga aunque hubiera aceptado allí: esta tarjeta es la decisión sobre el chat.
+      if(share) setChatShare(!sin, sin ? null : SHARE_ACCEPT_VERSION);
       if(share) track('chat_share', {captured: chatShareOn, desde:'inicio_chat'});
       row.querySelectorAll('[data-accept]').forEach(x=> x.remove());
       row.querySelector('.consent-card').insertAdjacentHTML('beforeend', `<p class="consent-done">✓ Aceptado</p>`);
@@ -1633,13 +1644,16 @@ function openAiChat(){
         chat.appendChild(st);
       }
       chatSuggestions = greeting.suggestions;
-      renderQuestionInput();
+      chatSuggestFrom = greeting.suggestions === RESULT_SUGGESTIONS ? 'resultado' : topic ? 'tema' : 'landing';
+      // Mindi retoma con una pregunta y las opciones (6 nov. 2026).
+      botSay([greeting.followUp]).then(renderQuestionInput);
     });
     if(!isTouch) row.querySelector('[data-accept]').focus({preventScroll:true});
   });
 }
-const SHARE_ACCEPT_VERSION = 'chat-v2'; // tarjeta de un botón: el texto de la política incluye guardar las preguntas
-let chatSuggestions = [];
+const CONSENT_LEAD = 'Para poder ayudarte, revisa esta información por favor 👇';
+const SHARE_ACCEPT_VERSION = 'chat-v3'; // tarjeta de un botón: guarda la conversación (preguntas y respuestas), 026
+let chatSuggestions = [], chatSuggestFrom = 'landing';
 function acceptChat(){
   if(chatAccepted) return;
   chatAccepted = true;
@@ -1661,7 +1675,8 @@ function renderQuestionInput(){
     chatSuggestions.forEach((q, n)=>{
       const btn = document.createElement('button');
       btn.type = 'button'; btn.className = 'chip'; btn.textContent = q;
-      btn.onclick = ()=>{ acceptChat(); chatSuggestions = []; track('chat_suggestion', {q: n === 0 ? 'resultado' : 'sentirme_mejor'}); askAgent(q); };
+      // Empezó con una opción (no escribió): sirve para no leer de más los temas que las opciones empujan.
+      btn.onclick = ()=>{ acceptChat(); chatSuggestions = []; track('chat_suggestion', {n: n + 1, desde: chatSuggestFrom}); askAgent(q); };
       wrap.appendChild(btn);
     });
     composer.appendChild(wrap);

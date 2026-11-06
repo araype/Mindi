@@ -15,18 +15,29 @@ import { redact } from './_lib/redactar.js';
    ?tema=. Sin texto ni sesión. Nivel 2 (chat_questions_research): la pregunta sin datos personales, solo
    con la casilla marcada y CHAT_RESEARCH_ENABLED=true (apagado hasta aprobar la política). */
 const LEVELS = ['A', 'B', 'C', 'alert'];
-async function saveChatData(body, out, text) {
-  if (!supabaseOn() || !out || !out.topic) return;
+/* Conversación completa (026): solo con el texto de la tarjeta que dice "guarde esta conversación". */
+const CONVERSATION_VERSIONS = new Set(['chat-v3']);
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+export async function saveChatData(body, out, text) {
+  if (!supabaseOn() || !out) return;
   const is_test = body.is_test === true;
+  const tema = out.topic || null;
   try {
-    await insert('chat_topics', {
-      tema: out.topic, area: out.area || 'otro', is_test,
+    if (tema) await insert('chat_topics', {
+      tema, area: out.area || 'otro', is_test,
       nivel_test: LEVELS.includes(body.nivel) ? body.nivel : null, desde_tema: body.desde_tema === true,
     });
     const version = typeof body.consent_text_version === 'string' && body.consent_text_version.length <= 20 ? body.consent_text_version : null;
     if (process.env.CHAT_RESEARCH_ENABLED === 'true' && body.compartir === true && version) {
       const pregunta = redact(text);
-      if (pregunta) await insert('chat_questions_research', { pregunta, tema: out.topic, consent_text_version: version, is_test });
+      if (pregunta && tema) await insert('chat_questions_research', { pregunta, tema, consent_text_version: version, is_test });
+      const conversacion = typeof body.conversacion === 'string' ? body.conversacion.toLowerCase() : '';
+      if (CONVERSATION_VERSIONS.has(version) && UUID.test(conversacion)) {
+        const respuesta = redact(out.text || '', 4000);
+        const base = { conversacion, tema, consent_text_version: version, is_test };
+        if (pregunta) await insert('chat_messages_research', { ...base, rol: 'usuaria', texto: pregunta });
+        if (respuesta) await insert('chat_messages_research', { ...base, rol: 'mindi', texto: respuesta });
+      }
     }
   } catch { /* no se corta la respuesta por esto */ }
 }

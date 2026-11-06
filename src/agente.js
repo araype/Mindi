@@ -13,31 +13,45 @@ export const AI_NOTICE = 'Mindi responde con inteligencia artificial: te orienta
 /* Saludo según cómo llega (5 nov. 2026). Con señal de alerta, el de emergencia (dolor de pecho o falta de
    aire en el test) o el de evaluación. El de emergencia no lleva botones de sugerencia. */
 export const GREETING = {
-  resultado: 'Hola, soy Mindi. Ya tengo tu resultado del test: puedo explicarte qué significa o ayudarte con cualquier otra duda. ¿Por dónde quieres empezar?',
+  resultado: 'Hola, soy Mindi. Ya tengo tu resultado del test: puedo explicarte qué significa o ayudarte con cualquier otra duda.',
   evaluacion: 'Hola, soy Mindi. Ya tengo tu resultado del test. Recuerda que marcaste una señal que conviene revisar pronto con tu médico. Puedo explicarte tu resultado o ayudarte con otra duda.',
   emergencia: 'Hola, soy Mindi. Marcaste una señal que necesita atención médica hoy. Si estás ahora con dolor de pecho o falta de aire, llama al 106 o acude a emergencias. Cuando estés bien, aquí estaré para explicarte tu resultado.',
-  landing: 'Hola, soy Mindi. Puedo ayudarte a entender lo que estás sintiendo en la perimenopausia o la menopausia. ¿Qué te gustaría preguntarme?',
+  landing: 'Hola, soy Mindi. Puedo ayudarte a entender lo que estás sintiendo en la perimenopausia o la menopausia.',
+};
+/* Después de "Aceptar" (6 nov. 2026): Mindi retoma la conversación con una pregunta y, salvo en emergencia,
+   hasta 3 opciones. Las preguntas no van en el saludo porque la tarjeta de consentimiento queda entre medio. */
+export const FOLLOW_UP = {
+  resultado: '¿Por dónde quieres empezar?',
+  emergencia: 'Cuando estés lista, escríbeme tu duda.',
+  landing: '¿Qué te gustaría saber? Escríbeme con tus palabras o empieza por aquí:',
+  tema: 'Cuéntame con tus palabras, o empieza por aquí:',
+};
+export const LANDING_SUGGESTIONS = ['¿Por qué me dan bochornos?', 'Duermo mal, ¿es por la menopausia?', '¿Cómo sé si estoy en la perimenopausia?'];
+export const TOPIC_SUGGESTIONS = {
+  peso: ['Como lo mismo y subo de peso', '¿Qué ejercicio me conviene?'],
+  trabajo: ['Me cuesta concentrarme', '¿Cómo lo hablo en mi trabajo?'],
 };
 /* Botones de sugerencia: solo cuando llega desde el resultado (y no en el saludo de emergencia).
    Tocar uno acepta el aviso de IA y envía la pregunta en el mismo toque. */
-export const RESULT_SUGGESTIONS = ['¿Qué significa mi resultado?', '¿Qué puedo hacer para sentirme mejor?'];
-/** chatResult (o null), tipo de alerta guardado ('emergencia' | 'evaluacion' | null), tema → { text, suggestions } */
+export const RESULT_SUGGESTIONS = ['¿Qué significa mi resultado?', '¿Qué puedo hacer para sentirme mejor?', '¿Cuándo debería ir al médico?'];
+/** chatResult (o null), tipo de alerta guardado ('emergencia' | 'evaluacion' | null), tema →
+ *  { text, followUp, suggestions }: text antes de la tarjeta; followUp y suggestions, después de Aceptar. */
 export function chatGreeting(result, alertType, topic) {
-  if (topic && CHAT_TOPICS[topic]) return { text: CHAT_TOPICS[topic], suggestions: [] };
-  if (!result) return { text: GREETING.landing, suggestions: [] };
+  if (topic && CHAT_TOPICS[topic]) return { text: CHAT_TOPICS[topic], followUp: FOLLOW_UP.tema, suggestions: TOPIC_SUGGESTIONS[topic] };
+  if (!result) return { text: GREETING.landing, followUp: FOLLOW_UP.landing, suggestions: LANDING_SUGGESTIONS };
   if (result.senal_alerta) {
     // Sin el tipo (p. ej. un resultado guardado antes de este cambio), el más prudente: emergencia.
-    if (alertType !== 'evaluacion') return { text: GREETING.emergencia, suggestions: [] };
-    return { text: GREETING.evaluacion, suggestions: RESULT_SUGGESTIONS };
+    if (alertType !== 'evaluacion') return { text: GREETING.emergencia, followUp: FOLLOW_UP.emergencia, suggestions: [] };
+    return { text: GREETING.evaluacion, followUp: FOLLOW_UP.resultado, suggestions: RESULT_SUGGESTIONS };
   }
-  return { text: GREETING.resultado, suggestions: RESULT_SUGGESTIONS };
+  return { text: GREETING.resultado, followUp: FOLLOW_UP.resultado, suggestions: RESULT_SUGGESTIONS };
 }
 /* Temas con los que se puede abrir /chat desde la landing (/chat?tema=peso). Lista cerrada: cualquier
    otro valor se ignora y se usa el saludo general, para que nadie pueda poner texto desde la URL.
    Al agente solo le llega la etiqueta (tema_inicial), nunca texto libre. */
 export const CHAT_TOPICS = {
-  peso: 'Hola, soy Mindi. Muchas mujeres notan cambios en su peso en esta etapa, aunque coman igual que antes. No es falta de voluntad: tiene explicación. ¿Qué es lo que más te preocupa? Cuéntamelo con tus palabras.',
-  trabajo: 'Hola, soy Mindi. Sentirse distinta en el trabajo durante esta etapa es más común de lo que parece, aunque casi nadie lo diga. ¿Qué te está pasando? Cuéntame y lo vemos juntas.',
+  peso: 'Hola, soy Mindi. Muchas mujeres notan cambios en su peso en esta etapa, aunque coman igual que antes. No es falta de voluntad: tiene explicación.',
+  trabajo: 'Hola, soy Mindi. Sentirse distinta en el trabajo durante esta etapa es más común de lo que parece, aunque casi nadie lo diga.',
 };
 /** Valor de ?tema= → 'peso' | 'trabajo' | null. */
 export const chatTopic = (v) => (typeof v === 'string' && Object.hasOwn(CHAT_TOPICS, v) ? v : null);

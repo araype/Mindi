@@ -8,6 +8,8 @@
 //     include_test?: boolean }
 // "avisos" son quienes marcaron "Avisos de Mindi" al pedir la copia del reporte (leads.opt_news): una
 // lista aparte, no mezclada con las listas de espera. "preguntas" es el nivel 2 del chat (si está activo).
+// "conversaciones" / "conversaciones-txt" (026): las conversaciones que aceptaron compartir (chat-v3),
+// numeradas 1, 2, 3… en vez del identificador al azar. El .txt va en bloques, como un registro de chat.
 
 import { createClient } from 'npm:@supabase/supabase-js@2.45.4';
 import { serverKey } from '../_shared/clave.js';
@@ -47,6 +49,40 @@ const cell = (v: unknown) => {
   return `"${s.replace(/"/g, '""')}"`;
 };
 
+const TEMA: Record<string, string> = { bochornos: 'bochornos', sueno: 'sueño', animo: 'ánimo', peso: 'peso', vida_intima: 'vida íntima',
+  terapia_hormonal: 'terapia hormonal', remedios_naturales: 'remedios naturales', edad_inicio: 'edad de inicio', duracion: 'duración', trabajo: 'trabajo', otro: 'otro' };
+const fechaLarga = (d: string) => { const [y, m, dd] = d.split('-').map(Number);
+  return `${dd} ${['ene.', 'feb.', 'mar.', 'abr.', 'may.', 'jun.', 'jul.', 'ago.', 'sep.', 'oct.', 'nov.', 'dic.'][m - 1]} ${y}`; };
+
+async function exportConversations(txt: boolean, includeTest: boolean): Promise<Response> {
+  let q = supabase.from('chat_messages_research').select('id,fecha,conversacion,rol,texto,tema,is_test').order('id', { ascending: true }).limit(20000);
+  if (!includeTest) q = q.eq('is_test', false);
+  const { data, error } = await q;
+  if (error) { console.error('export-lists conversaciones', (error as any).code || ''); return json({ error: 'read_failed' }, 500); }
+  // Agrupa por conversación, en el orden en que empezó cada una.
+  const convs = new Map<string, { n: number; fecha: string; temas: Set<string>; prueba: boolean; msgs: { rol: string; texto: string; tema: string | null }[] }>();
+  for (const r of (data || []) as any[]) {
+    let c = convs.get(r.conversacion);
+    if (!c) { c = { n: convs.size + 1, fecha: r.fecha, temas: new Set(), prueba: r.is_test, msgs: [] }; convs.set(r.conversacion, c); }
+    if (r.tema) c.temas.add(TEMA[r.tema] || r.tema);
+    c.msgs.push({ rol: r.rol, texto: r.texto, tema: r.tema });
+  }
+  let body: string, type: string;
+  if (txt) {
+    const blocks = [...convs.values()].map((c) => {
+      const head = `— Conversación ${c.n} · ${fechaLarga(c.fecha)}` + (c.temas.size ? ` · tema: ${[...c.temas].join(', ')}` : '') + (c.prueba ? ' · prueba' : '');
+      return [head, ...c.msgs.map((m) => `[${m.rol === 'mindi' ? 'Mindi' : 'Usuaria'}] ${m.texto}`)].join('\r\n\r\n');
+    });
+    body = blocks.join('\r\n\r\n\r\n') + '\r\n'; type = 'text/plain';
+  } else {
+    const lines = [['conversacion', 'fecha', 'orden', 'rol', 'tema', 'texto', 'prueba'].map(cell).join(',')];
+    for (const c of convs.values()) c.msgs.forEach((m, i) => lines.push([c.n, c.fecha, i + 1, m.rol, m.tema ? TEMA[m.tema] || m.tema : '', m.texto, c.prueba].map(cell).join(',')));
+    body = lines.join('\r\n'); type = 'text/csv';
+  }
+  console.log('export-lists conversaciones', convs.size, 'conversaciones'); // solo cuántas, nunca el texto
+  return new Response('\ufeff' + body, { headers: { 'Content-Type': `${type}; charset=utf-8`, 'Cache-Control': 'no-store' } });
+}
+
 Deno.serve(async (req) => {
   if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405);
   if (!SEND_REPORT_SECRET || !safeEqual(req.headers.get('x-mindi-secret') ?? '', SEND_REPORT_SECRET)) return json({ error: 'unauthorized' }, 401);
@@ -54,6 +90,7 @@ Deno.serve(async (req) => {
 
   let list = '', includeTest = false;
   try { const b = await req.json(); list = String(b.list || ''); includeTest = b.include_test === true; } catch { /* vacío */ }
+  if (list === 'conversaciones' || list === 'conversaciones-txt') return exportConversations(list === 'conversaciones-txt', includeTest);
   const cfg = Object.hasOwn(LISTS, list) ? LISTS[list] : null;
   if (!cfg) return json({ error: 'bad_list' }, 400);
 

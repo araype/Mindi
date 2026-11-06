@@ -16,12 +16,12 @@ const RULES = [
   [/\b(?:av(?:enida)?|jr|jir[oó]n|calle|ca|psje|pasaje|urb(?:anizaci[oó]n)?|mz|manzana|lt|lote|dpto|interior|int)\.?\s+[^\n,;.!?]{1,60}/gi, '[dirección]'],
   // Nombres presentados: "me llamo Ana", "mi nombre es Ana Pérez", "soy Ana"
   // Sin la bandera i: el nombre tiene que empezar con mayúscula, así "soy diabética" no se toca.
-  [/(^|[^\p{L}])([Mm]e llamo|[Mm]i nombre es|[Ss]oy)\s+\p{Lu}\p{Ll}+(?:\s+\p{Lu}\p{Ll}+){0,3}/gu, '$1$2 [nombre]'],
+  [/(^|[^\p{L}])([Mm]e llamo|[Mm]i nombre es|[Ss]oy)\s+(?!Mindi(?:[^\p{L}]|$))\p{Lu}\p{Ll}+(?:\s+\p{Lu}\p{Ll}+){0,3}/gu, '$1$2 [nombre]'],
 ];
 
 /** Texto de la usuaria → el mismo texto con los datos personales reemplazados. */
-export function redact(text) {
+export function redact(text, max = 1000) {
   let s = String(text || '');
   for (const [re, to] of RULES) s = s.replace(re, to);
-  return s.trim().slice(0, 1000);
+  return s.trim().slice(0, max);
 }

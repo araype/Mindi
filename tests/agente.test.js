@@ -234,15 +234,18 @@ test('warm: GET app-info (carga el agente sin llamar al modelo)', async () => {
 });
 
 test('saludo del chat según cómo llega (5 nov. 2026)', async () => {
-  const { chatGreeting, GREETING, CHAT_TOPICS, RESULT_SUGGESTIONS } = await import('../src/agente.js');
+  const { chatGreeting, GREETING, CHAT_TOPICS, RESULT_SUGGESTIONS, FOLLOW_UP, LANDING_SUGGESTIONS, TOPIC_SUGGESTIONS } = await import('../src/agente.js');
   const r = { total: 20, somatico: 8, psicologico: 6, urogenital: 6, senal_alerta: false };
-  assert.deepEqual(chatGreeting(r, null, null), { text: GREETING.resultado, suggestions: RESULT_SUGGESTIONS });
-  assert.deepEqual(chatGreeting({ ...r, senal_alerta: true }, 'evaluacion', null), { text: GREETING.evaluacion, suggestions: RESULT_SUGGESTIONS });
+  assert.deepEqual(chatGreeting(r, null, null), { text: GREETING.resultado, followUp: FOLLOW_UP.resultado, suggestions: RESULT_SUGGESTIONS });
+  assert.deepEqual(chatGreeting({ ...r, senal_alerta: true }, 'evaluacion', null), { text: GREETING.evaluacion, followUp: FOLLOW_UP.resultado, suggestions: RESULT_SUGGESTIONS });
   // Emergencia: sin sugerencias; y si no se sabe el tipo de alerta, el más prudente.
-  for (const t of ['emergencia', null]) assert.deepEqual(chatGreeting({ ...r, senal_alerta: true }, t, null), { text: GREETING.emergencia, suggestions: [] });
+  for (const t of ['emergencia', null]) assert.deepEqual(chatGreeting({ ...r, senal_alerta: true }, t, null), { text: GREETING.emergencia, followUp: FOLLOW_UP.emergencia, suggestions: [] });
   assert.match(GREETING.emergencia, /106/);
-  assert.deepEqual(chatGreeting(null, null, null), { text: GREETING.landing, suggestions: [] });
-  assert.deepEqual(chatGreeting(null, null, 'peso'), { text: CHAT_TOPICS.peso, suggestions: [] });
+  assert.deepEqual(chatGreeting(null, null, null), { text: GREETING.landing, followUp: FOLLOW_UP.landing, suggestions: LANDING_SUGGESTIONS });
+  assert.deepEqual(chatGreeting(null, null, 'peso'), { text: CHAT_TOPICS.peso, followUp: FOLLOW_UP.tema, suggestions: TOPIC_SUGGESTIONS.peso });
+  // Como máximo 3 opciones; las preguntas van después de Aceptar, no en el saludo.
+  for (const l of [RESULT_SUGGESTIONS, LANDING_SUGGESTIONS, ...Object.values(TOPIC_SUGGESTIONS)]) assert.ok(l.length >= 1 && l.length <= 3);
+  for (const t of [GREETING.landing, GREETING.resultado, ...Object.values(CHAT_TOPICS)]) assert.doesNotMatch(t, /\?$/);
 });
 
 test('compartir al final: apagado sin CHAT_RESEARCH_ENABLED y valida la lista', async () => {
