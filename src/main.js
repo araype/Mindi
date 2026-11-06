@@ -1601,24 +1601,33 @@ function openAiChat(){
   if(CHAT_RESEARCH_ENABLED && storedShare()){ setChatShare(true, RESEARCH_VERSION); chatShareAsked = true; } // aceptó en el resultado
   const greeting = chatGreeting(chatResult, storedAlertType(), topic);
   botSay([greeting.text]).then(()=>{
-    const askShare = CHAT_RESEARCH_ENABLED && !chatShareOn;
+    // Tarjeta al estilo Geocito (5 nov. 2026): un solo botón "Aceptar" dentro de la tarjeta. Debajo, un enlace
+    // discreto "Prefiero no compartir mis preguntas": el chat no depende de compartir (consentimiento libre).
+    const share = CHAT_RESEARCH_ENABLED;
     const row = document.createElement('div');
-    row.className = 'row bot';
-    row.innerHTML = `<div class="consent-card"><p class="consent-h">Antes de empezar, revisa esta información:</p>` +
-      `<p><strong>Política de privacidad</strong><br>Autorizo que Mindi procese mis mensajes con inteligencia artificial (OpenAI) para responderme. Mindi me orienta, pero no reemplaza a mi médico. <a href="/privacidad" target="_blank" rel="noopener">Leer la política</a></p>` +
-      `<p><strong>Términos y condiciones</strong><br>Estoy de acuerdo con los Términos y condiciones que regulan el uso de Mindi. <a href="/terminos" target="_blank" rel="noopener">Leer los términos</a></p>` +
-      (askShare ? `<p><strong>Para mejorar Mindi</strong><br>Si eliges compartir, guardamos tus preguntas sin tus datos de contacto ni nada que te vincule contigo, para entender mejor qué necesitan otras mujeres.</p>` : '') +
-      (CHAT_RESEARCH_ENABLED && chatShareOn ? `<p class="consent-ok">✓ Ya aceptaste compartir tus respuestas en tu resultado.</p>` : '') +
-      `<p class="consent-foot">Si es una emergencia, llama al 106.</p></div>`;
+    row.className = 'row bot consent-row';
+    row.innerHTML = `<div class="consent-card">` +
+      `<p class="consent-h">Para poder ayudarte, revisa esta información por favor:</p>` +
+      `<p><em>Política de privacidad</em><br>Autorizo que Mindi procese mis mensajes con inteligencia artificial (OpenAI) para responderme` +
+      (share ? ` y que guarde mis preguntas, sin mis datos de contacto, para mejorar Mindi` : '') +
+      `. <a href="/privacidad" target="_blank" rel="noopener">mindifem.com/privacidad</a></p>` +
+      `<p><em>Términos y condiciones</em><br>Estoy de acuerdo con los Términos y condiciones que regulan el uso de Mindi. <a href="/terminos" target="_blank" rel="noopener">mindifem.com/terminos</a></p>` +
+      `<p>Mindi te orienta, pero no reemplaza a tu médico. Si es una emergencia, llama al 106.</p>` +
+      `<p>Al tocar Aceptar, confirmas que has leído y aceptas ambas políticas.</p>` +
+      `<button type="button" class="consent-accept" data-accept>Aceptar</button></div>` +
+      (share && !chatShareOn ? `<button type="button" class="link-btn consent-optout" data-accept="sin">Prefiero no compartir mis preguntas</button>` : '');
     chat.appendChild(row);
-    const opts = askShare
-      ? [{label:'Aceptar y compartir mis preguntas', primary:true, value:'si'}, {label:'Aceptar sin compartir', value:'no'}]
-      : [{label:'Aceptar', primary:true, value:'ok'}];
-    renderChips(opts, (v)=>{
+    clearComposer();
+    scrollBottom();
+    row.querySelectorAll('[data-accept]').forEach(btn=> btn.onclick = ()=>{
+      const sin = btn.dataset.accept === 'sin';
       acceptChat();
-      chatShareAsked = true; // ya decidió: no se le vuelve a preguntar
-      if(askShare){ setChatShare(v === 'si', v === 'si' ? SHARE_QUESTIONS_VERSION : null); track('chat_share', {captured: v === 'si', desde:'inicio_chat'}); }
-      if(CHAT_RESEARCH_ENABLED){
+      chatShareAsked = true;
+      if(share && !chatShareOn && !sin) setChatShare(true, SHARE_ACCEPT_VERSION);
+      if(share) track('chat_share', {captured: chatShareOn, desde:'inicio_chat'});
+      row.querySelectorAll('[data-accept]').forEach(x=> x.remove());
+      row.querySelector('.consent-card').insertAdjacentHTML('beforeend', `<p class="consent-done">✓ Aceptado</p>`);
+      if(share){
         const st = document.createElement('div');
         st.className = 'row bot'; st.innerHTML = `<p class="share-line consent-status">${shareLabel()}</p>`;
         chat.appendChild(st);
@@ -1626,8 +1635,10 @@ function openAiChat(){
       chatSuggestions = greeting.suggestions;
       renderQuestionInput();
     });
+    if(!isTouch) row.querySelector('[data-accept]').focus({preventScroll:true});
   });
 }
+const SHARE_ACCEPT_VERSION = 'chat-v2'; // tarjeta de un botón: el texto de la política incluye guardar las preguntas
 let chatSuggestions = [];
 function acceptChat(){
   if(chatAccepted) return;

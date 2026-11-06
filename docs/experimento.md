@@ -82,7 +82,14 @@ Cada evento de `events` lleva `props.flujo` desde cierre-v2. Los eventos sin `fl
 
 ## Chat: "Antes de empezar" con dos botones (5 nov. 2026, noche)
 
-- Tras el saludo, una tarjeta con Política de privacidad, Términos y "Para mejorar Mindi", y dos botones:
+- (Reemplazado el mismo día por la tarjeta de un botón, ver abajo.) Tras el saludo, una tarjeta con dos botones:
   "Aceptar y compartir mis preguntas" (destacado) y "Aceptar sin compartir". Quien ya aceptó en el resultado ve solo
   "Aceptar". `agent_consent` = al tocar Aceptar (ya no con la primera pregunta). `chat_share` lleva `desde: inicio_chat`.
   Sin la pregunta al salir. **Las tasas de aceptación y de preguntas compartidas no son comparables con las anteriores.**
+
+## Chat: tarjeta de un botón, estilo Geocito (5 nov. 2026, noche)
+
+- Tras el saludo: "Para poder ayudarte, revisa esta información por favor:" con Política de privacidad (incluye que
+  Mindi guarde las preguntas sin datos de contacto), Términos y condiciones, el 106, y un solo botón **Aceptar** dentro
+  de la tarjeta. Debajo, el enlace "Prefiero no compartir mis preguntas" (usa el chat igual, sin guardar). Versión
+  `chat-v2`. `agent_consent` al tocar cualquiera de los dos; `chat_share` con `captured` según la elección.

@@ -81,8 +81,9 @@ test('permiso de investigación: una vez tras el resultado, sin casillas en la b
   assert.match(main, /idleT = setTimeout\(askShareAtEnd, 120000\)/);
 });
 
-test('chat: "Antes de empezar" con aceptación explícita; compartir es opcional (dos botones)', () => {
-  assert.match(main, /label:'Aceptar y compartir mis preguntas', primary:true, value:'si'\}, \{label:'Aceptar sin compartir', value:'no'\}/);
+test('chat: tarjeta de un botón (Aceptar) y la opción "Prefiero no compartir mis preguntas"', () => {
+  assert.match(main, /class="consent-accept" data-accept>Aceptar<\/button>/);
+  assert.match(main, /data-accept="sin">Prefiero no compartir mis preguntas<\/button>/);
   assert.match(main, /Si es una emergencia, llama al 106\./);
-  assert.match(main, /renderChips\(opts, \(v\)=>\{\n\s+acceptChat\(\);/);
+  assert.match(main, /const sin = btn\.dataset\.accept === 'sin';\n\s+acceptChat\(\);/);
 });
