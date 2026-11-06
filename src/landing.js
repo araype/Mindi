@@ -180,6 +180,9 @@ export function initLanding({ track, api, mountTurnstile, backendOn, consentVers
 
   /* ---------- 6.3 y 6.4 Sección 2: stage fijo controlado por el scroll ---------- */
   const story = $('esta-etapa');
+  // Móvil: tramo para abrir la foto antes de que suban los datos (ver placeInfo).
+  const infoSpacer = document.createElement('div');
+  infoSpacer.className = 'l-story-spacer'; infoSpacer.setAttribute('aria-hidden', 'true');
   const S = { photo: $('photo'), img: $('photoImg'), shade: $('shade'), l1: $('l1'), l2: $('l2'), cap: $('cap'), info: $('info'),
     grow: $('growRect'), stats: $('stats'), ring: $('ringArc'), sqs: document.querySelectorAll('#sq i'), bar: $('bar'), n1: $('n1'), n2: $('n2'), n3: $('n3'), hint: $('hint') };
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -199,13 +202,17 @@ export function initLanding({ track, api, mountTurnstile, backendOn, consentVers
     document.body.dataset.storyDark = '1';
   }
   function storyFrameMobile() {
-    const r = story.getBoundingClientRect();
-    const p = clamp(-r.top / Math.max(1, story.offsetHeight - window.innerHeight), 0, 1);
+    const r = story.getBoundingClientRect(), vh = window.innerHeight;
+    const p = clamp(-r.top / Math.max(1, infoSpacer.offsetHeight || vh * 0.9), 0, 1);
     const a = ease(seg(p, 0, 0.3)), b = ease(seg(p, 0.18, 0.62)), c = ease(seg(p, 0.55, 0.85));
+    // Mientras los datos suben sobre la foto, se oscurece y el texto de la foto se va.
+    const infoTop = S.info.getBoundingClientRect().top;
+    const k = clamp((vh - infoTop) / (vh * 0.6), 0, 1);
+    const kc = clamp((vh - infoTop) / (vh * 0.22), 0, 1); // el texto de la foto se va antes de que llegue el título
     const v = mix(mix(46, 40, a), 0, b), h = mix(8, 0, b), rad = mix(14, 0, b);
     S.photo.style.clipPath = `inset(${v}% ${h}% ${v}% ${h}% round ${rad}px)`;
     S.img.style.transform = `scale(${mix(1.15, 1, b)})`;
-    S.shade.style.opacity = mix(0.28 * b, 0.55, c);
+    S.shade.style.opacity = mix(mix(0.28 * b, 0.55, c), 0.8, k);
     const gap = window.innerHeight * 0.13;
     S.l1.style.transform = `translateY(${-gap * a - window.innerHeight * 0.16 * c}px)`;
     S.l1.style.color = rgb([42, 16, 38], [255, 255, 255], b);
@@ -213,8 +220,8 @@ export function initLanding({ track, api, mountTurnstile, backendOn, consentVers
     S.l2.style.transform = `translateY(${gap * a + 24 * c}px)`;
     S.l2.style.opacity = 1 - c;
     document.body.dataset.storyDark = b > 0.5 ? '1' : '0';
-    S.cap.style.opacity = c;
-    S.cap.style.transform = `translateY(${16 * (1 - c)}px)`;
+    S.cap.style.opacity = c * (1 - kc);
+    S.cap.style.transform = `translateY(${16 * (1 - c) - 30 * kc}px)`;
   }
   function storyFrame() {
     if (isMobile()) return storyFrameMobile();
@@ -284,17 +291,14 @@ export function initLanding({ track, api, mountTurnstile, backendOn, consentVers
   /* ---------- Móvil: datos en flujo y celular de ¿Cómo funciona? por gestos ---------- */
   // Datos: #info sale del tramo fijo y va justo después, sobre la misma foto (en escritorio vuelve a su lugar).
   const infoHome = S.info.parentNode, infoNext = S.info.nextSibling;
-  const infoWrap = document.createElement('section');
-  infoWrap.className = 'l-info-m';
-  infoWrap.setAttribute('data-nav', 'dark');
-  infoWrap.innerHTML = '<div class="l-info-m-bg" aria-hidden="true"><img src="/img/datos-760.webp" srcset="/img/datos-760.webp 760w, /img/datos-1262.webp 1262w" sizes="100vw" alt="" loading="lazy"></div>';
+  // Móvil: una sola foto. #info sale del escenario fijo y queda DENTRO de la sección, después de un tramo
+  // de scroll (la foto se abre); luego sube sobre la misma foto, que sigue fija detrás (position: sticky).
   function placeInfo() {
     if (isMobile()) {
-      if (S.info.parentNode !== infoWrap) { infoWrap.appendChild(S.info); story.after(infoWrap); }
+      if (S.info.parentNode !== story) { story.appendChild(infoSpacer); story.appendChild(S.info); }
       S.info.style.opacity = ''; S.info.style.transform = '';
-      if (!navSecs.includes(infoWrap)) navSecs.push(infoWrap);
-    } else if (S.info.parentNode === infoWrap) {
-      infoHome.insertBefore(S.info, infoNext); infoWrap.remove();
+    } else if (S.info.parentNode === story) {
+      infoHome.insertBefore(S.info, infoNext); infoSpacer.remove();
     }
   }
   // Números, anillo, cuadritos y barra: de 0 a su valor en 900 ms cuando la tarjeta aparece (el texto ya se ve).
