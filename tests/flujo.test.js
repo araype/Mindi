@@ -87,3 +87,8 @@ test('chat: tarjeta de un botón (Aceptar) y la opción "Prefiero no compartir m
   assert.match(main, /Si es una emergencia, llama al 106\./);
   assert.match(main, /const sin = btn\.dataset\.accept === 'sin';\n\s+acceptChat\(\);/);
 });
+
+test('chat: "¿Te sirvió?" una sola vez, tras la 2.ª respuesta, y se quita al tocarlo', () => {
+  assert.match(main, /if\(agentReplies === 2\) askFeedback\(/);
+  assert.match(main, /track\('agent_feedback', \{answer: b\.dataset\.fb, area, source:chatSource\}\);\n\s+row\.remove\(\);/);
+});

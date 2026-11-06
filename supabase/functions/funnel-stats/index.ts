@@ -83,7 +83,11 @@ Deno.serve(async (req) => {
   }
 
   const { data, error } = await supabase.rpc('panel_stats', args);
-  if (!error) return json({ ok: true, funnel: data ?? {}, filters: true, generated_at });
+  if (!error) {
+    // Conversaciones del chat con IA (024). Si aún no se corrió, el panel lo indica.
+    const conv = await supabase.rpc('chat_conversation_stats', args);
+    return json({ ok: true, funnel: data ?? {}, conversaciones: conv.error ? null : (conv.data ?? {}), filters: true, generated_at });
+  }
   if (origin) return json({ error: 'Para filtrar por origen, corre supabase/012_origin.sql en Supabase.' }, 500);
 
   // Si aún no se corrió supabase/009_panel_stats.sql, se usa la vista sin filtros.

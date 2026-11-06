@@ -93,3 +93,10 @@ Cada evento de `events` lleva `props.flujo` desde cierre-v2. Los eventos sin `fl
   Mindi guarde las preguntas sin datos de contacto), Términos y condiciones, el 106, y un solo botón **Aceptar** dentro
   de la tarjeta. Debajo, el enlace "Prefiero no compartir mis preguntas" (usa el chat igual, sin guardar). Versión
   `chat-v2`. `agent_consent` al tocar cualquiera de los dos; `chat_share` con `captured` según la elección.
+
+## Éxito del chat con IA (6 nov. 2026)
+
+- Conversación exitosa = acepta, ≥ 2 preguntas, sin errores ni límite, y termina con una señal de valor ("me sirvió",
+  va al test que Mindi recomendó, o llegó desde su resultado). Panel: tarjeta "Conversaciones" (`024_conversaciones.sql`).
+- Eventos nuevos: `agent_feedback` (`answer` sí/no, una vez por conversación, tras la 2.ª respuesta), `agent_latency`
+  (`ms`), `agent_limit`. `chat_test_recommended` y `chat_to_test` ya existían.

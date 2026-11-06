@@ -403,3 +403,12 @@ h1 {
 .rel-track{height:8px;border-radius:5px;background:var(--line-soft, #f3dbe9);overflow:hidden}
 .rel-bar{display:block;height:100%;border-radius:5px;background:var(--cat-1, #2c7be5)}
 .rel-base{margin:8px 0 0}
+/* Conversaciones del chat con IA */
+.conv-hero{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin:6px 0 10px}
+.conv-big{font-family:var(--font-display, inherit);font-weight:700;font-size:40px;line-height:1;color:var(--magenta-text, #C0128C)}
+.conv-sub{font-size:14px;color:var(--muted, #6b5a66)}
+.conv-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:10px;margin:14px 0 0}
+.conv-kpis div{border:1px solid var(--line, #f3cfe4);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:2px}
+.conv-kpis dt{font-size:12.5px;color:var(--muted, #6b5a66)}
+.conv-kpis dd{margin:0;font-weight:700;font-size:20px}
+.conv-kpis span{font-size:12px;color:var(--muted, #6b5a66)}

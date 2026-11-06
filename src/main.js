@@ -1704,18 +1704,37 @@ function agentFallback(text){
 }
 
 let agentAnswered = false; // hasta la primera respuesta, el aviso de espera
+let agentReplies = 0;
+/* Éxito del chat (6 nov. 2026): "¿Te sirvió?" UNA vez por conversación, después de la 2.ª respuesta de
+   Mindi; desaparece al tocarlo. Solo el voto y el área: nunca el texto. */
+function askFeedback(area){
+  const row = document.createElement('div');
+  row.className = 'row bot fb-row';
+  row.innerHTML = `<div class="fb-ask" role="group" aria-label="¿Te sirvió esta respuesta?"><span>¿Te sirvió esta respuesta?</span>` +
+    `<button type="button" class="fb-btn" data-fb="si">Sí</button><span aria-hidden="true">·</span><button type="button" class="fb-btn" data-fb="no">No</button></div>`;
+  row.querySelectorAll('[data-fb]').forEach(b=> b.onclick = ()=>{
+    track('agent_feedback', {answer: b.dataset.fb, area, source:chatSource});
+    row.remove();
+  });
+  chat.appendChild(row);
+  scrollBottom();
+}
 async function askAgent(text, {echo = true} = {}){
   if(echo) addBubble(text.slice(0, 1000), 'user');
   clearComposer();
-  if(agentClient.limitReached){ agentFallback(LIMIT_TEXT); return renderQuestionInput(); }
+  if(agentClient.limitReached){ track('agent_limit', {source:chatSource}); agentFallback(LIMIT_TEXT); return renderQuestionInput(); }
   showTyping(agentAnswered ? '' : FIRST_WAIT_TEXT);
+  const t0 = performance.now();
   try{
     const reply = await agentClient.ask(text.slice(0, 1000));
     agentAnswered = true;
     hideTyping();
     addAgentBubble(reply.text);
+    agentReplies++;
     track('agent_message', {source:chatSource, area:reply.area || 'otro'});
+    track('agent_latency', {ms: Math.round(performance.now() - t0), n: agentReplies}); // tiempo hasta la respuesta (arranque en frío)
     if(reply.action === 'recommend_test') recommendTest();
+    if(agentReplies === 2) askFeedback(reply.area || 'otro');
   }catch(e){
     hideTyping();
     track('agent_error', {source:chatSource, code:e.status || 0});

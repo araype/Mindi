@@ -127,7 +127,7 @@ async function load(){
       renderEventos(res.eventos, res.generated_at, res.missing);
     } else {
       syncFilterUI(res.filters !== false);
-      render(res.funnel, res.generated_at, res.filters !== false);
+      render(res.funnel, res.generated_at, res.filters !== false); renderConv(res.conversaciones);
     }
   } catch {
     showStatus('Sin conexión con Supabase. Revisa tu internet y vuelve a intentarlo con "Actualizar".');
@@ -390,6 +390,29 @@ function renderSplit(el, title, note, parts, missing){
     <div class="stack${total ? '' : ' empty'}" aria-hidden="true">${segs}</div>
     <ul class="legend">${legend}</ul>
     ${missing ? `<p class="split-empty">${missing}</p>` : (!total ? '<p class="split-empty">Todavía no hay respuestas.</p>' : '')}`;
+}
+
+/* Conversaciones del chat con IA (024): la definición de éxito acordada el 6 nov. 2026. */
+function renderConv(c){
+  const el = $('convBlock');
+  if(c == null){ el.innerHTML = '<h2>Conversaciones del chat con IA</h2><p class="split-empty">Corre <code>supabase/024_conversaciones.sql</code> en Supabase para ver esta tarjeta.</p>'; return; }
+  const ab = c.conv_abren || 0, fbT = (c.fb_si || 0) + (c.fb_no || 0);
+  const sec = (ms)=> ms == null ? '—' : `${(ms / 1000).toFixed(1).replace('.', ',')} s`;
+  el.innerHTML = `<h2>Conversaciones del chat con IA</h2>
+    <p class="block-note">Exitosa = acepta, hace 2 preguntas o más, sin errores ni límite, y termina con una señal de valor: "me sirvió", va al test que Mindi le recomendó, o llegó desde su resultado.</p>
+    <div class="conv-hero"><span class="conv-big">${ab ? pctTxt(pct(c.conv_exitosas, ab)) : '—'}</span><span class="conv-sub">${fmt(c.conv_exitosas)} de ${fmt(ab)} conversaciones son exitosas</span></div>
+    <div class="conv-steps" id="convSteps"></div>
+    <dl class="conv-kpis">
+      <div><dt>"¿Te sirvió?"</dt><dd>${fbT ? pctTxt(pct(c.fb_si, fbT)) : '—'} sí</dd><span>${fmt(c.fb_si)} sí · ${fmt(c.fb_no)} no</span></div>
+      <div><dt>Preguntas por conversación</dt><dd>${c.conv_mediana_preguntas == null ? '—' : fmt(Math.round(c.conv_mediana_preguntas * 10) / 10)}</dd><span>mediana</span></div>
+      <div><dt>Test que recomendó Mindi</dt><dd>${fmt(c.test_desde_chat)} de ${fmt(c.test_recomendado)}</dd><span>lo abren · ${fmt(c.test_completo_desde_chat)} lo completan</span></div>
+      <div><dt>Tiempo de respuesta</dt><dd>${sec(c.latencia_mediana_ms)}</dd><span>mediana · 9 de cada 10 en menos de ${sec(c.latencia_p90_ms)}</span></div>
+      <div><dt>Con algún error</dt><dd>${fmt(c.conv_con_error)}</dd><span>${fmt(c.conv_limite)} llegan al límite</span></div>
+    </dl>`;
+  renderRel($('convSteps'), '', '', [
+    ['Abren el chat', c.conv_abren], ['Aceptan la tarjeta', c.conv_aceptan], ['Hacen 2 preguntas o más', c.conv_dos_preguntas], ['Exitosas', c.conv_exitosas],
+  ], ab, 'quienes abren el chat');
+  $('convSteps').querySelector('h2')?.remove(); $('convSteps').querySelector('.block-note:not(.rel-base)')?.remove();
 }
 
 /* Cifras que NO son partes de un todo (pasos o acciones que se suman): cada fila con su barra y su % sobre

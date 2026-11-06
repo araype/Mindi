@@ -321,3 +321,8 @@ body.no-scroll{overflow:hidden}
 .consent-card .consent-done{margin:8px 0 0;font-weight:600;color:var(--magenta-text)}
 .consent-optout{display:block;margin:8px 0 0 2px;padding:6px 0;min-height:36px;font-size:13px;color:var(--plum-soft)}
 .consent-row{flex-direction:column;align-items:flex-start}
+/* Chat: "¿Te sirvió esta respuesta?" (una vez por conversación) */
+.fb-row{margin-top:-4px}
+.fb-ask{display:flex;align-items:center;gap:8px;margin-left:46px;font-size:13px;color:var(--plum-soft)}
+.fb-btn{border:1.5px solid var(--bubble-bot-border);background:#fff;border-radius:999px;padding:6px 14px;min-height:36px;font:inherit;font-weight:600;color:var(--magenta-text);cursor:pointer}
+.fb-btn:hover,.fb-btn:focus-visible{border-color:var(--magenta-text)}

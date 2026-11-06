@@ -69,7 +69,7 @@ deriva de información de salud. Si se aprueba, agregar una línea en la políti
 
 ## Etiquetas por pregunta del chat (nivel 1): después del lanzamiento (aprobado el 5 nov. 2026)
 
-Sin texto y sin consentimiento extra. Requiere SQL `024` (tres columnas en `chat_topics`; el 023 fue el panel v2), cambiar el agente
+Sin texto y sin consentimiento extra. Requiere SQL `025` (tres columnas en `chat_topics`; 023 = panel v2, 024 = conversaciones), cambiar el agente
 (`clasificar_tema` en `mindi_agent/agent.py`), una evaluación corta antes de desplegarlo y la línea de la política.
 
 | Etiqueta | Valores | Quién la pone |
