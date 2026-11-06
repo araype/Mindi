@@ -87,8 +87,7 @@ export function initLanding({ track, api, mountTurnstile, backendOn, consentVers
     let mode = 'dark';
     for (const s of navSecs) { const r = s.getBoundingClientRect(); if (r.top <= y && r.bottom > y) { mode = s.dataset.nav; break; } }
     if (mode === 'story') {
-      if (isMobile()) { const lr = $('l1').closest('.l-lines').getBoundingClientRect(); mode = lr.bottom > y ? 'light' : 'dark'; }
-      else mode = document.body.dataset.storyDark === '1' ? 'dark' : 'light';
+      mode = document.body.dataset.storyDark === '1' ? 'dark' : 'light';
     }
     nav.classList.toggle('is-light', mode === 'light');
     nav.classList.toggle('is-scrolled', mode === 'dark' && window.scrollY > 40);
@@ -175,7 +174,26 @@ export function initLanding({ track, api, mountTurnstile, backendOn, consentVers
     S.bar.style.width = '41.5%';
     document.body.dataset.storyDark = '1';
   }
+  function storyFrameMobile() {
+    const r = story.getBoundingClientRect();
+    const p = clamp(-r.top / Math.max(1, story.offsetHeight - window.innerHeight), 0, 1);
+    const a = ease(seg(p, 0, 0.3)), b = ease(seg(p, 0.18, 0.62)), c = ease(seg(p, 0.55, 0.85));
+    const v = mix(mix(46, 40, a), 0, b), h = mix(8, 0, b), rad = mix(14, 0, b);
+    S.photo.style.clipPath = `inset(${v}% ${h}% ${v}% ${h}% round ${rad}px)`;
+    S.img.style.transform = `scale(${mix(1.15, 1, b)})`;
+    S.shade.style.opacity = mix(0.28 * b, 0.55, c);
+    const gap = window.innerHeight * 0.13;
+    S.l1.style.transform = `translateY(${-gap * a - window.innerHeight * 0.16 * c}px)`;
+    S.l1.style.color = rgb([42, 16, 38], [255, 255, 255], b);
+    S.l1.style.opacity = 1 - c;
+    S.l2.style.transform = `translateY(${gap * a + 24 * c}px)`;
+    S.l2.style.opacity = 1 - c;
+    document.body.dataset.storyDark = b > 0.5 ? '1' : '0';
+    S.cap.style.opacity = c;
+    S.cap.style.transform = `translateY(${16 * (1 - c)}px)`;
+  }
   function storyFrame() {
+    if (isMobile()) return storyFrameMobile();
     const r = story.getBoundingClientRect();
     const p = clamp(-r.top / (story.offsetHeight - window.innerHeight), 0, 1);
     const a = ease(seg(p, 0.06, 0.22)), b = ease(seg(p, 0.22, 0.42)), c = ease(seg(p, 0.46, 0.58)), d = ease(seg(p, 0.66, 0.8)), e = ease(seg(p, 0.78, 0.92));
@@ -231,35 +249,33 @@ export function initLanding({ track, api, mountTurnstile, backendOn, consentVers
     let ticking = false;
     const onScroll = () => {
       if (ticking) return; ticking = true;
-      requestAnimationFrame(() => { if (!isMobile()) { storyFrame(); howFrame(); } navMode(); ticking = false; });
+      requestAnimationFrame(() => { storyFrame(); if (!isMobile()) howFrame(); navMode(); ticking = false; });
     };
     window.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', onScroll);
-    if (!isMobile()) { storyFrame(); howFrame(); }
+    storyFrame(); if (!isMobile()) howFrame();
   }
   if (reduce) { window.addEventListener('scroll', navMode, { passive: true }); }
 
-  /* ---------- Móvil: pasos en flujo vertical (cada uno con su pantalla) y aparición de las tarjetas ---------- */
-  (function buildHowMobile() {
-    const phone = how.querySelector('.l-phone-wrap .m-phone');
-    const list = document.createElement('ol');
-    list.className = 'l-how-m';
-    steps.forEach((step, i) => {
-      const li = document.createElement('li');
-      li.className = 'l-how-item m-rv';
-      const n = document.createElement('p'); n.className = 'l-how-n'; n.textContent = `Paso ${i + 1} de ${steps.length}`;
-      const ph = phone.cloneNode(true);
-      ph.querySelectorAll('.l-scr').forEach((sc, k) => { if (k !== i) sc.remove(); else sc.classList.add('is-on'); });
-      const body = document.createElement('div');
-      [...step.children].forEach((c) => { if (!c.classList.contains('m-step__n')) body.appendChild(c.cloneNode(true)); });
-      li.append(n, ph, body);
-      list.appendChild(li);
-    });
-    how.querySelector('.l-how-grid').after(list);
-  })();
-  // Números, anillo, cuadritos y barra: de 0 a su valor en 700 ms cuando la tarjeta aparece (el texto ya se ve).
+  /* ---------- Móvil: datos en flujo y celular de ¿Cómo funciona? por gestos ---------- */
+  // Datos: #info sale del tramo fijo y va justo después, sobre la misma foto (en escritorio vuelve a su lugar).
+  const infoHome = S.info.parentNode, infoNext = S.info.nextSibling;
+  const infoWrap = document.createElement('section');
+  infoWrap.className = 'l-info-m';
+  infoWrap.setAttribute('data-nav', 'dark');
+  infoWrap.innerHTML = '<div class="l-info-m-bg" aria-hidden="true"><img src="/img/datos-760.webp" srcset="/img/datos-760.webp 760w, /img/datos-1262.webp 1262w" sizes="100vw" alt="" loading="lazy"></div>';
+  function placeInfo() {
+    if (isMobile()) {
+      if (S.info.parentNode !== infoWrap) { infoWrap.appendChild(S.info); story.after(infoWrap); }
+      S.info.style.opacity = ''; S.info.style.transform = '';
+      if (!navSecs.includes(infoWrap)) navSecs.push(infoWrap);
+    } else if (S.info.parentNode === infoWrap) {
+      infoHome.insertBefore(S.info, infoNext); infoWrap.remove();
+    }
+  }
+  // Números, anillo, cuadritos y barra: de 0 a su valor en 900 ms cuando la tarjeta aparece (el texto ya se ve).
   function countUp(card) {
-    const t0 = performance.now(), D = reduce ? 0 : 700;
+    const t0 = performance.now(), D = reduce ? 0 : 900;
     const idx = [...S.stats.children].indexOf(card);
     const step = (now) => {
       const k = D ? ease(Math.min(1, (now - t0) / D)) : 1;
@@ -271,26 +287,68 @@ export function initLanding({ track, api, mountTurnstile, backendOn, consentVers
     };
     requestAnimationFrame(step);
   }
+  // ¿Cómo funciona? en móvil: un paso por gesto (deslizar, flechas o puntos) y avance solo cada 4 s mientras se ve.
+  const howGrid = how.querySelector('.l-how-grid');
+  const howNav = document.createElement('div');
+  howNav.className = 'l-how-nav';
+  howNav.innerHTML = '<button type="button" class="l-how-arrow" data-dir="-1" aria-label="Paso anterior">‹</button>' +
+    '<div class="l-how-dots">' + [...steps].map((_, k) => `<button type="button" data-go="${k}" aria-label="Paso ${k + 1} de ${steps.length}"></button>`).join('') + '</div>' +
+    '<button type="button" class="l-how-arrow" data-dir="1" aria-label="Paso siguiente">›</button>';
+  const howCount = document.createElement('p');
+  howCount.className = 'l-how-count'; howCount.setAttribute('aria-live', 'polite');
+  howGrid.querySelector('.m-steps').before(howCount);
+  howGrid.after(howNav);
+  let autoT = null, touched = false, howVisible = false;
+  function goStep(i, byUser) {
+    const n = steps.length; i = Math.max(0, Math.min(n - 1, i));
+    if (byUser) { touched = true; stopAuto(); }
+    curStep = -1; setStep(i);
+    howCount.textContent = `Paso ${i + 1} de ${n}`;
+    howNav.querySelectorAll('[data-go]').forEach((d, k) => { if (k === i) d.setAttribute('aria-current', 'step'); else d.removeAttribute('aria-current'); });
+    howNav.querySelector('[data-dir="-1"]').disabled = i === 0;
+    howNav.querySelector('[data-dir="1"]').disabled = i === n - 1;
+  }
+  function stopAuto() { clearInterval(autoT); autoT = null; }
+  function startAuto() {
+    if (reduce || touched || autoT || !isMobile()) return;
+    autoT = setInterval(() => { if (!howVisible) return; goStep(curStep >= steps.length - 1 ? 0 : curStep + 1, false); }, 4000);
+  }
+  howNav.addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.go) goStep(+b.dataset.go, true); else goStep(curStep + (+b.dataset.dir), true);
+  });
+  // Deslizar a los lados sobre el celular o el texto (el scroll vertical sigue siendo el del teléfono).
+  let sx = null, sy = null;
+  howGrid.addEventListener('touchstart', (e) => { if (!isMobile()) return; sx = e.touches[0].clientX; sy = e.touches[0].clientY; }, { passive: true });
+  howGrid.addEventListener('touchend', (e) => {
+    if (sx === null) return;
+    const dx = e.changedTouches[0].clientX - sx, dy = e.changedTouches[0].clientY - sy; sx = null;
+    if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.3) goStep(curStep + (dx < 0 ? 1 : -1), true);
+  }, { passive: true });
+  if ('IntersectionObserver' in window) {
+    new IntersectionObserver((es) => es.forEach((e) => { howVisible = e.isIntersecting; if (howVisible) startAuto(); }), { threshold: 0.5 }).observe(howGrid);
+  }
   function setupMobile() {
+    placeInfo();
     if (!isMobile()) return;
     [...S.stats.children].forEach((c) => { c.style.opacity = ''; c.style.transform = ''; });
-    S.info.style.opacity = ''; S.info.style.transform = '';
-    dataFinal();
+    S.sqs.forEach((x) => x.classList.remove('is-on', 'is-part'));
+    S.grow.setAttribute('width', '0'); S.ring.setAttribute('stroke-dasharray', '0 94.25'); S.bar.style.width = '0%';
+    goStep(Math.max(0, curStep), false);
     const cards = [document.querySelector('.l-tl'), ...S.stats.children];
-    const items = [...cards, ...how.querySelectorAll('.l-how-item')];
-    if (reduce || !('IntersectionObserver' in window)) { items.forEach((el) => el.classList.add('is-in')); return; }
-    items.forEach((el) => el.classList.add('m-rv'));
+    if (reduce || !('IntersectionObserver' in window)) { dataFinal(); cards.forEach((el) => el.classList.add('is-in')); return; }
+    cards.forEach((el) => el.classList.add('m-rv'));
     document.documentElement.classList.add('js-rv');
     const io = new IntersectionObserver((es) => es.forEach((e) => {
       if (!e.isIntersecting) return;
       e.target.classList.add('is-in');
-      if (cards.includes(e.target)) countUp(e.target);
+      countUp(e.target);
       io.unobserve(e.target);
     }), { threshold: 0.15, rootMargin: '0px 0px 12% 0px' }); // un poco antes de entrar: visible antes de la mitad
-    items.forEach((el) => io.observe(el));
+    cards.forEach((el) => io.observe(el));
   }
   setupMobile();
-  mobileMQ.addEventListener && mobileMQ.addEventListener('change', () => { if (isMobile()) setupMobile(); else { storyFrame(); howFrame(); } });
+  mobileMQ.addEventListener && mobileMQ.addEventListener('change', () => { setupMobile(); storyFrame(); if (!isMobile()) howFrame(); });
   navMode();
 
   /* ---------- 6.6 Chat en vivo (prototipo docs/mindi-landing.html) ---------- */

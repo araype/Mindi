@@ -330,41 +330,48 @@ body:not(.app-view) #conversar{display:none}
   .l-opts--list{gap:2px}.l-opts--list span{padding:1px 6px 1px 2px}.l-opts--list b{width:18px;height:18px}
 }
 
-/* ---------- Móvil (< 768 px, 5 nov. 2026): scroll nativo, sin secciones fijas ni pasos por tramos ----------
-   Datos: título, foto y tarjetas en flujo normal; cada tarjeta aparece con un fade corto al entrar ~15 %.
-   ¿Cómo funciona?: los 3 pasos uno debajo de otro, cada uno con su pantalla (.l-how-m, armado en landing.js). */
-.l-how-m{display:none}
+/* ---------- Móvil (< 768 px, 5 nov. 2026, v2): interacción sin saltos ----------
+   1. "No es el final": tramo fijo corto (190svh) con la foto que se abre y las líneas que se separan.
+   2. Datos (#info): fuera del tramo fijo, en flujo normal, sobre la misma foto; cada tarjeta aparece al entrar
+      y sus números, anillo, cuadritos y barra corren en ese momento.
+   3. ¿Cómo funciona?: un solo celular que cambia de paso con deslizar, las flechas o los puntos (un paso por
+      gesto) y que avanza solo cada 4 s mientras se ve, hasta que la usuaria lo toca. El scroll vertical es nativo. */
+.l-how-nav,.l-how-count{display:none}
+.l-info-m-bg{display:none}
 @media (max-width:767px){
-  .l-story{height:auto}
-  .l-stage{position:relative;height:auto;overflow:hidden}
-  .l-photo{clip-path:none!important}
-  .l-photo img{transform:none!important}
-  .l-photo .shade{opacity:.8!important}
-  .l-lines{position:relative;z-index:1;background:var(--paper);padding:14svh var(--gutter) 10svh;gap:8px}
-  .l-big{transform:none!important;opacity:1!important}
-  .l-big--1{color:var(--plum)!important}
-  .l-caption{position:relative;z-index:1;left:auto;bottom:auto;opacity:1!important;transform:none!important;max-width:none;padding:40px var(--gutter) 0}
-  .l-info{position:relative;z-index:1;opacity:1!important;transform:none!important;pointer-events:auto;padding-block:28px 56px}
-  .l-info p{display:block}.l-info .m-eyebrow{display:inline-flex}
+  .l-story{height:190vh;height:190svh}
   .l-hint{display:none}
+  /* Datos en flujo, después del tramo fijo, con la foto de fondo (sin 100vw ni max-width) */
+  .l-info-m{position:relative;overflow:hidden;color:#fff}
+  .l-info-m .l-info-m-bg{display:block;position:absolute;inset:0}
+  .l-info-m .l-info-m-bg img{position:absolute;inset:0;width:100%;height:100%;max-width:none;object-fit:cover;object-position:62% 35%}
+  .l-info-m .l-info-m-bg::after{content:"";position:absolute;inset:0;background:var(--plum);opacity:.8}
+  .l-info-m .l-info{position:relative;opacity:1;transform:none;pointer-events:auto;padding-block:56px 56px}
+  .l-info-m .l-info p{display:block}.l-info-m .l-info .m-eyebrow{display:inline-flex}
   .l-info-right{gap:12px}
+  /* ¿Cómo funciona? */
   .l-how{height:auto}
-  .l-how-stage{position:relative;height:auto;padding-block:72px 40px}
-  .l-how-grid{display:none}
-  .l-how-m{display:flex;flex-direction:column;gap:44px;list-style:none;margin:0;padding:0}
-  .l-how-item{display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px}
-  .l-how-n{font-family:var(--font-mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--plum-soft);margin:0}
-  .l-how-item .m-phone{width:min(220px,60vw);max-height:none}
-  .l-how-item .l-scr{opacity:1;transform:none;transition:none}
-  .l-how-item h3{margin:4px 0 6px}
-  .l-how-item p{font-size:15px;margin:0}
-  .l-how-item .m-btn{margin-top:14px}
-  /* Aparición corta: ≤ 300 ms, sin retrasos mayores a 100 ms. Solo con JS y sin movimiento reducido. */
-  .js-rv .m-rv{opacity:0;transform:translateY(12px);transition:opacity .28s ease,transform .28s ease}
+  .l-how-stage{position:relative;height:auto;padding-block:72px 48px}
+  .l-how .m-phone{width:min(220px,58vw);max-height:none}
+  .l-phone-wrap{touch-action:pan-y;cursor:grab}
+  .l-how .m-steps{min-height:170px}
+  .l-how .m-step{text-align:center}
+  .l-how .m-step .m-step__n{display:none}
+  .l-how-nav{display:flex;align-items:center;justify-content:center;gap:14px;margin-top:6px}
+  .l-how-nav button{border:0;background:none;padding:0;cursor:pointer;color:var(--plum)}
+  .l-how-arrow{width:44px;height:44px;border-radius:50%;border:1.5px solid var(--line)!important;font-size:20px;line-height:1;display:grid;place-items:center;background:#fff!important}
+  .l-how-arrow:disabled{opacity:.35;cursor:default}
+  .l-how-dots{display:flex;gap:8px}
+  .l-how-dots button{width:10px;height:10px;border-radius:50%;background:var(--line-soft)!important;transition:width .25s ease,background-color .25s ease}
+  .l-how-dots button[aria-current="step"]{width:26px;border-radius:6px;background:var(--magenta-btn)!important}
+  .l-how-count{display:block;font-family:var(--font-mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--plum-soft);text-align:center;margin:0 0 4px}
+  /* Aparición corta: ≤ 300 ms, sin retrasos mayores a 100 ms */
+  .js-rv .m-rv{opacity:0;transform:translateY(14px) scale(.98);transition:opacity .28s ease,transform .28s ease}
   .js-rv .m-rv.is-in{opacity:1;transform:none}
   .js-rv .l-stats .m-rv:nth-child(2){transition-delay:40ms}
   .js-rv .l-stats .m-rv:nth-child(3){transition-delay:70ms}
 }
 @media (max-width:767px) and (prefers-reduced-motion:reduce){
+  .l-story{height:auto}
   .js-rv .m-rv{opacity:1;transform:none;transition:none}
 }
