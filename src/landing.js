@@ -108,11 +108,24 @@ export function initLanding({ track, api, mountTurnstile, backendOn, consentVers
   document.addEventListener('click', (e) => { if (!panel.hidden && !nav.contains(e.target)) setMenu(false); });
   window.addEventListener('resize', () => { if (window.innerWidth > 900 && !panel.hidden) setMenu(false); });
 
-  /* ---------- 6.2 Tarjeta de frases: una sola vuelta y se queda en la primera ---------- */
+  /* ---------- 6.2 Tarjeta de frases (5 nov. 2026): 3,5 s por frase mientras se ve; un toque la deja quieta
+     ("Pausado") para leerla y otro toque la reanuda. Flechas, barras y deslizar cambian de frase. ---------- */
   const card = $('quote');
   const slides = card.querySelectorAll('.l-qs'), bars = card.querySelectorAll('.l-qbars button'), cta = $('qcta');
-  let qi = 0, hover = false, held = false, stopped = reduce;
-  function qsync() { card.classList.toggle('is-paused', hover || held); card.classList.toggle('is-held', held); card.classList.toggle('is-stopped', stopped); }
+  let qi = 0, hover = false, held = false, stopped = reduce, pinned = false, offscreen = false;
+  const pinNote = document.createElement('p');
+  pinNote.className = 'l-qpin'; pinNote.setAttribute('aria-live', 'polite');
+  card.querySelector('.l-qbars').after(pinNote);
+  function qsync() {
+    card.classList.toggle('is-paused', hover || held || offscreen);
+    card.classList.toggle('is-held', held);
+    card.classList.toggle('is-stopped', stopped || pinned);
+    pinNote.textContent = pinned ? 'Pausado · toca de nuevo para continuar' : '';
+  }
+  function togglePin() { if (reduce) return; pinned = !pinned; qsync(); }
+  if ('IntersectionObserver' in window) {
+    new IntersectionObserver((es) => es.forEach((e) => { offscreen = !e.isIntersecting; qsync(); }), { threshold: 0.4 }).observe(card);
+  }
   function go(n) {
     qi = (n + slides.length) % slides.length;
     slides.forEach((s, k) => { s.classList.toggle('is-on', k === qi); if (k === qi) s.removeAttribute('aria-hidden'); else s.setAttribute('aria-hidden', 'true'); });
@@ -132,8 +145,8 @@ export function initLanding({ track, api, mountTurnstile, backendOn, consentVers
   bars.forEach((b, k) => {
     b.addEventListener('click', () => go(k));
     b.querySelector('i').addEventListener('animationend', () => {
-      if (!b.classList.contains('is-cur') || stopped) return;
-      if (qi === slides.length - 1) { stopped = true; go(0); qsync(); } else go(qi + 1);
+      if (!b.classList.contains('is-cur') || stopped || pinned) return;
+      go(qi + 1);
     });
   });
   $('qprev').addEventListener('click', () => go(qi - 1));
@@ -144,11 +157,22 @@ export function initLanding({ track, api, mountTurnstile, backendOn, consentVers
   card.addEventListener('focusout', () => { hover = false; qsync(); });
   let x0 = null;
   card.addEventListener('touchstart', (e) => { if (e.target.closest('a,button')) return; x0 = e.touches[0].clientX; held = true; qsync(); }, { passive: true });
+  let t0 = 0, lastTouch = 0;
+  card.addEventListener('touchstart', () => { t0 = performance.now(); }, { passive: true });
   function release(e) {
     if (held) { held = false; qsync(); }
-    if (x0 !== null && e && e.changedTouches) { const dx = e.changedTouches[0].clientX - x0; if (Math.abs(dx) > 40) go(qi + (dx < 0 ? 1 : -1)); }
+    if (x0 !== null && e && e.changedTouches) {
+      const dx = e.changedTouches[0].clientX - x0;
+      if (Math.abs(dx) > 40) go(qi + (dx < 0 ? 1 : -1));
+      else if (e.type === 'touchend' && performance.now() - t0 < 500) { togglePin(); lastTouch = performance.now(); }
+    }
     x0 = null;
   }
+  // En computadora: clic en la frase (no en botones ni enlaces) también pausa o reanuda.
+  card.querySelector('.l-quote-slides').addEventListener('click', (e) => {
+    if (e.target.closest('a,button') || performance.now() - lastTouch < 700) return;
+    togglePin();
+  });
   card.addEventListener('touchend', release);
   card.addEventListener('touchcancel', release);
   card.addEventListener('contextmenu', (e) => { if (e.target.closest('.l-quote-slides')) e.preventDefault(); });

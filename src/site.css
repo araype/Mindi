@@ -76,6 +76,8 @@ body.landing-view{background:var(--paper);color:var(--plum)}
 .l-qbars button.is-cur span i{animation:l-qfill var(--quote-interval) linear forwards}
 .l-quote.is-paused .l-qbars button.is-cur span i{animation-play-state:paused}
 .l-quote.is-stopped .l-qbars button.is-cur span i{animation:none;width:100%}
+.l-qpin{margin:6px 0 0;min-height:18px;font-size:12.5px;color:var(--plum-soft)}
+.l-quote-slides{cursor:pointer}
 @keyframes l-qfill{from{width:0}to{width:100%}}
 .l-qfoot{display:flex;justify-content:space-between;align-items:center;margin-top:10px;gap:14px}
 .l-qctrl{display:flex;align-items:center;gap:8px}

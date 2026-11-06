@@ -7,7 +7,7 @@
 --duration-base:250ms;
 --duration-slow:450ms;
 --duration-pop:280ms;                   /* cada mensaje del chat entra con un "pop" */
---quote-interval:5.5s;                  /* rotación de la tarjeta de frases */
+--quote-interval:3.5s;                  /* rotación de la tarjeta de frases */
 --stagger-plans:120ms;
 --stagger-wordmark:70ms;
 }
