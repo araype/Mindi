@@ -75,24 +75,27 @@
     <p class="test-banner" id="testBanner" hidden>Estás viendo también las sesiones de prueba del equipo — estos números no son solo de usuarias reales.</p>
 
     <div id="tabChat" class="tab-panel" role="tabpanel" aria-labelledby="tabBtnChat">
+    <p class="status" id="panelV2Missing" hidden>Corre <code>supabase/023_panel_v2.sql</code> en Supabase para ver el panel actualizado (reporte, PDF, chat con IA e investigación).</p>
+    <p class="block-note flow-note">Cambios de flujo: 5 nov. 2026 · cierre-v2 (satisfacción antes del reporte), permiso de investigación tras el resultado y tarjeta "Aceptar" del chat. Antes y después de esas fechas los números miden cosas distintas.</p>
     <section class="tiles" aria-label="Resumen">
       <div class="tile">
         <span class="tile-label">Visitas</span>
         <span class="tile-value" id="tVisitas">—</span>
       </div>
       <div class="tile">
-        <span class="tile-label">Reportes obtenidos</span>
+        <span class="tile-label">Ven su reporte</span>
         <span class="tile-value" id="tReportes">—</span>
         <span class="tile-sub" id="tReportesSub"></span>
       </div>
       <div class="tile">
         <span class="tile-label">Dejan contacto</span>
         <span class="tile-value" id="tLeads">—</span>
-        <span class="tile-sub">Piden una copia por correo — todas pueden descargar su PDF (WhatsApp solo en sesiones anteriores)</span>
+        <span class="tile-sub">Piden una copia de su reporte por correo</span>
       </div>
       <div class="tile">
-        <span class="tile-label">Conversión inicio de chat → reporte</span>
+        <span class="tile-label">Conversión inicio del test → reporte</span>
         <span class="tile-value" id="tConvChat">—</span>
+        <span class="tile-sub" id="tConvSub"></span>
       </div>
     </section>
 
@@ -106,6 +109,7 @@
       <div class="block" id="splitReport"></div>
       <div class="block" id="splitPrice"></div>
       <div class="block" id="splitWhatsapp"></div>
+      <div class="block" id="splitResearch"></div>
       <div class="block" id="splitSat"></div>
       <div class="block" id="splitLevel"></div>
       <div class="block" id="splitAge"></div>
@@ -152,9 +156,16 @@
       <p class="status" id="temasMissing" hidden>Corre <code>supabase/022_chat_temas.sql</code> en Supabase para ver esta pestaña.</p>
       <section class="block" id="temasBody">
         <h2>Temas por mes</h2>
-        <p class="block-note">De qué tratan las preguntas al chat con IA. Son solo cuentas por tema: no se guarda el texto de las preguntas ni quién preguntó.</p>
+        <p class="block-note">De qué tratan las preguntas al chat con IA (todas, por tema). Toca un tema para leer las preguntas que las usuarias aceptaron compartir.</p>
         <div id="temasChart" class="temas"></div>
         <p class="split-empty" id="temasEmpty" hidden>Todavía no hay preguntas en este periodo.</p>
+      </section>
+      <section class="block" id="preguntasBody">
+        <div class="preg-head"><h2 id="preguntasTitle">Preguntas compartidas</h2><button type="button" class="btn quiet" id="preguntasAll" hidden>Ver todas</button></div>
+        <p class="block-note" id="preguntasNote">Solo las de quienes aceptaron compartir, sin sesión ni resultado. Se quitan nombres, correos, teléfonos, DNI y direcciones automáticamente; aun así, no las copies fuera del panel.</p>
+        <ul class="preg-list" id="preguntasList"></ul>
+        <p class="split-empty" id="preguntasEmpty" hidden>Todavía no hay preguntas compartidas en este periodo.</p>
+        <p class="status" id="preguntasMissing" hidden>Corre <code>supabase/023_panel_v2.sql</code> en Supabase para ver las preguntas.</p>
       </section>
     </div>
 

@@ -121,7 +121,7 @@ async function load(){
     syncTabs();
     if(tab === 'temas'){
       syncFilterUI(true);
-      renderTemas(res.temas, res.generated_at, res.missing);
+      renderTemas(res.temas, res.generated_at, res.missing, res.preguntas);
     } else if(tab === 'eventos'){
       syncFilterUI(true);
       renderEventos(res.eventos, res.generated_at, res.missing);
@@ -142,11 +142,11 @@ async function load(){
    así que "obtienen reporte" puede ser mayor que "dejan contacto". Va como cifra aparte. */
 const STEPS = [
   ['visitas', 'Visitas'],
-  ['inician_chat', 'Inician el chat'],
+  ['inician_chat', 'Inician el test'],
   ['completan_sintomas', 'Completan síntomas'],
   ['ven_resultado', 'Ven su resultado'],
   ['eligen_metas', 'Eligen metas'],
-  ['reportes', 'Obtienen reporte'],
+  ['reportes', 'Ven su reporte'],
 ];
 /* Embudo estricto (013): cada paso solo cuenta visitas que pasaron por todos los anteriores,
    así ningún paso supera al previo. Si 013 no se corrió, se usan los conteos sueltos. */
@@ -166,12 +166,17 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':
 const TEMA_LABEL = {bochornos:'Bochornos', sueno:'Sueño', animo:'Ánimo', peso:'Peso', vida_intima:'Vida íntima',
   terapia_hormonal:'Terapia hormonal', remedios_naturales:'Remedios naturales', edad_inicio:'Edad de inicio',
   duracion:'Duración', trabajo:'Trabajo', otro:'Otro'};
-function renderTemas(rows, at, missing){
+let temaSel = null, pregRows = null;
+function renderTemas(rows, at, missing, preguntas){
   setMeta(at, true);
   $('temasMissing').hidden = !missing;
   $('temasBody').hidden = !!missing;
+  $('preguntasBody').hidden = !!missing;
   dash.hidden = false;
   if(missing) return;
+  pregRows = preguntas;
+  const shared = {};
+  for(const q of preguntas || []) shared[q.tema] = (shared[q.tema] || 0) + 1;
   const byMonth = {};
   for(const r of rows || []) (byMonth[r.mes] ||= []).push(r);
   const months = Object.keys(byMonth).sort().reverse();
@@ -183,11 +188,36 @@ function renderTemas(rows, at, missing){
     const raw = new Date(`${m}-01T12:00:00`).toLocaleDateString('es-PE', {month:'long', year:'numeric'});
     const title = raw.charAt(0).toUpperCase() + raw.slice(1); // Noviembre de 2026
     return `<div class="temas-mes"><h3>${esc(title)} <span class="tile-sub">${fmt(total)} preguntas</span></h3>` +
-      list.map((r)=> `<div class="tema-row"><span class="tema-name">${esc(TEMA_LABEL[r.tema] || r.tema)}</span>` +
+      list.map((r)=> `<button type="button" class="tema-row${temaSel === r.tema ? ' is-sel' : ''}" data-tema="${esc(r.tema)}" aria-pressed="${temaSel === r.tema}">` +
+        `<span class="tema-name">${esc(TEMA_LABEL[r.tema] || r.tema)}</span>` +
         `<span class="tema-track"><span class="tema-bar" style="width:${Math.max(2, Math.round(Number(r.n) / max * 100))}%"></span></span>` +
-        `<span class="tema-n">${fmt(r.n)}</span></div>`).join('') + `</div>`;
+        `<span class="tema-n">${fmt(r.n)}<small>${shared[r.tema] ? ` · ${fmt(shared[r.tema])} compartidas` : ''}</small></span></button>`).join('') + `</div>`;
+  }).join('');
+  renderPreguntas();
+}
+function renderPreguntas(){
+  const missing = pregRows == null;
+  $('preguntasMissing').hidden = !missing;
+  $('preguntasList').hidden = missing;
+  if(missing){ $('preguntasEmpty').hidden = true; return; }
+  const list = temaSel ? pregRows.filter((q)=> q.tema === temaSel) : pregRows;
+  $('preguntasTitle').textContent = temaSel ? `Preguntas compartidas · ${TEMA_LABEL[temaSel] || temaSel}` : 'Preguntas compartidas';
+  $('preguntasAll').hidden = !temaSel;
+  $('preguntasEmpty').hidden = list.length > 0;
+  $('preguntasEmpty').textContent = temaSel ? 'Nadie compartió todavía preguntas de este tema en el periodo.' : 'Todavía no hay preguntas compartidas en este periodo.';
+  $('preguntasList').innerHTML = list.map((q)=>{
+    const fecha = new Date(`${q.fecha}T12:00:00`).toLocaleDateString('es-PE', {day:'numeric', month:'short'});
+    return `<li><span class="preg-meta">${esc(fecha)}${temaSel ? '' : ` · ${esc(TEMA_LABEL[q.tema] || q.tema)}`}</span><span class="preg-text">${esc(q.pregunta)}</span></li>`;
   }).join('');
 }
+$('temasChart').addEventListener('click', (e)=>{
+  const b = e.target.closest('[data-tema]'); if(!b) return;
+  temaSel = temaSel === b.dataset.tema ? null : b.dataset.tema;
+  document.querySelectorAll('#temasChart [data-tema]').forEach((x)=>{ const on = x.dataset.tema === temaSel; x.classList.toggle('is-sel', on); x.setAttribute('aria-pressed', on); });
+  renderPreguntas();
+  $('preguntasBody').scrollIntoView({behavior:'smooth', block:'start'});
+});
+$('preguntasAll').addEventListener('click', ()=>{ temaSel = null; document.querySelectorAll('#temasChart [data-tema]').forEach((x)=>{ x.classList.remove('is-sel'); x.setAttribute('aria-pressed', 'false'); }); renderPreguntas(); });
 
 /* ---------- Listas: descarga del CSV descifrado ---------- */
 if(import.meta.env.VITE_CHAT_RESEARCH_ENABLED === 'true') document.querySelectorAll('[data-research]').forEach((b)=>{ b.hidden = false; });
@@ -249,14 +279,18 @@ function render(f, at, filtered){
   $('tReportesSub').textContent = f.reportes == null ? '' : `${pctTxt(pct(f.reportes, f.visitas))} de las visitas`;
   $('tLeads').textContent = fmt(f.leads);
   $('tConvChat').textContent = pctTxt(pct(f.reportes, f.inician_chat));
+  const v2 = f.version === 2;
+  $('panelV2Missing').hidden = v2 || !filtered;
+  $('tConvSub').textContent = v2 && f.descargan_pdf != null ? `${fmt(f.descargan_pdf)} descargan el PDF` : '';
 
   renderFunnel(f);
 
-  renderSplit($('splitReport'), 'Cómo reciben el reporte', 'Del total de reportes obtenidos.', [
-    ['Correo', f.reporte_correo, 'var(--cat-1)'],
-    ['WhatsApp', f.reporte_whatsapp, 'var(--cat-2)'],
-    ['Descarga PDF', f.reporte_descarga, 'var(--cat-3)'],
-  ], f.reportes == null ? 'Corre supabase/008_funnel_reportes.sql para ver este desglose.' : null);
+  // Con el PDF precargado, report_sent (descarga) contaba a todas: desde 023 se usan los toques reales.
+  renderRel($('splitReport'), 'Qué hacen con su reporte', 'Una misma persona puede hacer varias cosas.', [
+    ['Descargan el PDF', f.descargan_pdf],
+    ['Piden copia por correo', f.reporte_correo],
+    ['Comparten el enlace con su médico', f.enlace_medico],
+  ], f.ven_reporte, 'quienes ven su reporte', v2 ? null : 'Corre supabase/023_panel_v2.sql para ver este desglose.');
 
   // La pregunta de precio ya no está en el chat (la oferta irá en la landing, más adelante):
   // el bloque se oculta para no contar ese paso. Los datos anteriores siguen en la base.
@@ -268,17 +302,23 @@ function render(f, at, filtered){
     ['No lo probaría', f.precio_no, 'var(--div-neg)'],
   ]);
 
-  // WhatsApp complementa al test: solo el total de clics por origen, sin compararlo con el test.
-  renderSplit($('splitWhatsapp'), 'Clics en WhatsApp', 'Cuántas veces tocaron el botón, según desde dónde (clics, no personas).', [
-    ['Landing ("Tengo una duda")', f.whatsapp_landing, 'var(--cat-1)'],
-    ['Resultado del test', f.whatsapp_resultado, 'var(--cat-2)'],
-    ['Salida del filtro de etapa', f.whatsapp_filtro, 'var(--cat-3)'],
-  ], f.whatsapp_landing == null ? 'Corre supabase/016_whatsapp_clicks.sql para ver estos clics.' : null);
+  // Chat con IA (cada apertura de /chat es su propia sesión de eventos). WhatsApp: solo si el chat falla.
+  renderRel($('splitWhatsapp'), 'Chat con IA', v2 ? `${fmt(f.chat_mensajes)} mensajes · ${fmt(f.chat_desde_resultado)} llegan desde el resultado · ${fmt(f.chat_errores)} errores · ${fmt(f.whatsapp_total)} clics en WhatsApp (si el chat falla).` : '', [
+    ['Abren el chat', f.chat_abren],
+    ['Aceptan la tarjeta', f.chat_aceptan],
+    ['Hacen al menos una pregunta', f.chat_preguntan],
+    ['Comparten sus preguntas', f.chat_comparten],
+  ], f.chat_abren, 'quienes abren el chat', v2 ? null : 'Corre supabase/023_panel_v2.sql para ver el chat con IA.');
+  renderSplit($('splitResearch'), 'Permiso de investigación', 'Respuesta a "¿Me ayudas a mejorar Mindi?", después del resultado.', [
+    ['Sí, compartir', f.investigacion_si, 'var(--div-pos)'],
+    ['No, gracias', f.investigacion_no, 'var(--div-neg)'],
+  ], v2 ? null : 'Corre supabase/023_panel_v2.sql para ver este desglose.');
 
-  renderSplit($('splitSat'), 'Satisfacción', 'Qué tan útil les pareció la conversación.', [
+  renderSplit($('splitSat'), '¿Te sirvió este resultado?', `Satisfacción, antes del reporte.${v2 && f.ven_resultado ? ` Responden ${pctTxt(pct((f.satisfaccion_alta || 0) + (f.satisfaccion_neutra || 0) + (f.satisfaccion_baja || 0), f.ven_resultado))} de quienes ven su resultado.` : ''}`, [
     ['Alta', f.satisfaccion_alta, 'var(--div-pos)'],
     ['Neutra', f.satisfaccion_neutra, 'var(--div-mid)'],
     ['Baja', f.satisfaccion_baja, 'var(--div-neg)'],
+    ...(v2 ? [['Prefiero no responder', f.satisfaccion_omitida, 'var(--cat-5, #9a8a95)']] : []),
   ]);
 
   const noSessions = filtered ? null : 'Corre supabase/009_panel_stats.sql para ver este desglose.';
@@ -350,6 +390,22 @@ function renderSplit(el, title, note, parts, missing){
     <div class="stack${total ? '' : ' empty'}" aria-hidden="true">${segs}</div>
     <ul class="legend">${legend}</ul>
     ${missing ? `<p class="split-empty">${missing}</p>` : (!total ? '<p class="split-empty">Todavía no hay respuestas.</p>' : '')}`;
+}
+
+/* Cifras que NO son partes de un todo (pasos o acciones que se suman): cada fila con su barra y su % sobre
+   una base (quienes abren el chat, quienes ven el reporte), sin barra apilada. */
+function renderRel(el, title, note, rows, base, baseLabel, missing){
+  const b = base || 0;
+  const items = rows.map(([label, n]) => `<li class="rel-row">
+      <span class="rel-label">${label}</span>
+      <span class="rel-track"><span class="rel-bar" style="width:${b ? Math.max(n ? 2 : 0, Math.round((n || 0) / b * 100)) : 0}%"></span></span>
+      <span class="n">${n == null ? '—' : fmt(n)}</span>
+      <span class="pct">${b && n != null ? pctTxt(pct(n, b)) : '—'}</span>
+    </li>`).join('');
+  el.innerHTML = `<h2>${title}</h2><p class="block-note">${note}</p>
+    <ul class="legend rel">${items}</ul>
+    <p class="block-note rel-base">% sobre ${baseLabel} (${b ? fmt(b) : '—'}).</p>
+    ${missing ? `<p class="split-empty">${missing}</p>` : (!b ? '<p class="split-empty">Todavía no hay datos en este periodo.</p>' : '')}`;
 }
 
 /* Tooltip: un solo elemento flotante, alimentado por data-tip */
