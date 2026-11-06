@@ -11,7 +11,7 @@ import { prioritizedSelfCare, SELF_CARE_SOURCE } from '../supabase/functions/_sh
 import { whyNotes, WHY_TITLE } from '../supabase/functions/_shared/notas.js';
 import { stageFilter, STAGE_EXIT } from './etapa.js';
 import { whatsappUrl, WHATSAPP_TEXT, channelUrl } from './whatsapp.js';
-import { createAgentClient, agentHtml, AI_NOTICE, AI_LINE, chatGreeting, chatTopic, ERROR_TEXT, LIMIT_TEXT, SHARE_QUESTIONS_VERSION } from './agente.js';
+import { createAgentClient, agentHtml, chatGreeting, chatTopic, ERROR_TEXT, LIMIT_TEXT, SHARE_QUESTIONS_VERSION } from './agente.js';
 import { glossaryMore } from './glosario.js';
 import { initLanding } from './landing.js';
 import { mountTurnstile } from './turnstile.js';
@@ -1539,7 +1539,7 @@ function flushPending(version){
   return api('agent', {action:'share', preguntas, consent_text_version:version, is_test:TEST_MODE});
 }
 function shareLabel(){ return chatShareOn ? `✓ Compartes tus preguntas · <button type="button" class="link-btn share-toggle" data-share-toggle>${SHARE_STOP_LABEL}</button>`
-  : `Si quieres, puedo guardar tus preguntas sin tus datos para mejorar Mindi: <button type="button" class="link-btn share-toggle" data-share-toggle>${SHARE_START_LABEL}</button>`; }
+  : `No compartes tus preguntas · <button type="button" class="link-btn share-toggle" data-share-toggle>${SHARE_START_LABEL}</button>`; }
 function syncShareLine(){ document.querySelectorAll('.share-line').forEach(el=>{ el.innerHTML = shareLabel(); }); }
 document.addEventListener('click', (e)=>{
   const b = e.target.closest && e.target.closest('[data-share-toggle]');
@@ -1594,21 +1594,38 @@ function openAiChat(){
   const nivel = chatResult ? (chatResult.senal_alerta ? 'alert' : mrsLevel(chatResult)) : null;
   const ctx = {...(nivel ? {nivel} : {}), desde_tema: !!topic, is_test: TEST_MODE};
   agentClient.setContext(ctx);
-  // Saludo; debajo, una línea cálida con "Más información" (el aviso completo, con OpenAI y el 106).
-  // Enviar la primera pregunta o tocar una sugerencia es la aceptación (agent_consent).
+  // Saludo (con el 106 si es emergencia); debajo, la tarjeta "Antes de empezar" al estilo de los chats de
+  // servicio: política, términos y, si no aceptó en el resultado, compartir sus preguntas. Dos botones: el de
+  // compartir destacado y "Aceptar sin compartir" (el chat no depende de compartir: consentimiento libre).
   chatShareCtx = ctx;
   if(CHAT_RESEARCH_ENABLED && storedShare()){ setChatShare(true, RESEARCH_VERSION); chatShareAsked = true; } // aceptó en el resultado
   const greeting = chatGreeting(chatResult, storedAlertType(), topic);
   botSay([greeting.text]).then(()=>{
+    const askShare = CHAT_RESEARCH_ENABLED && !chatShareOn;
     const row = document.createElement('div');
-    row.className = 'row bot ai-notice-row';
-    row.innerHTML = `<div class="ai-notice"><p>${AI_LINE}</p>` +
-      (CHAT_RESEARCH_ENABLED ? `<p class="share-line">${shareLabel()}</p>` : '') +
-      `<details class="ai-more"><summary>Más información</summary><p>${AI_NOTICE} <a href="/privacidad" target="_blank" rel="noopener">Política de privacidad</a>.</p>` +
-      `</details></div>`;
+    row.className = 'row bot';
+    row.innerHTML = `<div class="consent-card"><p class="consent-h">Antes de empezar, revisa esta información:</p>` +
+      `<p><strong>Política de privacidad</strong><br>Autorizo que Mindi procese mis mensajes con inteligencia artificial (OpenAI) para responderme. Mindi me orienta, pero no reemplaza a mi médico. <a href="/privacidad" target="_blank" rel="noopener">Leer la política</a></p>` +
+      `<p><strong>Términos y condiciones</strong><br>Estoy de acuerdo con los Términos y condiciones que regulan el uso de Mindi. <a href="/terminos" target="_blank" rel="noopener">Leer los términos</a></p>` +
+      (askShare ? `<p><strong>Para mejorar Mindi</strong><br>Si eliges compartir, guardamos tus preguntas sin tus datos de contacto ni nada que te vincule contigo, para entender mejor qué necesitan otras mujeres.</p>` : '') +
+      (CHAT_RESEARCH_ENABLED && chatShareOn ? `<p class="consent-ok">✓ Ya aceptaste compartir tus respuestas en tu resultado.</p>` : '') +
+      `<p class="consent-foot">Si es una emergencia, llama al 106.</p></div>`;
     chat.appendChild(row);
-    chatSuggestions = greeting.suggestions;
-    renderQuestionInput();
+    const opts = askShare
+      ? [{label:'Aceptar y compartir mis preguntas', primary:true, value:'si'}, {label:'Aceptar sin compartir', value:'no'}]
+      : [{label:'Aceptar', primary:true, value:'ok'}];
+    renderChips(opts, (v)=>{
+      acceptChat();
+      chatShareAsked = true; // ya decidió: no se le vuelve a preguntar
+      if(askShare){ setChatShare(v === 'si', v === 'si' ? SHARE_QUESTIONS_VERSION : null); track('chat_share', {captured: v === 'si', desde:'inicio_chat'}); }
+      if(CHAT_RESEARCH_ENABLED){
+        const st = document.createElement('div');
+        st.className = 'row bot'; st.innerHTML = `<p class="share-line consent-status">${shareLabel()}</p>`;
+        chat.appendChild(st);
+      }
+      chatSuggestions = greeting.suggestions;
+      renderQuestionInput();
+    });
   });
 }
 let chatSuggestions = [];
@@ -1686,8 +1703,6 @@ async function askAgent(text, {echo = true} = {}){
     agentAnswered = true;
     hideTyping();
     addAgentBubble(reply.text);
-    if(CHAT_RESEARCH_ENABLED && !chatShareOn) chatPending.push(text.slice(0, 1000));
-    armIdleAsk();
     track('agent_message', {source:chatSource, area:reply.area || 'otro'});
     if(reply.action === 'recommend_test') recommendTest();
   }catch(e){

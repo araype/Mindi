@@ -80,3 +80,9 @@ test('permiso de investigación: una vez tras el resultado, sin casillas en la b
   assert.match(main, /if\(!CHAT_RESEARCH_ENABLED \|\| chatShareOn \|\| chatShareAsked \|\| !chatPending\.length\) return Promise\.resolve\(\);/);
   assert.match(main, /idleT = setTimeout\(askShareAtEnd, 120000\)/);
 });
+
+test('chat: "Antes de empezar" con aceptación explícita; compartir es opcional (dos botones)', () => {
+  assert.match(main, /label:'Aceptar y compartir mis preguntas', primary:true, value:'si'\}, \{label:'Aceptar sin compartir', value:'no'\}/);
+  assert.match(main, /Si es una emergencia, llama al 106\./);
+  assert.match(main, /renderChips\(opts, \(v\)=>\{\n\s+acceptChat\(\);/);
+});

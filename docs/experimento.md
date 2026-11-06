@@ -79,3 +79,10 @@ Cada evento de `events` lleva `props.flujo` desde cierre-v2. Los eventos sin `fl
   mejorar Mindi: Compartir mis preguntas". Al tocar "Salir" o tras 2 min sin escribir, una sola pregunta: "Antes de
   irte…". Si acepta, se guardan las preguntas de esa conversación (versión `chat-fin-v1` al final, `chat-v1` con el
   enlace). `chat_share` lleva `desde: final`. **La tasa de preguntas compartidas no es comparable con la anterior.**
+
+## Chat: "Antes de empezar" con dos botones (5 nov. 2026, noche)
+
+- Tras el saludo, una tarjeta con Política de privacidad, Términos y "Para mejorar Mindi", y dos botones:
+  "Aceptar y compartir mis preguntas" (destacado) y "Aceptar sin compartir". Quien ya aceptó en el resultado ve solo
+  "Aceptar". `agent_consent` = al tocar Aceptar (ya no con la primera pregunta). `chat_share` lleva `desde: inicio_chat`.
+  Sin la pregunta al salir. **Las tasas de aceptación y de preguntas compartidas no son comparables con las anteriores.**
