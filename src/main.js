@@ -1526,10 +1526,24 @@ function newConvId(){
   const h = [...b].map(x=> x.toString(16).padStart(2,'0')).join('');
   return `${h.slice(0,8)}-${h.slice(8,12)}-${h.slice(12,16)}-${h.slice(16,20)}-${h.slice(20)}`;
 }
+/* Recurrencia (Experimento 2 · PC4, chat-v4): código al azar de la usuaria, creado SOLO cuando acepta
+   guardar su conversación, y guardado en este navegador para unir sus próximas conversaciones guardadas.
+   Si el navegador no deja guardarlo, vale solo para esta conversación (cuenta como usuaria nueva). */
+const USER_CODE_STORE = 'mindi_usuaria';
+let chatUserCode = null;
+function userCode(){
+  if(chatUserCode) return chatUserCode;
+  try{ const s = localStorage.getItem(USER_CODE_STORE); if(/^u-[0-9a-z]{16}$/.test(s || '')) return (chatUserCode = s); }catch{}
+  const b = crypto.getRandomValues(new Uint8Array(16));
+  chatUserCode = 'u-' + [...b].map(x=> '0123456789abcdefghijklmnopqrstuvwxyz'[x % 36]).join('');
+  try{ localStorage.setItem(USER_CODE_STORE, chatUserCode); }catch{}
+  return chatUserCode;
+}
 function setChatShare(on, version){
   chatShareOn = !!on;
   if(version) chatShareVersion = version;
-  agentClient.setContext(chatShareOn ? {...chatShareCtx, compartir:true, consent_text_version:chatShareVersion, ...(chatConvId ? {conversacion:chatConvId} : {})} : {...chatShareCtx});
+  const conv = chatShareOn && chatShareVersion === SHARE_ACCEPT_VERSION ? {conversacion:chatConvId, usuaria:userCode()} : {};
+  agentClient.setContext(chatShareOn ? {...chatShareCtx, compartir:true, consent_text_version:chatShareVersion, ...conv} : {...chatShareCtx});
   document.querySelectorAll('[data-share-toggle]').forEach(b=>{ b.textContent = chatShareOn ? SHARE_STOP_LABEL : SHARE_START_LABEL; });
 }
 /* Compartir las preguntas sin cortar la conversación (5 nov. 2026):
@@ -1652,7 +1666,7 @@ function openAiChat(){
   });
 }
 const CONSENT_LEAD = 'Para poder ayudarte, revisa esta información por favor 👇';
-const SHARE_ACCEPT_VERSION = 'chat-v3'; // tarjeta de un botón: guarda la conversación (preguntas y respuestas), 026
+const SHARE_ACCEPT_VERSION = 'chat-v4'; // tarjeta de un botón: guarda la conversación (026) con el código de usuaria (027)
 let chatSuggestions = [], chatSuggestFrom = 'landing';
 function acceptChat(){
   if(chatAccepted) return;

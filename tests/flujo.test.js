@@ -86,7 +86,10 @@ test('chat: tarjeta de un botón (Aceptar) y la opción "Prefiero no compartir e
   assert.match(main, /data-accept="sin">Prefiero no compartir esta conversación<\/button>/);
   assert.match(main, /me responda con IA \(OpenAI\)` \+\n\s+\(share \? ` y guarde esta conversación, sin mis datos de contacto`/);
   assert.match(main, /botSay\(\[greeting\.text, CONSENT_LEAD\]\)/);
-  assert.match(main, /const SHARE_ACCEPT_VERSION = 'chat-v3';/);
+  assert.match(main, /const SHARE_ACCEPT_VERSION = 'chat-v4';/);
+  // El código de usuaria (recurrencia) solo existe si comparte con el texto de la tarjeta.
+  assert.match(main, /const conv = chatShareOn && chatShareVersion === SHARE_ACCEPT_VERSION \? \{conversacion:chatConvId, usuaria:userCode\(\)\} : \{\};/);
+  assert.match(main, /try\{ localStorage\.setItem\(USER_CODE_STORE, chatUserCode\); \}catch\{\}/);
   assert.match(main, /if\(share\) setChatShare\(!sin, sin \? null : SHARE_ACCEPT_VERSION\);/);
   assert.match(main, /const sin = btn\.dataset\.accept === 'sin';\n\s+acceptChat\(\);/);
 });

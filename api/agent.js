@@ -16,8 +16,11 @@ import { redact } from './_lib/redactar.js';
    con la casilla marcada y CHAT_RESEARCH_ENABLED=true (apagado hasta aprobar la política). */
 const LEVELS = ['A', 'B', 'C', 'alert'];
 /* Conversación completa (026): solo con el texto de la tarjeta que dice "guarde esta conversación". */
-const CONVERSATION_VERSIONS = new Set(['chat-v3']);
+const CONVERSATION_VERSIONS = new Set(['chat-v3', 'chat-v4']);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+/* Recurrencia (027): código de usuaria del navegador, solo con chat-v4 (la política que lo explica). */
+const USER_CODE = /^u-[0-9a-z]{16}$/;
+const USER_CODE_VERSIONS = new Set(['chat-v4']);
 export async function saveChatData(body, out, text) {
   if (!supabaseOn() || !out) return;
   const is_test = body.is_test === true;
@@ -34,7 +37,8 @@ export async function saveChatData(body, out, text) {
       const conversacion = typeof body.conversacion === 'string' ? body.conversacion.toLowerCase() : '';
       if (CONVERSATION_VERSIONS.has(version) && UUID.test(conversacion)) {
         const respuesta = redact(out.text || '', 4000);
-        const base = { conversacion, tema, consent_text_version: version, is_test };
+        const usuaria = USER_CODE_VERSIONS.has(version) && typeof body.usuaria === 'string' && USER_CODE.test(body.usuaria) ? body.usuaria : null;
+        const base = { conversacion, tema, consent_text_version: version, is_test, ...(usuaria ? { usuaria } : {}) };
         if (pregunta) await insert('chat_messages_research', { ...base, rol: 'usuaria', texto: pregunta });
         if (respuesta) await insert('chat_messages_research', { ...base, rol: 'mindi', texto: respuesta });
       }

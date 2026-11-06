@@ -74,7 +74,8 @@ Deno.serve(async (req) => {
     if (error) return json({ ok: true, temas: null, missing: '022_chat_temas.sql', generated_at });
     // Preguntas que las usuarias aceptaron compartir (023): fecha, tema y texto ya filtrado. Sin sesión.
     const q = await supabase.rpc('chat_questions_list', { p_since: since, p_include_test: includeTest, p_limit: 300 });
-    return json({ ok: true, temas: data ?? [], preguntas: q.error ? null : (q.data ?? []), generated_at });
+    const rec = await supabase.rpc('chat_recurrence_stats', { p_since: since, p_until: until, p_include_test: includeTest }); // 027
+    return json({ ok: true, temas: data ?? [], preguntas: q.error ? null : (q.data ?? []), recurrencia: rec.error ? null : (rec.data ?? {}), generated_at });
   }
 
   // Pestaña "Conversatorio": función event_stats (supabase/011_event_stats.sql).

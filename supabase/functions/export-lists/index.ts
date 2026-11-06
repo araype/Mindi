@@ -10,6 +10,7 @@
 // lista aparte, no mezclada con las listas de espera. "preguntas" es el nivel 2 del chat (si está activo).
 // "conversaciones" / "conversaciones-txt" (026): las conversaciones que aceptaron compartir (chat-v3),
 // numeradas 1, 2, 3… en vez del identificador al azar. El .txt va en bloques, como un registro de chat.
+// Desde 027, con el código de usuaria (u-…) si lo tiene: une sus conversaciones en el mismo navegador.
 
 import { createClient } from 'npm:@supabase/supabase-js@2.45.4';
 import { serverKey } from '../_shared/clave.js';
@@ -55,28 +56,28 @@ const fechaLarga = (d: string) => { const [y, m, dd] = d.split('-').map(Number);
   return `${dd} ${['ene.', 'feb.', 'mar.', 'abr.', 'may.', 'jun.', 'jul.', 'ago.', 'sep.', 'oct.', 'nov.', 'dic.'][m - 1]} ${y}`; };
 
 async function exportConversations(txt: boolean, includeTest: boolean): Promise<Response> {
-  let q = supabase.from('chat_messages_research').select('id,fecha,conversacion,rol,texto,tema,is_test').order('id', { ascending: true }).limit(20000);
+  let q = supabase.from('chat_messages_research').select('id,fecha,conversacion,usuaria,rol,texto,tema,is_test').order('id', { ascending: true }).limit(20000);
   if (!includeTest) q = q.eq('is_test', false);
   const { data, error } = await q;
   if (error) { console.error('export-lists conversaciones', (error as any).code || ''); return json({ error: 'read_failed' }, 500); }
   // Agrupa por conversación, en el orden en que empezó cada una.
-  const convs = new Map<string, { n: number; fecha: string; temas: Set<string>; prueba: boolean; msgs: { rol: string; texto: string; tema: string | null }[] }>();
+  const convs = new Map<string, { n: number; fecha: string; usuaria: string; temas: Set<string>; prueba: boolean; msgs: { rol: string; texto: string; tema: string | null }[] }>();
   for (const r of (data || []) as any[]) {
     let c = convs.get(r.conversacion);
-    if (!c) { c = { n: convs.size + 1, fecha: r.fecha, temas: new Set(), prueba: r.is_test, msgs: [] }; convs.set(r.conversacion, c); }
+    if (!c) { c = { n: convs.size + 1, fecha: r.fecha, usuaria: r.usuaria || '', temas: new Set(), prueba: r.is_test, msgs: [] }; convs.set(r.conversacion, c); }
     if (r.tema) c.temas.add(TEMA[r.tema] || r.tema);
     c.msgs.push({ rol: r.rol, texto: r.texto, tema: r.tema });
   }
   let body: string, type: string;
   if (txt) {
     const blocks = [...convs.values()].map((c) => {
-      const head = `— Conversación ${c.n} · ${fechaLarga(c.fecha)}` + (c.temas.size ? ` · tema: ${[...c.temas].join(', ')}` : '') + (c.prueba ? ' · prueba' : '');
+      const head = `— Conversación ${c.n} · ${fechaLarga(c.fecha)}` + (c.usuaria ? ` · usuaria ${c.usuaria}` : '') + (c.temas.size ? ` · tema: ${[...c.temas].join(', ')}` : '') + (c.prueba ? ' · prueba' : '');
       return [head, ...c.msgs.map((m) => `[${m.rol === 'mindi' ? 'Mindi' : 'Usuaria'}] ${m.texto}`)].join('\r\n\r\n');
     });
     body = blocks.join('\r\n\r\n\r\n') + '\r\n'; type = 'text/plain';
   } else {
-    const lines = [['conversacion', 'fecha', 'orden', 'rol', 'tema', 'texto', 'prueba'].map(cell).join(',')];
-    for (const c of convs.values()) c.msgs.forEach((m, i) => lines.push([c.n, c.fecha, i + 1, m.rol, m.tema ? TEMA[m.tema] || m.tema : '', m.texto, c.prueba].map(cell).join(',')));
+    const lines = [['conversacion', 'usuaria', 'fecha', 'orden', 'rol', 'tema', 'texto', 'prueba'].map(cell).join(',')];
+    for (const c of convs.values()) c.msgs.forEach((m, i) => lines.push([c.n, c.usuaria, c.fecha, i + 1, m.rol, m.tema ? TEMA[m.tema] || m.tema : '', m.texto, c.prueba].map(cell).join(',')));
     body = lines.join('\r\n'); type = 'text/csv';
   }
   console.log('export-lists conversaciones', convs.size, 'conversaciones'); // solo cuántas, nunca el texto

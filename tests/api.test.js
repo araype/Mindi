@@ -253,6 +253,13 @@ test('chat-v3: guarda la pregunta y la respuesta de Mindi unidas por la conversa
     assert.ok(!rows.some(([t]) => t === 'chat_messages_research'));
     await saveChatData({ compartir: false, consent_text_version: 'chat-v3', conversacion: conv }, out, 'otra');
     assert.ok(!rows.some(([t]) => t === 'chat_messages_research'));
+    // Recurrencia (027): el código de usuaria solo con chat-v4 y con el formato u- + 16.
+    const code = 'u-0a1b2c3d4e5f6g7h';
+    const usuarias = async (version, usuaria) => { rows.length = 0; await saveChatData({ compartir: true, consent_text_version: version, conversacion: conv, usuaria }, out, 'otra');
+      return rows.filter(([t]) => t === 'chat_messages_research').map(([, r]) => r.usuaria); };
+    assert.deepEqual(await usuarias('chat-v4', code), [code, code]);
+    assert.deepEqual(await usuarias('chat-v3', code), [undefined, undefined]);
+    assert.deepEqual(await usuarias('chat-v4', 'u-ana@correo.com'), [undefined, undefined]);
   } finally {
     globalThis.fetch = real;
     delete process.env.SUPABASE_URL; delete process.env.SUPABASE_KEY; delete process.env.CHAT_RESEARCH_ENABLED;

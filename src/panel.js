@@ -132,7 +132,8 @@ async function load(){
       syncFilterUI(true);
       const exp1 = filters.period === 'exp1';
       $('iaExp1').hidden = !exp1;
-      $('convBlock').hidden = exp1; $('splitWhatsapp').hidden = exp1;
+      $('convBlock').hidden = exp1; $('splitWhatsapp').hidden = exp1; $('recBlock').hidden = exp1;
+      if(!exp1) renderRec(res.recurrencia);
       if(extra && extra.ok && !exp1){ renderConv(extra.conversaciones); renderChatIA(extra.funnel || {}); }
       renderTemas(res.temas, res.generated_at, res.missing, res.preguntas);
     } else if(tab === 'eventos'){
@@ -442,6 +443,23 @@ function renderConv(c){
     ['Abren el chat', c.conv_abren], ['Aceptan la tarjeta', c.conv_aceptan], ['Hacen 2 preguntas o más', c.conv_dos_preguntas], ['Exitosas', c.conv_exitosas],
   ], ab, 'quienes abren el chat');
   $('convSteps').querySelector('h2')?.remove(); $('convSteps').querySelector('.block-note:not(.rel-base)')?.remove();
+}
+
+/* Recurrencia (Experimento 2 · PC4, 027): solo quienes aceptaron guardar su conversación tienen código. */
+function renderRec(r){
+  const el = $('recBlock');
+  const head = '<h2>Recurrencia</h2>';
+  if(r == null){ el.innerHTML = head + '<p class="split-empty">Corre <code>supabase/027_recurrencia.sql</code> en Supabase para ver esta tarjeta.</p>'; return; }
+  const base = r.usuarias_7d || 0;
+  const avg = r.mensajes_promedio == null ? '—' : String(r.mensajes_promedio).replace('.', ',');
+  el.innerHTML = head + `
+    <p class="block-note">Solo quienes aceptaron guardar su conversación (desde que existe el código). Una usuaria = un navegador: si borra sus datos o cambia de equipo, cuenta como nueva. El periodo se cuenta por el día de su primera conversación; no se filtra por origen.</p>
+    <div class="conv-hero"><span class="conv-big">${base ? pctTxt(pct(r.vuelven_7d, base)) : '—'}</span><span class="conv-sub">vuelven a preguntar en otro día dentro de 7 días desde su primera conversación (${fmt(r.vuelven_7d)} de ${fmt(base)})</span></div>
+    <dl class="conv-kpis">
+      <div><dt>Usuarias con código</dt><dd>${fmt(r.usuarias)}</dd><span>${fmt(base)} ya cumplieron 7 días</span></div>
+      <div><dt>Mensajes por conversación</dt><dd>${avg}</dd><span>promedio de preguntas de la usuaria · ${fmt(r.conversaciones)} conversaciones</span></div>
+    </dl>
+    ${!r.usuarias ? '<p class="split-empty">Todavía no hay datos en este periodo.</p>' : ''}`;
 }
 
 /* Cifras que NO son partes de un todo (pasos o acciones que se suman): cada fila con su barra y su % sobre

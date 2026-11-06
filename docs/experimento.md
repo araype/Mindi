@@ -112,3 +112,15 @@ Cada evento de `events` lleva `props.flujo` desde cierre-v2. Los eventos sin `fl
 - Cambio respecto de `chat-v2`: "Prefiero no compartir" aparece también para quien aceptó el permiso del resultado,
   y lo apaga para el chat. Las preguntas sueltas siguen en `chat_questions_research` (pestaña Chat con IA).
 - Lo guardado antes (chat-v1/v2, resultado-v1) son solo preguntas sueltas: no se convierte en conversaciones.
+
+## Experimento 2 · PC4: recurrencia en el chat (6 nov. 2026)
+
+- Al tocar Aceptar (compartiendo), el navegador crea un código al azar `u-` + 16 caracteres y lo guarda en
+  localStorage (`mindi_usuaria`). Va en cada mensaje guardado (`chat_messages_research.usuaria`, `027_recurrencia.sql`).
+  Con "Prefiero no compartir" no se crea. Borrar datos o cambiar de equipo = usuaria nueva. Versión `chat-v4`
+  (misma tarjeta; la política explica el código).
+- `fecha` pasa a ser el día en Lima (antes UTC) para contar días distintos.
+- Panel → Chat con IA → "Recurrencia": usuarias con código; % que pregunta en 2 días distintos o más entre su primer
+  día y los 6 siguientes (solo usuarias cuyo primer día fue hace 7 días o más); preguntas promedio por conversación.
+  El periodo se cuenta por el día de la primera conversación. No se filtra por origen.
+- Export de conversaciones: columna `usuaria` (CSV) y "· usuaria u-…" en el texto.
