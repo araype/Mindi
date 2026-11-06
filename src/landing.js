@@ -249,7 +249,7 @@ export function initLanding({ track, api, mountTurnstile, backendOn, consentVers
     let ticking = false;
     const onScroll = () => {
       if (ticking) return; ticking = true;
-      requestAnimationFrame(() => { storyFrame(); if (!isMobile()) howFrame(); navMode(); ticking = false; });
+      requestAnimationFrame(() => { storyFrame(); if (isMobile()) howFrameMobile(); else howFrame(); navMode(); ticking = false; });
     };
     window.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', onScroll);
@@ -291,50 +291,51 @@ export function initLanding({ track, api, mountTurnstile, backendOn, consentVers
   const howGrid = how.querySelector('.l-how-grid');
   const howNav = document.createElement('div');
   howNav.className = 'l-how-nav';
-  howNav.innerHTML = '<button type="button" class="l-how-arrow" data-dir="-1" aria-label="Paso anterior">‹</button>' +
-    '<div class="l-how-dots">' + [...steps].map((_, k) => `<button type="button" data-go="${k}" aria-label="Paso ${k + 1} de ${steps.length}"></button>`).join('') + '</div>' +
-    '<button type="button" class="l-how-arrow" data-dir="1" aria-label="Paso siguiente">›</button>';
+  howNav.innerHTML = '<div class="l-how-dots">' + [...steps].map((_, k) => `<button type="button" data-go="${k}" aria-label="Paso ${k + 1} de ${steps.length}"></button>`).join('') + '</div>';
   const howCount = document.createElement('p');
   howCount.className = 'l-how-count'; howCount.setAttribute('aria-live', 'polite');
   howGrid.querySelector('.m-steps').before(howCount);
   howGrid.after(howNav);
-  let autoT = null, touched = false, howVisible = false;
-  function goStep(i, byUser) {
+  /* Móvil: el paso depende de la posición del scroll (cada paso tiene su tramo), pero el celular avanza de a uno
+     y cada paso se queda al menos 450 ms: con un "flick" fuerte igual se ve el paso 2 antes del 3. */
+  const STEP_DWELL = reduce ? 0 : 450;
+  let lastChange = 0, catchUp = null, howTarget = 0;
+  function goStep(i) {
     const n = steps.length; i = Math.max(0, Math.min(n - 1, i));
-    if (byUser) { touched = true; stopAuto(); }
     curStep = -1; setStep(i);
     howCount.textContent = `Paso ${i + 1} de ${n}`;
     howNav.querySelectorAll('[data-go]').forEach((d, k) => { if (k === i) d.setAttribute('aria-current', 'step'); else d.removeAttribute('aria-current'); });
-    howNav.querySelector('[data-dir="-1"]').disabled = i === 0;
-    howNav.querySelector('[data-dir="1"]').disabled = i === n - 1;
   }
-  function stopAuto() { clearInterval(autoT); autoT = null; }
-  function startAuto() {
-    if (reduce || touched || autoT || !isMobile()) return;
-    autoT = setInterval(() => { if (!howVisible) return; goStep(curStep >= steps.length - 1 ? 0 : curStep + 1, false); }, 4000);
+  function shownStep() { return [...steps].findIndex((x) => x.classList.contains('is-active')); }
+  function stepToward() {
+    catchUp = null;
+    const cur = shownStep();
+    if (cur === howTarget) return;
+    const wait = STEP_DWELL - (performance.now() - lastChange);
+    if (wait > 0) { catchUp = setTimeout(stepToward, wait); return; }
+    goStep(cur + (howTarget > cur ? 1 : -1));
+    lastChange = performance.now();
+    if (shownStep() !== howTarget) catchUp = setTimeout(stepToward, STEP_DWELL);
   }
+  function howFrameMobile() {
+    const r = how.getBoundingClientRect();
+    const p = clamp(-r.top / Math.max(1, how.offsetHeight - window.innerHeight), 0, 1);
+    howTarget = p < 1 / 3 ? 0 : p < 2 / 3 ? 1 : 2;
+    if (!catchUp) stepToward();
+  }
+  // Los puntos indican el paso; tocarlos lleva (con scroll) al tramo de ese paso.
   howNav.addEventListener('click', (e) => {
-    const b = e.target.closest('button'); if (!b) return;
-    if (b.dataset.go) goStep(+b.dataset.go, true); else goStep(curStep + (+b.dataset.dir), true);
+    const b = e.target.closest('[data-go]'); if (!b) return;
+    const range = how.offsetHeight - window.innerHeight;
+    window.scrollTo({ top: how.offsetTop + range * ((+b.dataset.go + 0.5) / steps.length), behavior: reduce ? 'auto' : 'smooth' });
   });
-  // Deslizar a los lados sobre el celular o el texto (el scroll vertical sigue siendo el del teléfono).
-  let sx = null, sy = null;
-  howGrid.addEventListener('touchstart', (e) => { if (!isMobile()) return; sx = e.touches[0].clientX; sy = e.touches[0].clientY; }, { passive: true });
-  howGrid.addEventListener('touchend', (e) => {
-    if (sx === null) return;
-    const dx = e.changedTouches[0].clientX - sx, dy = e.changedTouches[0].clientY - sy; sx = null;
-    if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.3) goStep(curStep + (dx < 0 ? 1 : -1), true);
-  }, { passive: true });
-  if ('IntersectionObserver' in window) {
-    new IntersectionObserver((es) => es.forEach((e) => { howVisible = e.isIntersecting; if (howVisible) startAuto(); }), { threshold: 0.5 }).observe(howGrid);
-  }
   function setupMobile() {
     placeInfo();
     if (!isMobile()) return;
     [...S.stats.children].forEach((c) => { c.style.opacity = ''; c.style.transform = ''; });
     S.sqs.forEach((x) => x.classList.remove('is-on', 'is-part'));
     S.grow.setAttribute('width', '0'); S.ring.setAttribute('stroke-dasharray', '0 94.25'); S.bar.style.width = '0%';
-    goStep(Math.max(0, curStep), false);
+    goStep(Math.max(0, curStep)); howFrameMobile();
     const cards = [document.querySelector('.l-tl'), ...S.stats.children];
     if (reduce || !('IntersectionObserver' in window)) { dataFinal(); cards.forEach((el) => el.classList.add('is-in')); return; }
     cards.forEach((el) => el.classList.add('m-rv'));

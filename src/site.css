@@ -349,18 +349,16 @@ body:not(.app-view) #conversar{display:none}
   .l-info-m .l-info{position:relative;opacity:1;transform:none;pointer-events:auto;padding-block:56px 56px}
   .l-info-m .l-info p{display:block}.l-info-m .l-info .m-eyebrow{display:inline-flex}
   .l-info-right{gap:12px}
-  /* ¿Cómo funciona? */
-  .l-how{height:auto}
-  .l-how-stage{position:relative;height:auto;padding-block:72px 48px}
-  .l-how .m-phone{width:min(220px,58vw);max-height:none}
-  .l-phone-wrap{touch-action:pan-y;cursor:grab}
-  .l-how .m-steps{min-height:170px}
-  .l-how .m-step{text-align:center}
+  /* ¿Cómo funciona?: celular fijo; cada paso ocupa ~70svh de scroll y avanza de a uno (landing.js) */
+  .l-how{height:310vh;height:310svh}
+  .l-how-stage{position:sticky;top:0;height:100vh;height:100svh;padding-block:64px 18px;justify-content:center}
+  .l-how .m-phone{width:min(190px,50vw);max-height:none}
+  .l-how .m-steps{min-height:150px}
+  .l-how .m-step{text-align:center;padding-left:0}
+  .l-how .m-step::before,.l-how .m-step::after{display:none}
   .l-how .m-step .m-step__n{display:none}
-  .l-how-nav{display:flex;align-items:center;justify-content:center;gap:14px;margin-top:6px}
-  .l-how-nav button{border:0;background:none;padding:0;cursor:pointer;color:var(--plum)}
-  .l-how-arrow{width:44px;height:44px;border-radius:50%;border:1.5px solid var(--line)!important;font-size:20px;line-height:1;display:grid;place-items:center;background:#fff!important}
-  .l-how-arrow:disabled{opacity:.35;cursor:default}
+  .l-how-nav{display:flex;align-items:center;justify-content:center;margin-top:4px}
+  .l-how-nav button{border:0;background:none;padding:0;cursor:pointer}
   .l-how-dots{display:flex;gap:8px}
   .l-how-dots button{width:10px;height:10px;border-radius:50%;background:var(--line-soft)!important;transition:width .25s ease,background-color .25s ease}
   .l-how-dots button[aria-current="step"]{width:26px;border-radius:6px;background:var(--magenta-btn)!important}
@@ -373,5 +371,6 @@ body:not(.app-view) #conversar{display:none}
 }
 @media (max-width:767px) and (prefers-reduced-motion:reduce){
   .l-story{height:auto}
+  .l-how{height:auto}.l-how-stage{position:relative;height:auto;padding-block:64px}
   .js-rv .m-rv{opacity:1;transform:none;transition:none}
 }
