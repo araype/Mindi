@@ -27,10 +27,17 @@ const filters = (()=>{
 function saveFilters(){ try { localStorage.setItem(FILTER_STORE, JSON.stringify(filters)); } catch {} }
 
 const ORIGIN_LABEL = {all:'', tiktok:' · solo TikTok', facebook:' · solo Facebook', none:' · solo sin origen'};
-const PERIOD_LABEL = {today:'hoy', '7d':'últimos 7 días', '30d':'últimos 30 días', all:'desde el inicio'};
+/* Periodos por experimento (6 nov. 2026). EXP1: fechas PROVISIONALES hasta que Aracely confirme las del
+   primer y último evento (consulta en el resumen del 6 nov.); se cambian solo aquí. */
+const EXP1 = { start: null, end: '2026-09-30T00:00:00-05:00', label: 'Experimento 1 (hasta el 29 sep. 2026)' };
+const EXP2 = { start: '2026-11-05T00:00:00-05:00', label: 'Experimento 2 · Lanzamiento (desde el 5 nov. 2026)' };
+const PERIOD_LABEL = {today:'hoy', '7d':'últimos 7 días', '30d':'últimos 30 días', all:'desde el inicio', exp1: EXP1.label, exp2: EXP2.label};
+function untilFor(period){ return period === 'exp1' ? EXP1.end : null; }
 // Días en hora de Lima (UTC-5, sin horario de verano): "Hoy" empieza a las 00:00 de Lima.
 function sinceFor(period){
   if(period === 'all') return null;
+  if(period === 'exp1') return EXP1.start;
+  if(period === 'exp2') return EXP2.start;
   const today = new Intl.DateTimeFormat('en-CA', {timeZone:'America/Lima'}).format(new Date()); // AAAA-MM-DD
   const start = new Date(`${today}T00:00:00-05:00`);
   const back = period === '7d' ? 6 : period === '30d' ? 29 : 0;
@@ -57,13 +64,13 @@ function syncFilterUI(enabled){
 
 /* ---------- Pestañas: el chat y el conversatorio se leen por separado ---------- */
 const TABS = ['chat', 'eventos', 'temas', 'listas'];
-const TAB_HASH = {eventos:'#conversatorio', temas:'#temas', listas:'#listas'};
+const TAB_HASH = {eventos:'#conversatorio', temas:'#chat-ia', listas:'#listas'};
 let tab = (()=>{
-  const fromHash = Object.keys(TAB_HASH).find((t)=> TAB_HASH[t] === location.hash);
+  const fromHash = Object.keys(TAB_HASH).find((t)=> TAB_HASH[t] === location.hash) || (location.hash === '#temas' ? 'temas' : null);
   if(fromHash) return fromHash;
   try { const t = localStorage.getItem(TAB_STORE); return TABS.includes(t) ? t : 'chat'; } catch { return 'chat'; }
 })();
-const TAB_TITLE = {chat:'Embudo de conversación', eventos:'Conversatorio', temas:'Temas del chat', listas:'Listas'};
+const TAB_TITLE = {chat:'Embudo del test', eventos:'Conversatorio', temas:'Chat con IA', listas:'Listas'};
 function syncTabs(){
   document.querySelectorAll('.tabs [role="tab"]').forEach((b)=>{
     const on = b.dataset.tab === tab;
@@ -105,11 +112,13 @@ async function load(){
   btn.disabled = true;
   showStatus(dash.hidden ? 'Cargando…' : '');
   try {
-    const r = await fetch('/api/stats', {
+    const ask = (view) => fetch('/api/stats', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-admin-key': key },
-      body: JSON.stringify({ since: sinceFor(filters.period), include_test: filters.includeTest, view: tab, origin: filters.origin === 'all' ? null : filters.origin }),
+      body: JSON.stringify({ since: sinceFor(filters.period), until: untilFor(filters.period), include_test: filters.includeTest, view, origin: filters.origin === 'all' ? null : filters.origin }),
     });
+    const r = await ask(tab);
+    const extra = tab === 'temas' ? await ask('chat').then((x)=> x.ok ? x.json() : null).catch(()=> null) : null;
     if(r.status === 401){ setKey(''); showStatus(''); showGate('Esa clave no coincide con ADMIN_KEY (o ADMIN_KEY aún no está configurada en Supabase).'); return; }
     const res = await r.json().catch(() => null);
     if(!r.ok || !res?.ok){ showStatus(`No se pudo leer el embudo (${res?.error || 'error ' + r.status}). Vuelve a intentarlo con "Actualizar".`); $('headActions').hidden = false; return; }
@@ -121,13 +130,17 @@ async function load(){
     syncTabs();
     if(tab === 'temas'){
       syncFilterUI(true);
+      const exp1 = filters.period === 'exp1';
+      $('iaExp1').hidden = !exp1;
+      $('convBlock').hidden = exp1; $('splitWhatsapp').hidden = exp1;
+      if(extra && extra.ok && !exp1){ renderConv(extra.conversaciones); renderChatIA(extra.funnel || {}); }
       renderTemas(res.temas, res.generated_at, res.missing, res.preguntas);
     } else if(tab === 'eventos'){
       syncFilterUI(true);
       renderEventos(res.eventos, res.generated_at, res.missing);
     } else {
       syncFilterUI(res.filters !== false);
-      render(res.funnel, res.generated_at, res.filters !== false); renderConv(res.conversaciones);
+      render(res.funnel, res.generated_at, res.filters !== false);
     }
   } catch {
     showStatus('Sin conexión con Supabase. Revisa tu internet y vuelve a intentarlo con "Actualizar".');
@@ -279,14 +292,19 @@ function render(f, at, filtered){
   $('tReportesSub').textContent = f.reportes == null ? '' : `${pctTxt(pct(f.reportes, f.visitas))} de las visitas`;
   $('tLeads').textContent = fmt(f.leads);
   $('tConvChat').textContent = pctTxt(pct(f.reportes, f.inician_chat));
-  const v2 = f.version === 2;
+  const v2 = f.version >= 2;
   $('panelV2Missing').hidden = v2 || !filtered;
   $('tConvSub').textContent = v2 && f.descargan_pdf != null ? `${fmt(f.descargan_pdf)} descargan el PDF` : '';
 
   renderFunnel(f);
 
   // Con el PDF precargado, report_sent (descarga) contaba a todas: desde 023 se usan los toques reales.
-  renderRel($('splitReport'), 'Qué hacen con su reporte', 'Una misma persona puede hacer varias cosas.', [
+  if(filters.period === 'exp1') renderSplit($('splitReport'), 'Cómo reciben el reporte', 'Experimento 1: correo, WhatsApp o descarga del PDF.', [
+    ['Correo', f.reporte_correo, 'var(--cat-1)'],
+    ['WhatsApp', f.reporte_whatsapp, 'var(--cat-2)'],
+    ['Descarga PDF', f.reporte_descarga, 'var(--cat-3)'],
+  ]);
+  else renderRel($('splitReport'), 'Qué hacen con su reporte', 'Una misma persona puede hacer varias cosas.', [
     ['Descargan el PDF', f.descargan_pdf],
     ['Piden copia por correo', f.reporte_correo],
     ['Comparten el enlace con su médico', f.enlace_medico],
@@ -295,37 +313,39 @@ function render(f, at, filtered){
   // La pregunta de precio ya no está en el chat (la oferta irá en la landing, más adelante):
   // el bloque se oculta para no contar ese paso. Los datos anteriores siguen en la base.
   const priceEl = $('splitPrice');
-  priceEl.hidden = !SHOW_PRICE;
-  if(SHOW_PRICE) renderSplit(priceEl, 'Interés en el plan a S/30', 'Respuestas a la pregunta de precio.', [
+  const showOld = SHOW_PRICE || filters.period === 'exp1';
+  priceEl.hidden = !showOld;
+  if(showOld) renderSplit(priceEl, 'Interés en el plan a S/30', 'Respuestas a la pregunta de precio.', [
     ['Sí, lo probaría', f.precio_si, 'var(--div-pos)'],
     ['Tal vez, depende', f.precio_tal_vez, 'var(--div-mid)'],
     ['No lo probaría', f.precio_no, 'var(--div-neg)'],
   ]);
 
-  // Chat con IA (cada apertura de /chat es su propia sesión de eventos). WhatsApp: solo si el chat falla.
-  renderRel($('splitWhatsapp'), 'Chat con IA', v2 ? `${fmt(f.chat_mensajes)} mensajes · ${fmt(f.chat_desde_resultado)} llegan desde el resultado · ${fmt(f.chat_errores)} errores · ${fmt(f.whatsapp_total)} clics en WhatsApp (si el chat falla).` : '', [
-    ['Abren el chat', f.chat_abren],
-    ['Aceptan la tarjeta', f.chat_aceptan],
-    ['Hacen al menos una pregunta', f.chat_preguntan],
-    ['Comparten sus preguntas', f.chat_comparten],
-  ], f.chat_abren, 'quienes abren el chat', v2 ? null : 'Corre supabase/023_panel_v2.sql para ver el chat con IA.');
-  renderSplit($('splitResearch'), 'Permiso de investigación', 'Respuesta a "¿Me ayudas a mejorar Mindi?", después del resultado.', [
+  const waOld = $('splitWaOld');
+  waOld.hidden = filters.period !== 'exp1';
+  if(!waOld.hidden) renderSplit(waOld, 'Clics en WhatsApp', 'Experimento 1: cuántas veces tocaron el botón, según desde dónde (clics, no personas).', [
+    ['Landing ("Tengo una duda")', f.whatsapp_landing, 'var(--cat-1)'],
+    ['Resultado del test', f.whatsapp_resultado, 'var(--cat-2)'],
+    ['Salida del filtro de etapa', f.whatsapp_filtro, 'var(--cat-3)'],
+  ]);
+  $('splitResearch').hidden = filters.period === 'exp1';
+  if(filters.period !== 'exp1') renderSplit($('splitResearch'), 'Permiso de investigación', 'Respuesta a "¿Me ayudas a mejorar Mindi?", después del resultado.', [
     ['Sí, compartir', f.investigacion_si, 'var(--div-pos)'],
     ['No, gracias', f.investigacion_no, 'var(--div-neg)'],
   ], v2 ? null : 'Corre supabase/023_panel_v2.sql para ver este desglose.');
 
-  renderSplit($('splitSat'), '¿Te sirvió este resultado?', `Satisfacción, antes del reporte.${v2 && f.ven_resultado ? ` Responden ${pctTxt(pct((f.satisfaccion_alta || 0) + (f.satisfaccion_neutra || 0) + (f.satisfaccion_baja || 0), f.ven_resultado))} de quienes ven su resultado.` : ''}`, [
+  renderSplit($('splitSat'), filters.period === 'exp1' ? '¿Qué tal te pareció esta experiencia?' : '¿Te sirvió este resultado?', `${filters.period === 'exp1' ? 'Experimento 1: al final del test.' : 'Satisfacción, antes del reporte.'}${v2 && f.ven_resultado ? ` Responden ${pctTxt(pct((f.satisfaccion_alta || 0) + (f.satisfaccion_neutra || 0) + (f.satisfaccion_baja || 0), f.ven_resultado))} de quienes ven su resultado.` : ''}`, [
     ['Alta', f.satisfaccion_alta, 'var(--div-pos)'],
     ['Neutra', f.satisfaccion_neutra, 'var(--div-mid)'],
     ['Baja', f.satisfaccion_baja, 'var(--div-neg)'],
-    ...(v2 ? [['Prefiero no responder', f.satisfaccion_omitida, 'var(--cat-5, #9a8a95)']] : []),
+    ...(v2 && filters.period !== 'exp1' ? [['Prefiero no responder', f.satisfaccion_omitida, 'var(--cat-5, #9a8a95)']] : []),
   ]);
 
   const noSessions = filtered ? null : 'Corre supabase/009_panel_stats.sql para ver este desglose.';
   // Mismos nombres que ve la usuaria (acción según la guía HNHU, no intensidad). A se divide
   // por el total ya guardado (014); si 014 no se corrió, A se muestra sin dividir.
   const splitA = f.nivel_a0 != null;
-  renderSplit($('splitLevel'), 'Nivel de resultado', 'De quienes terminaron el chat. Puntos de corte de la Guía HNHU (Escala MRS).', [
+  renderSplit($('splitLevel'), 'Nivel de resultado', 'De quienes terminaron el test. Puntos de corte de la Guía HNHU (Escala MRS).', [
     ...(splitA
       ? [['Sin molestias importantes (A, total 0-4)', f.nivel_a0, 'var(--ord-1)'],
          ['Síntomas leves (A, total 5-7)', f.nivel_a1, 'var(--ord-2)']]
@@ -335,7 +355,7 @@ function render(f, at, filtered){
     ['Señal de alerta', f.nivel_alerta, 'var(--critical)'],
   ], noSessions);
 
-  renderSplit($('splitAge'), 'Rango de edad', 'De quienes terminaron el chat.', [
+  renderSplit($('splitAge'), 'Rango de edad', 'De quienes terminaron el test.', [
     ['Menor de 40', f.edad_menor_40, 'var(--ord-1)'],
     ['40 a 45', f.edad_40_45, 'var(--ord-2)'],
     ['46 a 52', f.edad_46_52, 'var(--ord-3)'],
@@ -390,6 +410,14 @@ function renderSplit(el, title, note, parts, missing){
     <div class="stack${total ? '' : ' empty'}" aria-hidden="true">${segs}</div>
     <ul class="legend">${legend}</ul>
     ${missing ? `<p class="split-empty">${missing}</p>` : (!total ? '<p class="split-empty">Todavía no hay respuestas.</p>' : '')}`;
+}
+
+/* Pestaña "Chat con IA": qué hacen quienes abren /chat (cada apertura es su propia sesión de eventos). */
+function renderChatIA(f){
+  renderRel($('splitWhatsapp'), 'Actividad del chat', f.version >= 2 ? `${fmt(f.chat_mensajes)} mensajes · ${fmt(f.chat_desde_resultado)} llegan desde el resultado · ${fmt(f.chat_errores)} errores · ${fmt(f.whatsapp_total)} clics en WhatsApp (si el chat falla).` : '', [
+    ['Hacen al menos una pregunta', f.chat_preguntan],
+    ['Comparten sus preguntas', f.chat_comparten],
+  ], f.chat_abren, 'quienes abren el chat', f.version >= 2 ? null : 'Corre supabase/023_panel_v2.sql para ver el chat con IA.');
 }
 
 /* Conversaciones del chat con IA (024): la definición de éxito acordada el 6 nov. 2026. */

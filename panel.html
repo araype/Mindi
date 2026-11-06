@@ -45,9 +45,9 @@
 
   <div id="dash" hidden>
     <div class="tabs" role="tablist" aria-label="Vista">
-      <button type="button" role="tab" id="tabBtnChat" aria-controls="tabChat" data-tab="chat">Chat</button>
+      <button type="button" role="tab" id="tabBtnChat" aria-controls="tabChat" data-tab="chat">Test</button>
       <button type="button" role="tab" id="tabBtnEventos" aria-controls="tabEventos" data-tab="eventos">Conversatorio</button>
-      <button type="button" role="tab" id="tabBtnTemas" aria-controls="tabTemas" data-tab="temas">Temas del chat</button>
+      <button type="button" role="tab" id="tabBtnTemas" aria-controls="tabTemas" data-tab="temas">Chat con IA</button>
       <button type="button" role="tab" id="tabBtnListas" aria-controls="tabListas" data-tab="listas">Listas</button>
     </div>
 
@@ -57,6 +57,8 @@
         <button type="button" role="radio" data-period="7d">7 días</button>
         <button type="button" role="radio" data-period="30d">30 días</button>
         <button type="button" role="radio" data-period="all">Todo</button>
+        <button type="button" role="radio" data-period="exp1">Experimento 1</button>
+        <button type="button" role="radio" data-period="exp2">Experimento 2 · Lanzamiento</button>
       </div>
       <div class="seg" role="radiogroup" aria-label="Origen" id="originSeg">
         <button type="button" role="radio" data-origin="all">Todos</button>
@@ -99,8 +101,6 @@
       </div>
     </section>
 
-    <section class="block" id="convBlock"></section>
-
     <section class="block">
       <h2>Dónde se quedan</h2>
       <p class="block-note">Cada barra es un paso, y solo cuenta a quienes pasaron por todos los anteriores. A la derecha: cuántas siguen respecto al paso anterior — el número más bajo es donde más se pierden.</p>
@@ -110,7 +110,7 @@
     <section class="splits">
       <div class="block" id="splitReport"></div>
       <div class="block" id="splitPrice"></div>
-      <div class="block" id="splitWhatsapp"></div>
+      <div class="block" id="splitWaOld" hidden></div>
       <div class="block" id="splitResearch"></div>
       <div class="block" id="splitSat"></div>
       <div class="block" id="splitLevel"></div>
@@ -155,6 +155,9 @@
 
     <!-- Temas del chat (nivel 1): solo cuentas por tema y mes, sin texto ni sesiones -->
     <div id="tabTemas" class="tab-panel" role="tabpanel" aria-labelledby="tabBtnTemas" hidden>
+      <p class="status" id="iaExp1" hidden>El chat con IA no existía en el Experimento 1: elige otro periodo.</p>
+      <section class="block" id="convBlock"></section>
+      <section class="block" id="splitWhatsapp"></section>
       <p class="status" id="temasMissing" hidden>Corre <code>supabase/022_chat_temas.sql</code> en Supabase para ver esta pestaña.</p>
       <section class="block" id="temasBody">
         <h2>Temas por mes</h2>

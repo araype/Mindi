@@ -49,12 +49,14 @@ Deno.serve(async (req) => {
 
   // Filtros del panel: desde qué fecha (ISO) y si incluye sesiones de prueba.
   let since: string | null = null;
+  let until: string | null = null; // fin del periodo (Experimento 1), 025
   let includeTest = false;
   let panelView = 'chat';
   let origin: string | null = null; // null = todos · 'none' = sin origen · 'tiktok', etc.
   try {
     const body = await req.json();
     if (typeof body.since === 'string' && !Number.isNaN(Date.parse(body.since))) since = new Date(body.since).toISOString();
+    if (typeof body.until === 'string' && !Number.isNaN(Date.parse(body.until))) until = new Date(body.until).toISOString();
     includeTest = body.include_test === true;
     if (body.view === 'eventos' || body.view === 'temas') panelView = body.view;
     if (typeof body.origin === 'string' && /^[a-z0-9_-]{1,30}$/.test(body.origin)) origin = body.origin;
@@ -82,7 +84,7 @@ Deno.serve(async (req) => {
     return json({ ok: true, eventos: data ?? {}, filters: true, generated_at });
   }
 
-  const { data, error } = await supabase.rpc('panel_stats', args);
+  const { data, error } = await supabase.rpc('panel_stats', { ...args, p_until: until });
   if (!error) {
     // Conversaciones del chat con IA (024). Si aún no se corrió, el panel lo indica.
     const conv = await supabase.rpc('chat_conversation_stats', args);
