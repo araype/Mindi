@@ -5,6 +5,7 @@
 --    Experimento 1 recupera sus reportes; en los datos nuevos da el mismo número.
 -- 2. p_until (fin del periodo), para comparar "Experimento 1" y "Experimento 2 · Lanzamiento".
 -- 3. Vuelven las cifras que solo existían en el Experimento 1: envío por WhatsApp, clics por origen y precio.
+-- (Corregido el 6 nov.: el objeto va en dos partes unidas con ||, porque Postgres admite hasta 100 argumentos.)
 
 -- La versión de 3 argumentos se reemplaza por la de 4 (con p_until): si quedaran las dos, la API no sabría cuál usar.
 drop function if exists public.panel_stats(timestamptz, boolean, text);
@@ -75,7 +76,8 @@ as $$
     'chat_comparten',     (select count(distinct session_id) from ev where name = 'chat_share' and props->>'captured' = 'true'),
     'chat_desde_resultado', (select count(*) from ev where name = 'test_to_chat' and props->>'source' = 'resultado'),
     'chat_errores',       (select count(*) from ev where name = 'agent_error'),
-    'whatsapp_total',     (select count(*) from ev where name = 'whatsapp_click'),
+    'whatsapp_total',     (select count(*) from ev where name = 'whatsapp_click')
+  ) || jsonb_build_object(  -- en dos partes: jsonb_build_object admite hasta 100 argumentos
     -- Solo para el Experimento 1 (envío por WhatsApp, clics por origen y pregunta de precio).
     'reporte_whatsapp',   (select count(distinct session_id) from ev where name = 'report_sent' and props->>'channel' = 'link'),
     'reporte_descarga',   (select count(distinct session_id) from ev where name = 'report_sent' and props->>'channel' = 'download'),
