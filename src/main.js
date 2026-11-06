@@ -28,7 +28,7 @@ const BACKEND_ON = import.meta.env.VITE_BACKEND !== 'off';
    sin tocar variables de entorno ni desplegar. Cualquier valor sirve (?test=1, ?test=ara,
    ?test=lo-que-sea): no hace falta que sea exactamente "1" — se guarda tal cual en los
    eventos (campo "tester") por si más adelante quieren ver quién probó qué.
-   Ej.: mindi-beta.vercel.app/?test=ara y mindi-beta.vercel.app/?test=compa
+   Ej.: mindifem.com/?test=ara y mindifem.com/?test=compa
    La marca queda guardada en ESE navegador (localStorage): basta abrir ?test=... una vez
    y las visitas siguientes, aunque sean sin ?test, también cuentan como prueba. Entrar al
    panel (/panel.html) con la clave también marca el navegador. ?test=off la quita. */
@@ -160,10 +160,11 @@ function sendLead({email, news, research, turnstile, version}){
     session_id:SESSION_ID, email:email || undefined, name: email ? (state.name || undefined) : undefined,
     news:!!news, research:!!research, consent_text_version:version || CONSENT_VERSION, is_test:TEST_MODE, turnstile,
   })).then(r=>{
-    if(!email) return;
+    if(!email) return r;
     const b = r && r.body;
     if(b && b.report === 'sent') track('report_sent', {channel:b.channel || 'email'});
     else track('report_failed', {error: !r ? 'network' : (b && (b.report || b.error)) || String(r.status)});
+    return r;
   });
 }
 
@@ -1420,10 +1421,16 @@ function mountEmailForm(box){
     btn.disabled = true;
     const token = await captcha.token(); // casi siempre ya está listo: Turnstile corre al aparecer el formulario
     const news = form.elements.news.checked;
+    // Solo se confirma cuando el servidor lo acepta (antes decía "Listo" aunque fallara la verificación).
+    const r = await sendLead({email:v, news, research:false, turnstile:token});
+    if(!(r && r.ok)){
+      btn.disabled = false;
+      captcha.reset && captcha.reset();
+      return showErr(r && r.status === 403 ? 'No pudimos verificar que no eres un robot. Inténtalo de nuevo en unos segundos.' : 'No pudimos enviarlo ahora. Inténtalo de nuevo en un momento.');
+    }
     captcha.remove();
     state.contact = v;
     track('lead', {captured:true, news});
-    sendLead({email:v, news, research:false, turnstile:token});
     form.innerHTML = '<p class="email-done" role="status">Listo, te llegará en unos minutos.</p>';
   };
 }

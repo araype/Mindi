@@ -19,7 +19,7 @@
 // set`, nunca escribirlas en el repo):
 //   RESEND_API_KEY   clave de Resend
 //   RESEND_FROM      remitente verificado en Resend, ej. "Mindi <reportes@tudominio.com>"
-//   SITE_URL         dominio público de la landing publicada, ej. https://mindi.vercel.app
+//   SITE_URL         dominio público de la landing publicada, ej. https://mindifem.com
 // SUPABASE_URL y la clave de servidor (_shared/clave.js) las inyecta Supabase automáticamente,
 // no hace falta configurarlos.
 
