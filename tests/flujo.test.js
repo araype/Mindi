@@ -75,5 +75,8 @@ test('permiso de investigación: una vez tras el resultado, sin casillas en la b
   assert.match(main, /await askResearchConsent\(\);/);
   assert.match(main, /label:'Sí, compartir', primary:true, value:'si'\}, \{label:'No, gracias', value:'no'\}/);
   assert.doesNotMatch(main, /data-chat-share|share-opt-inline/);
-  assert.match(main, /if\(!CHAT_RESEARCH_ENABLED \|\| chatShareOn \|\| chatShareAsked\) return;/);
+  // Sin burbuja tras la primera respuesta: enlace en la letra chica y una sola pregunta al salir o tras 2 min.
+  assert.doesNotMatch(main, /maybeAskChatShare/);
+  assert.match(main, /if\(!CHAT_RESEARCH_ENABLED \|\| chatShareOn \|\| chatShareAsked \|\| !chatPending\.length\) return Promise\.resolve\(\);/);
+  assert.match(main, /idleT = setTimeout\(askShareAtEnd, 120000\)/);
 });

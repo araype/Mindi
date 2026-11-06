@@ -1046,7 +1046,7 @@ const MENTAL_HEALTH_LINE = 'Por tu puntaje en el ánimo, vale la pena comentarlo
 /* Permiso de investigación (5 nov. 2026): una sola vez, después del resultado, sin nada marcado.
    "Sí, compartir" cubre sus respuestas del test y sus preguntas del chat (no se le vuelve a preguntar). */
 const RESEARCH_ASK = '¿Me ayudas a mejorar Mindi? Si quieres, uso tus respuestas, sin tus datos de contacto, para entender mejor qué necesitan otras mujeres.';
-const RESEARCH_MORE = 'Guardamos tus respuestas del test y, si usas el chat, tus preguntas, sin tu nombre, correo ni teléfono. Las usamos solo para mejorar Mindi y para estudios sobre la menopausia. Puedes cambiar de opinión cuando quieras desde el chat, en "Más información".';
+const RESEARCH_MORE = 'Guardamos tus respuestas del test y, si usas el chat, tus preguntas, sin tu nombre, correo ni teléfono. Las usamos solo para mejorar Mindi y para estudios sobre la menopausia. Puedes cambiar de opinión cuando quieras desde el chat, con "Dejar de compartir".';
 const RESEARCH_VERSION = 'resultado-v1';
 function askResearchConsent(){
   return new Promise(resolve=>{
@@ -1523,35 +1523,55 @@ function setChatShare(on, version){
   agentClient.setContext(chatShareOn ? {...chatShareCtx, compartir:true, consent_text_version:chatShareVersion} : {...chatShareCtx});
   document.querySelectorAll('[data-share-toggle]').forEach(b=>{ b.textContent = chatShareOn ? SHARE_STOP_LABEL : SHARE_START_LABEL; });
 }
-/* En "Más información": cambiar de opinión cuando quiera. Vale desde la próxima pregunta. */
-const SHARE_STOP_LABEL = 'Dejar de compartir mis respuestas', SHARE_START_LABEL = 'Compartir mis respuestas';
+/* Compartir las preguntas sin cortar la conversación (5 nov. 2026):
+   - Bajo el saludo, en la letra chica: "Compartir mis preguntas" (y luego "Dejar de compartir").
+   - Al salir (botón "Salir") o tras 2 min sin escribir, una sola pregunta: "Antes de irte…".
+   Si acepta (en cualquiera de los dos), se guardan las preguntas de ESTA conversación, que hasta entonces
+   solo estaban en la memoria del navegador; si no, se descartan. */
+const SHARE_STOP_LABEL = 'Dejar de compartir', SHARE_START_LABEL = 'Compartir mis preguntas';
+const SHARE_END_VERSION = 'chat-fin-v1';
+const SHARE_END_ASK = 'Antes de irte: ¿nos dejas guardar las preguntas de hoy, sin tus datos, para mejorar Mindi?';
+let chatPending = []; // preguntas aún no compartidas (solo en memoria)
+let chatShareAsked = false, idleT = null;
+function flushPending(version){
+  if(!chatPending.length) return Promise.resolve();
+  const preguntas = chatPending.splice(0);
+  return api('agent', {action:'share', preguntas, consent_text_version:version, is_test:TEST_MODE});
+}
+function shareLabel(){ return chatShareOn ? `✓ Compartes tus preguntas · <button type="button" class="link-btn share-toggle" data-share-toggle>${SHARE_STOP_LABEL}</button>`
+  : `Si quieres, puedo guardar tus preguntas sin tus datos para mejorar Mindi: <button type="button" class="link-btn share-toggle" data-share-toggle>${SHARE_START_LABEL}</button>`; }
+function syncShareLine(){ document.querySelectorAll('.share-line').forEach(el=>{ el.innerHTML = shareLabel(); }); }
 document.addEventListener('click', (e)=>{
   const b = e.target.closest && e.target.closest('[data-share-toggle]');
   if(!b) return;
   const on = !chatShareOn;
   setChatShare(on, on ? SHARE_QUESTIONS_VERSION : null);
-  chatShareAsked = true; // ya decidió: no se le pregunta después
+  if(on) flushPending(SHARE_QUESTIONS_VERSION); else chatPending = [];
+  chatShareAsked = true; // ya decidió: no se le pregunta al final
+  syncShareLine();
   track('chat_share_change', {captured: on});
 });
-let chatShareAsked = false;
-/* Quien no aceptó en el resultado: la pregunta aparece una sola vez, después de la primera respuesta útil. */
-const CHAT_SHARE_ASK = '¿Me ayudas a mejorar Mindi? Si quieres, uso tus preguntas, sin tus datos de contacto, para entender mejor qué necesitan otras mujeres.';
-function maybeAskChatShare(){
-  if(!CHAT_RESEARCH_ENABLED || chatShareOn || chatShareAsked) return;
-  chatShareAsked = true;
-  const row = document.createElement('div');
-  row.className = 'row bot';
-  row.innerHTML = `<div class="share-ask"><p>${CHAT_SHARE_ASK}</p>` +
-    `<div class="chips"><button type="button" class="chip primary" data-ans="si">Sí, compartir</button><button type="button" class="chip" data-ans="no">No, gracias</button></div></div>`;
-  row.querySelectorAll('[data-ans]').forEach(btn=> btn.onclick = ()=>{
-    const yes = btn.dataset.ans === 'si';
-    if(yes) setChatShare(true, SHARE_QUESTIONS_VERSION);
-    track('chat_share', {captured: yes, desde:'chat'});
-    row.querySelector('.chips').outerHTML = `<p class="share-done" role="status">${yes ? 'Gracias. Desde ahora guardo tus preguntas, sin tus datos de contacto.' : 'Está bien, no guardo tus preguntas.'}</p>`;
+function askShareAtEnd(){
+  if(!CHAT_RESEARCH_ENABLED || chatShareOn || chatShareAsked || !chatPending.length) return Promise.resolve();
+  chatShareAsked = true; clearTimeout(idleT);
+  return new Promise(resolve=>{
+    const row = document.createElement('div');
+    row.className = 'row bot';
+    row.innerHTML = `<div class="share-ask"><p>${SHARE_END_ASK}</p>` +
+      `<div class="chips"><button type="button" class="chip primary" data-ans="si">Sí, compartir</button><button type="button" class="chip" data-ans="no">No, gracias</button></div></div>`;
+    row.querySelectorAll('[data-ans]').forEach(btn=> btn.onclick = async ()=>{
+      const yes = btn.dataset.ans === 'si';
+      track('chat_share', {captured: yes, desde:'final'});
+      if(yes){ setChatShare(true, SHARE_END_VERSION); await flushPending(SHARE_END_VERSION); syncShareLine(); }
+      else chatPending = [];
+      row.querySelector('.chips').outerHTML = `<p class="share-done" role="status">${yes ? 'Gracias. Guardamos tus preguntas sin tus datos.' : 'Está bien, no guardamos tus preguntas.'}</p>`;
+      resolve(yes);
+    });
+    chat.insertBefore(row, composer && composer.parentNode === chat ? composer : null); // sobre el campo de escribir
+    scrollBottom();
   });
-  chat.appendChild(row); // justo debajo de la respuesta (el campo de escribir se vuelve a poner después)
-  scrollBottom();
 }
+function armIdleAsk(){ clearTimeout(idleT); if(CHAT_RESEARCH_ENABLED && !chatShareOn && !chatShareAsked) idleT = setTimeout(askShareAtEnd, 120000); }
 let chatAccepted = false;
 function storedShare(){ try{ return sessionStorage.getItem(SHARE_STORE) === '1'; }catch{ return false; } }
 function storedAlertType(){ try{ return sessionStorage.getItem(ALERT_STORE) || null; }catch{ return null; } }
@@ -1583,8 +1603,8 @@ function openAiChat(){
     const row = document.createElement('div');
     row.className = 'row bot ai-notice-row';
     row.innerHTML = `<div class="ai-notice"><p>${AI_LINE}</p>` +
+      (CHAT_RESEARCH_ENABLED ? `<p class="share-line">${shareLabel()}</p>` : '') +
       `<details class="ai-more"><summary>Más información</summary><p>${AI_NOTICE} <a href="/privacidad" target="_blank" rel="noopener">Política de privacidad</a>.</p>` +
-      (CHAT_RESEARCH_ENABLED ? `<button type="button" class="link-btn share-toggle" data-share-toggle>${chatShareOn ? SHARE_STOP_LABEL : SHARE_START_LABEL}</button>` : '') +
       `</details></div>`;
     chat.appendChild(row);
     chatSuggestions = greeting.suggestions;
@@ -1666,7 +1686,8 @@ async function askAgent(text, {echo = true} = {}){
     agentAnswered = true;
     hideTyping();
     addAgentBubble(reply.text);
-    maybeAskChatShare();
+    if(CHAT_RESEARCH_ENABLED && !chatShareOn) chatPending.push(text.slice(0, 1000));
+    armIdleAsk();
     track('agent_message', {source:chatSource, area:reply.area || 'otro'});
     if(reply.action === 'recommend_test') recommendTest();
   }catch(e){
@@ -1684,7 +1705,10 @@ const PATH = location.pathname.replace(/\/+$/, '') || '/';
 const APP_VIEW = PATH === '/test' || PATH === '/chat' || location.hash === '#conversar';
 // Los botones se conectan antes de abrir /chat: openAiChat quita la tarjeta de inicio (y su botón).
 document.getElementById('restartBtn').addEventListener('click', ()=>{ track('restart'); location.hash = 'conversar'; location.reload(); });
-document.getElementById('exitBtn').addEventListener('click', ()=>{ location.href = '/'; });
+document.getElementById('exitBtn').addEventListener('click', async ()=>{
+  if(aiMode && CHAT_RESEARCH_ENABLED && !chatShareOn && !chatShareAsked && chatPending.length){ await askShareAtEnd(); await new Promise(r=> setTimeout(r, 900)); }
+  location.href = '/';
+});
 document.getElementById('startBtn').addEventListener('click', ()=>{
   track('cta_click',{source:'chat'});
   if(!started){

@@ -72,3 +72,10 @@ Cada evento de `events` lleva `props.flujo` desde cierre-v2. Los eventos sin `fl
 - Chat sin casilla. Quien no aceptó: una pregunta única después de la primera respuesta (`chat_share`, `desde: chat`).
   Cambiar de opinión: enlace en "Más información" (`chat_share_change`).
 - **La tasa de consentimiento no es comparable con `consentimiento-inicio`.**
+
+## Compartir preguntas sin cortar el chat (5 nov. 2026, noche)
+
+- Sin la burbuja tras la primera respuesta. Bajo el saludo: "Si quieres, puedo guardar tus preguntas sin tus datos para
+  mejorar Mindi: Compartir mis preguntas". Al tocar "Salir" o tras 2 min sin escribir, una sola pregunta: "Antes de
+  irte…". Si acepta, se guardan las preguntas de esa conversación (versión `chat-fin-v1` al final, `chat-v1` con el
+  enlace). `chat_share` lleva `desde: final`. **La tasa de preguntas compartidas no es comparable con la anterior.**

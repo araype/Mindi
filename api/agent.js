@@ -40,6 +40,22 @@ export default route(async (req, res) => {
     try { await callAgent({ agentUrl: process.env.AGENT_URL, action: 'warm' }); } catch { /* solo es un aviso */ }
     return res.status(200).json({ ok: true });
   }
+  if (action === 'share') {
+    // Nivel 2, consentimiento al final de la conversación (5 nov. 2026): las preguntas de ESA conversación, que
+    // el navegador guardó solo en memoria. Sin sesión ni tema: nada que las vincule con ella.
+    if (process.env.CHAT_RESEARCH_ENABLED !== 'true' || !supabaseOn()) return res.status(200).json({ ok: false });
+    const version = typeof body.consent_text_version === 'string' && body.consent_text_version.length <= 20 ? body.consent_text_version : null;
+    const list = Array.isArray(body.preguntas) ? body.preguntas.slice(0, 30) : null;
+    if (!version || !list) return res.status(400).json({ error: 'bad_request' });
+    const is_test = body.is_test === true;
+    let saved = 0;
+    for (const q of list) {
+      const t = cleanText(q);
+      const pregunta = t ? redact(t) : '';
+      if (pregunta && await insert('chat_questions_research', { pregunta, tema: null, consent_text_version: version, is_test })) saved++;
+    }
+    return res.status(200).json({ ok: true, saved });
+  }
   if (!validSession(session)) return res.status(400).json({ error: 'bad_session' });
 
   let args;

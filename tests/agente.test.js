@@ -244,3 +244,11 @@ test('saludo del chat según cómo llega (5 nov. 2026)', async () => {
   assert.deepEqual(chatGreeting(null, null, null), { text: GREETING.landing, suggestions: [] });
   assert.deepEqual(chatGreeting(null, null, 'peso'), { text: CHAT_TOPICS.peso, suggestions: [] });
 });
+
+test('compartir al final: apagado sin CHAT_RESEARCH_ENABLED y valida la lista', async () => {
+  const run = async (body) => { const res = fakeRes(); await handler({ method: 'POST', url: '/api/agent', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }, res); return res; };
+  const prev = process.env.CHAT_RESEARCH_ENABLED;
+  delete process.env.CHAT_RESEARCH_ENABLED;
+  assert.deepEqual((await run({ action: 'share', preguntas: ['hola'], consent_text_version: 'chat-fin-v1' })).body, { ok: false });
+  if (prev !== undefined) process.env.CHAT_RESEARCH_ENABLED = prev;
+});
