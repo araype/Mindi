@@ -419,7 +419,10 @@ function revealCardWithPause(introMsg, html, kind, isLast = false, continueText 
 async function showResultsCardSequence(){
   const msg = levelMessage(state.scores);
   await revealCard(resultCard(msg), '', 400);
-  await askResearchConsent(); // reemplaza el botón "Continuar": no agrega pasos
+  // El permiso de investigación se pidió en el inicio (casilla opcional). Se guarda aquí, cuando la
+  // sesión ya existe (research_consents tiene clave foránea a sessions), sin nombre ni contacto.
+  if(state.research) sendLead({research:true, version:RESEARCH_VERSION});
+  await askContinue();
   // "Preguntas para tu médico" ya no va aquí (cierre-v2): está en el reporte, igual que en el PDF.
   // Las recomendaciones de autocuidado y el aviso "solo orientación" ya no van aquí: están en
   // "Tu reporte" (ver reportFullHtml), al final del chat, igual que en el PDF y el correo.
@@ -1043,22 +1046,15 @@ function resultCard(msg){
 }
 const MENTAL_HEALTH_LINE = 'Por tu puntaje en el ánimo, vale la pena comentarlo también con un profesional de salud mental.';
 
-/* Permiso de investigación (5 nov. 2026): una sola vez, después del resultado, sin nada marcado.
-   "Sí, compartir" cubre sus respuestas del test y sus preguntas del chat (no se le vuelve a preguntar). */
-const RESEARCH_ASK = '¿Me ayudas a mejorar Mindi? Si quieres, uso tus respuestas, sin tus datos de contacto, para entender mejor qué necesitan otras mujeres.';
-const RESEARCH_MORE = 'Guardamos tus respuestas del test y, si usas el chat, tus preguntas, sin tu nombre, correo ni teléfono. Las usamos solo para mejorar Mindi y para estudios sobre la menopausia. Puedes cambiar de opinión cuando quieras desde el chat, con "Dejar de compartir".';
-const RESEARCH_VERSION = 'resultado-v1';
-function askResearchConsent(){
+/* Permiso de investigación (16 nov. 2026, inicio-v3): casilla opcional y desmarcada en la tarjeta de
+   inicio (index.html, #researchStart), aparte de los Términos (Ley 29733). Si la marca, cubre sus
+   respuestas del test y sus preguntas del chat (no se le vuelve a preguntar). Reemplaza la tarjeta
+   de permiso que aparecía después del resultado (resultado-v1). */
+const RESEARCH_VERSION = 'inicio-v3';
+/* Después del resultado: un botón para seguir (antes lo hacía la tarjeta del permiso). */
+function askContinue(){
   return new Promise(resolve=>{
-    revealCard(`<p>${RESEARCH_ASK}</p><details class="ai-more"><summary>Más información</summary>` +
-      `<p>${RESEARCH_MORE} <a href="/privacidad" target="_blank" rel="noopener">Política de privacidad</a>.</p></details>`, 'calm', 300).then(()=>{
-      renderChips([{label:'Sí, compartir', primary:true, value:'si'}, {label:'No, gracias', value:'no'}], (v)=>{
-        state.research = v === 'si';
-        track('research_consent', {captured: state.research, desde:'resultado'});
-        if(state.research) sendLead({research:true, version:RESEARCH_VERSION}); // research_consents, sin nombre ni contacto
-        resolve();
-      });
-    });
+    renderChips([{label:'Continuar', primary:true, value:'si'}], ()=> resolve());
   });
 }
 
@@ -1242,44 +1238,55 @@ function reportSummary(){
     `</dl>`;
 }
 
-/* "Compartir con mi médico" (decisión del 4 nov.): comparte o copia el enlace a /reporte, que vence
-   a los 30 días, no el PDF de 24 horas. El enlace se pide a send-report recién al tocar el botón
-   (SQL 018): si nadie comparte, no se guarda ninguna copia. Si el navegador no deja abrir el menú
-   de compartir después de esperar la red, se copia el enlace; si tampoco, se muestra para copiarlo. */
+/* "Compartir por WhatsApp" (16 nov. 2026). En el celular, si el navegador comparte archivos, abre el
+   menú de compartir con el PDF adjunto (ella elige WhatsApp y el contacto); el PDF se trae apenas
+   aparece el reporte, porque iOS exige que navigator.share salga directo del toque. Si no (computadora,
+   o el navegador no comparte archivos), abre wa.me con un mensaje listo y el enlace a /reporte, que
+   vence a los 30 días y no lleva nombre ni contacto. Ese enlace se pide a send-report recién al tocar
+   el botón (SQL 018): si nadie comparte, no se guarda ninguna copia. */
 const SHARE_TITLE = 'Mi reporte de Mindi';
-const SHARE_COPIED = 'Copiamos el enlace a tu reporte. Vence en 30 días.';
+const WA_SHARE_TEXT = 'Este es mi reporte de Mindi sobre cómo me está afectando la menopausia:';
 function requestShareLink(){
   return (state.sessionSaved || Promise.resolve()).then(()=> api('report', {action:'share', session_id:SESSION_ID}))
     .then(r=> r && r.ok && r.body && r.body.url ? r.body.url : null);
 }
-function setupShare(btn){
-  if(!BACKEND_ON) return;
-  let link = null;
-  btn.hidden = false;
+const waShareUrl = (link)=> `https://wa.me/?text=${encodeURIComponent(`${WA_SHARE_TEXT} ${link}`)}`;
+function setupWhatsAppShare(btn, filePromise){
+  let file = null, link = null;
+  if(filePromise) filePromise.then(f=>{ file = f; });
+  const canShareFile = (f)=> !!f && !!navigator.canShare && (()=>{ try{ return navigator.canShare({files:[f]}); }catch{ return false; } })();
   const note = (html)=>{
-    let p = btn.nextElementSibling;
-    if(!p || !p.classList.contains('report-share-ok')){ p = document.createElement('p'); p.className = 'report-share-ok'; p.setAttribute('role','status'); btn.after(p); }
+    let p = btn.closest('.report-actions').nextElementSibling;
+    if(!p || !p.classList.contains('report-share-ok')){ p = document.createElement('p'); p.className = 'report-share-ok'; p.setAttribute('role','status'); btn.closest('.report-actions').after(p); }
     p.innerHTML = html;
   };
-  btn.addEventListener('click', async ()=>{
-    track('report_share_click');
+  async function openWaLink(){
+    // La ventana se abre en el mismo toque (si no, el navegador la bloquea) y se lleva a wa.me cuando
+    // llega el enlace. Si el navegador no abre ventanas nuevas, se navega en esta misma pestaña.
+    const w = window.open('', '_blank');
     btn.setAttribute('aria-busy','true');
     link = link || await requestShareLink();
     btn.removeAttribute('aria-busy');
-    if(!link){ track('report_share_failed', {error:'link'}); return note('No pudimos crear el enlace. Inténtalo de nuevo en un momento.'); }
-    try{
-      if(navigator.share){ await navigator.share({title:SHARE_TITLE, url:link}); return track('report_share', {method:'link'}); }
-    }catch(e){
-      if(e && e.name === 'AbortError') return; // cerró el menú de compartir
+    if(!link){
+      if(w) w.close();
+      track('report_share_failed', {error:'link'});
+      return note('No pudimos crear el enlace. Inténtalo de nuevo en un momento.');
     }
-    try{
-      await navigator.clipboard.writeText(link);
-      track('report_share', {method:'copy'});
-      note(SHARE_COPIED);
-    }catch{
-      track('report_share', {method:'manual'});
-      note(`Copia este enlace a tu reporte. Vence en 30 días.<br><a href="${link}" target="_blank" rel="noopener">${link}</a>`);
+    track('report_share', {method:'whatsapp'});
+    if(w){ w.opener = null; w.location.href = waShareUrl(link); }
+    else location.href = waShareUrl(link);
+  }
+  btn.addEventListener('click', (e)=>{
+    e.preventDefault();
+    track('report_share_click');
+    if(isTouch && canShareFile(file)){
+      // Sin await antes: el menú tiene que abrirse con este mismo toque.
+      navigator.share({files:[file], title:SHARE_TITLE, text:SHARE_TITLE})
+        .then(()=> track('report_share', {method:'file'}))
+        .catch((err)=>{ if(!(err && err.name === 'AbortError')) openWaLink(); });
+      return;
     }
+    openWaLink();
   });
 }
 
@@ -1309,11 +1316,8 @@ document.addEventListener('click', (e)=>{
   location.href = '/chat';
 });
 
-/* "Descargar PDF" (5 nov. 2026): una descarga real, sin abrir páginas. El PDF se trae por /api/report
-   (action 'pdf') apenas aparece el reporte, para que el toque abra el menú de compartir en el acto (iOS
-   exige que navigator.share salga directo del gesto). Celular: menú nativo de compartir con el archivo
-   (guardar, WhatsApp, correo…) si el navegador comparte archivos; si no, descarga directa. Computadora:
-   descarga directa. */
+/* El PDF para compartir por WhatsApp desde el celular: se trae por /api/report (action 'pdf') apenas
+   aparece el reporte, solo si el navegador puede compartir archivos. */
 const PDF_NAME = 'reporte-mindi.pdf';
 function requestPdfFile(){
   if(!BACKEND_ON) return Promise.resolve(null);
@@ -1322,36 +1326,14 @@ function requestPdfFile(){
     body:JSON.stringify({action:'pdf', session_id:SESSION_ID, name: state.name || undefined}),
   })).then(async r=>{
     const ok = r.ok && (r.headers.get('content-type') || '').includes('application/pdf');
-    if(!ok){ track('report_failed', {error:String(r.status), channel:'download'}); return null; }
-    track('report_sent', {channel:'download'});
+    if(!ok){ track('report_failed', {error:String(r.status), channel:'whatsapp'}); return null; }
     return new File([await r.blob()], PDF_NAME, {type:'application/pdf'});
-  }).catch(()=>{ track('report_failed', {error:'network', channel:'download'}); return null; });
+  }).catch(()=>{ track('report_failed', {error:'network', channel:'whatsapp'}); return null; });
 }
-function savePdf(file){
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(file); a.download = PDF_NAME; a.rel = 'noopener';
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(()=> URL.revokeObjectURL(a.href), 60000);
-}
-function setupPdfButton(btn, file){
-  btn.removeAttribute('aria-disabled');
-  btn.setAttribute('role','button'); btn.tabIndex = 0;
-  btn.textContent = 'Descargar PDF';
-  const canShareFile = isTouch && !!navigator.canShare && (()=>{ try{ return navigator.canShare({files:[file]}); }catch{ return false; } })();
-  btn.addEventListener('click', (e)=>{
-    e.preventDefault();
-    if(canShareFile){
-      track('report_download', {in_app: IN_APP_BROWSER, method:'share'});
-      // Sin await antes: el menú tiene que abrirse con este mismo toque.
-      navigator.share({files:[file], title:SHARE_TITLE})
-        .then(()=> track('report_share', {method:'file'}))
-        .catch((err)=>{ if(!(err && err.name === 'AbortError')) savePdf(file); });
-      return;
-    }
-    savePdf(file);
-    track('report_download', {in_app: IN_APP_BROWSER, method:'download'});
-  });
-}
+/* ¿Este navegador puede compartir un PDF? Se prueba con un archivo vacío antes de pedir el real. */
+const CAN_SHARE_PDF = isTouch && !!navigator.canShare && (()=>{
+  try{ return navigator.canShare({files:[new File([''], PDF_NAME, {type:'application/pdf'})]}); }catch{ return false; }
+})();
 /* Cada desplegable del resultado y del reporte se mide (result_detail_open {seccion}). */
 document.addEventListener('toggle', (e)=>{
   const d = e.target;
@@ -1361,50 +1343,56 @@ document.addEventListener('toggle', (e)=>{
 let reportSeq = 0;
 function showReport(){
   setSection('Tu reporte');
-  const id = 'pdfBtn' + (++reportSeq);
+  const id = 'rep' + (++reportSeq);
   const inApp = IN_APP_BROWSER
-    ? `<p class="report-inapp">Si la descarga no abre aquí, abre esta página en tu navegador (menú ··· › Abrir en el navegador) o recíbelo en tu correo.</p>` : '';
+    ? `<p class="report-inapp">Si WhatsApp no abre aquí, abre esta página en tu navegador (menú ··· › Abrir en el navegador) o recíbelo en tu correo.</p>` : '';
+  // "Tu reporte está listo" (16 nov. 2026): solo dos botones del mismo tamaño, correo y WhatsApp.
+  const actions = BACKEND_ON
+    ? `<div class="report-actions report-two">` +
+        `<button type="button" class="btn" id="${id}m" aria-expanded="false" aria-controls="${id}e">Enviar a mi correo</button>` +
+        `<button type="button" class="btn" id="${id}w">Compartir por WhatsApp</button>` +
+      `</div>` +
+      `<div class="report-email" id="${id}e" hidden></div>`
+    : '';
   revealCard(
     `<h3>Tu reporte está listo</h3><p class="card-note">Todo lo que vimos, para llevarlo a tu consulta.</p>` +
-    reportSummary() +
-    `<div class="report-actions"><a class="btn" id="${id}" aria-disabled="true">Preparando tu PDF…</a></div>` +
-    `<div class="report-links"><button type="button" class="link-btn" id="${id}s" hidden>Compartir con mi médico</button></div>` +
-    // Con el chat con IA encendido, la duda va al chat (al cierre); apagado, se ofrece WhatsApp.
-    `${AGENT_ENABLED ? '' : `<div class="report-actions">${whatsappButton('resultado', 'Tengo una duda sobre mi resultado')}</div>`}` +
-    `<div class="report-email" id="${id}e"></div>` +
-    inApp + reportFullHtml(), 'report'
+    reportSummary() + actions + inApp + reportFullHtml(), 'report'
   ).then(()=>{
     track('report_shown', {in_app: IN_APP_BROWSER});
-    setupShare(document.getElementById(id + 's'));
-    requestPdfFile().then(file=>{
-      const btn = document.getElementById(id);
-      if(!btn) return;
-      if(file){
-        setupPdfButton(btn, file);
-      } else {
-        btn.textContent = 'No se pudo preparar el PDF';
-        btn.insertAdjacentHTML('afterend', '<p class="card-note">Déjanos tu correo abajo y te enviamos una copia.</p>');
-      }
-    });
-    mountEmailForm(document.getElementById(id + 'e'));
+    if(BACKEND_ON){
+      setupWhatsAppShare(document.getElementById(id + 'w'), CAN_SHARE_PDF ? requestPdfFile() : null);
+      setupEmailButton(document.getElementById(id + 'm'), document.getElementById(id + 'e'));
+    }
     clearComposer();
     closeFlow();
   });
 }
 
-/* Copia opcional por correo, dentro de la tarjeta del reporte (5 nov. 2026): no bloquea el cierre. La casilla
-   de avisos va con el correo; la de investigación ya se respondió en la bienvenida (consentimiento-inicio). */
+/* "Enviar a mi correo": despliega el campo de correo. Turnstile se carga recién al tocarlo. */
+function setupEmailButton(btn, box){
+  btn.addEventListener('click', ()=>{
+    const open = box.hidden;
+    box.hidden = !open;
+    btn.setAttribute('aria-expanded', String(open));
+    if(open){
+      track('report_email_open');
+      if(!box.firstChild) mountEmailForm(box);
+      const input = box.querySelector('input[type="email"]');
+      if(input && !isTouch) input.focus({preventScroll:true});
+    }
+  });
+}
+
+/* Copia por correo (con el PDF adjunto, lo arma send-report): no bloquea el cierre. */
 function mountEmailForm(box){
   if(!box || !BACKEND_ON) return;
   const form = document.createElement('form');
   form.className = 'email-offer';
   form.noValidate = true;
   form.innerHTML =
-    `<p class="email-title"><strong>Recíbelo también en tu correo</strong>, para no perderlo:</p>` +
     `<div class="inputRow"><input type="email" name="email" placeholder="correo@ejemplo.com" autocomplete="email" aria-label="Tu correo">` +
-    `<button type="submit" class="sendBtn" aria-label="Enviarme una copia">${ICON_SEND}</button></div>` +
-    `<p class="hint">Usaremos tu correo solo para enviarte una copia de tu reporte.</p>` +
-    `<label class="opt"><input type="checkbox" name="news"><span>(Opcional) También quiero que Mindi me avise por correo cuando lance su acompañamiento.</span></label>`;
+    `<button type="submit" class="sendBtn" aria-label="Enviarme el reporte">${ICON_SEND}</button></div>` +
+    `<p class="hint">Te enviamos el reporte en PDF. Usaremos tu correo solo para eso.</p>`;
   box.appendChild(form);
   const captcha = mountTurnstile(tsBox);
   const input = form.elements.email;
@@ -1420,9 +1408,8 @@ function mountEmailForm(box){
     const btn = form.querySelector('.sendBtn');
     btn.disabled = true;
     const token = await captcha.token(); // casi siempre ya está listo: Turnstile corre al aparecer el formulario
-    const news = form.elements.news.checked;
     // Solo se confirma cuando el servidor lo acepta (antes decía "Listo" aunque fallara la verificación).
-    const r = await sendLead({email:v, news, research:false, turnstile:token});
+    const r = await sendLead({email:v, news:false, research:false, turnstile:token});
     if(!(r && r.ok)){
       btn.disabled = false;
       captcha.reset && captcha.reset();
@@ -1430,7 +1417,7 @@ function mountEmailForm(box){
     }
     captcha.remove();
     state.contact = v;
-    track('lead', {captured:true, news});
+    track('lead', {captured:true});
     form.innerHTML = '<p class="email-done" role="status">Listo, te llegará en unos minutos.</p>';
   };
 }
@@ -1787,6 +1774,10 @@ document.getElementById('startBtn').addEventListener('click', ()=>{
   track('cta_click',{source:'chat'});
   if(!started){
     track('consent_accept',{version:CONSENT_VERSION});
+    // Permiso de investigación en el inicio (inicio-v3): opcional, desmarcado y aparte de los Términos.
+    const box = document.getElementById('researchStart');
+    state.research = !!(box && box.checked);
+    track('research_consent', {captured: state.research, desde:'inicio'});
   }
   start();
 });

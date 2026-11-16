@@ -7,7 +7,7 @@
 //     Storage (download/<session_id>.pdf). No toca las tablas `leads` ni `reports`.
 //   - con { share: true }, guarda una copia sin nombre ni contacto en `report_shares` (SQL 018) y
 //     devuelve el enlace /reporte?t=<token>, que vence a los 30 días ("Compartir con mi médico").
-//   - sin download_only, envía por correo (Resend) un resumen breve y el enlace a /reporte (30 días)
+//   - sin download_only, envía por correo (Resend) un resumen breve, el PDF adjunto y el enlace a /reporte (30 días)
 //     al contacto guardado en `leads` (cifrado desde la Fase 4: ver decryptContact)
 //     (solo si dejó su correo). Ya no se envía por WhatsApp: los enlaces que ya se enviaron por
 //     ese canal (tabla `reports`, channel 'link') siguen abriendo en reporte.html.
@@ -349,8 +349,15 @@ function buildFragment(session: Record<string, any>, lead: Record<string, any>, 
 /** Correo cifrado por /api/lead → texto (las filas anteriores al cifrado vuelven tal cual). */
 const decryptContact = (value: string): Promise<string> => sharedDecrypt(value, LEADS_ENC_KEY);
 
+/** Bytes → base64 (adjuntos de Resend), por partes para no pasar el límite de argumentos. */
+function toBase64(bytes: Uint8Array): string {
+  let bin = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(bin);
+}
+
 /** Correo breve (decisión de la Fase 0, handoff 11.6): un resumen corto y el enlace al reporte, sin el
- *  detalle clínico ni el PDF adjunto. El reporte completo se ve en /reporte con el token. */
+ *  detalle clínico. Desde el 16 nov. 2026 lleva además el PDF adjunto (ver más abajo). */
 function shortEmail(session: Record<string, any>, lead: Record<string, any>, url: string) {
   const name = lead.name ? esc(lead.name) : '';
   const lvl = levelMessage(sessionScores(session));
@@ -748,12 +755,23 @@ Deno.serve(async (req) => {
   if (!RESEND_API_KEY) return fail('email_not_configured');
   const reportUrl = reportLink(report.token);
 
+  // PDF adjunto (16 nov. 2026): el mismo PDF que se comparte desde el sitio, con el apodo si dejó uno.
+  // Si no se puede armar, el correo sale igual con el enlace: nunca se pierde el reporte por el PDF.
+  let attachments: { filename: string; content: string }[] | undefined;
+  try {
+    const pdfBytes = await buildPdf(session, { name: lead.name || undefined });
+    attachments = [{ filename: 'reporte-mindi.pdf', content: toBase64(pdfBytes) }];
+  } catch (e) {
+    console.error('No se pudo generar el PDF adjunto:', e);
+  }
+
   const r = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { Authorization: `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       from: RESEND_FROM, to, subject: 'Tu reporte de Mindi',
-      html: wrapForEmail(shortEmail(session, lead, reportUrl), false),
+      html: wrapForEmail(shortEmail(session, lead, reportUrl), !!attachments),
+      ...(attachments ? { attachments } : {}),
     }),
   });
   if (!r.ok) {

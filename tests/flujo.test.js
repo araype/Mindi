@@ -52,13 +52,20 @@ test('al terminar el test o la salida del filtro se ofrece ir al chat con IA', (
   assert.equal(count(/channelInvite\('filtro'\)\)\.then\(\(\)=> afterGuided\(false\)\)/g), 2);
 });
 
-test('reporte: banderas rojas en palabras y "Compartir con mi médico" comparte /reporte (30 días), no el PDF', () => {
+test('reporte: solo "Enviar a mi correo" y "Compartir por WhatsApp" (PDF en el celular, wa.me con /reporte si no)', () => {
   assert.match(main, /señal' : 'señales'\} de alerta/);
+  const report = main.slice(main.indexOf('function showReport('), main.indexOf('/* "Enviar a mi correo"'));
+  assert.match(report, />Enviar a mi correo</);
+  assert.match(report, />Compartir por WhatsApp</);
+  assert.doesNotMatch(main, /Descargar PDF|>Compartir con mi médico<|acompañamiento\./);
   const share = main.slice(main.indexOf('function requestShareLink('), main.indexOf('/* Del resultado al chat con IA'));
   assert.match(share, /action:'share'/);
-  assert.doesNotMatch(share, /pdfUrl|files:/);
-  assert.match(main, /Copiamos el enlace a tu reporte\. Vence en 30 días\./);
-  assert.match(main, />Compartir con mi médico</);
+  assert.match(share, /https:\/\/wa\.me\/\?text=/);
+  assert.match(share, /navigator\.share\(\{files:\[file\]/);
+  // Turnstile solo aparece al tocar "Enviar a mi correo".
+  const email = main.slice(main.indexOf('function setupEmailButton('), main.indexOf('function mountEmailForm('));
+  assert.match(email, /if\(!box\.firstChild\) mountEmailForm\(box\);/);
+  assert.doesNotMatch(report, /mountEmailForm\(|mountTurnstile\(/);
 });
 
 test('chat: sin botón "Empecemos"; la primera pregunta o una sugerencia aceptan el aviso', () => {
@@ -68,12 +75,17 @@ test('chat: sin botón "Empecemos"; la primera pregunta o una sugerencia aceptan
   assert.match(main, /track\('agent_consent'/);
 });
 
-test('permiso de investigación: una vez tras el resultado, sin casillas en la bienvenida ni junto al campo', async () => {
+test('permiso de investigación: casilla opcional y desmarcada en el inicio, aparte de los Términos', async () => {
   const { readFile } = await import('node:fs/promises');
   const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
-  assert.doesNotMatch(html.slice(html.indexOf('id="chatStart"'), html.indexOf('id="tsBox"')), /type="checkbox"/);
-  assert.match(main, /await askResearchConsent\(\);/);
-  assert.match(main, /label:'Sí, compartir', primary:true, value:'si'\}, \{label:'No, gracias', value:'no'\}/);
+  const start = html.slice(html.indexOf('id="chatStart"'), html.indexOf('id="tsBox"'));
+  assert.match(start, /<input type="checkbox" id="researchStart">/); // sin "checked" ni "required"
+  assert.doesNotMatch(start, /checked|required/);
+  assert.ok(start.indexOf('id="startBtn"') < start.indexOf('id="researchStart"'));
+  assert.match(start, /<summary>Más información<\/summary>/);
+  assert.doesNotMatch(main, /¿Me ayudas a mejorar Mindi\?|askResearchConsent/);
+  assert.match(main, /state\.research = !!\(box && box\.checked\);/);
+  assert.match(main, /if\(state\.research\) sendLead\(\{research:true, version:RESEARCH_VERSION\}\);/);
   assert.doesNotMatch(main, /data-chat-share|share-opt-inline/);
   // Sin burbuja tras la primera respuesta: enlace en la letra chica y una sola pregunta al salir o tras 2 min.
   assert.doesNotMatch(main, /maybeAskChatShare/);
