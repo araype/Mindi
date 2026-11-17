@@ -232,3 +232,12 @@ Cada evento de `events` lleva `props.flujo` desde cierre-v2. Los eventos sin `fl
   rastro. Para WhatsApp, compartir **`mindifem.com/?src=wa`** (atajos: `?src=ig`, `?src=tt`, `?src=fb`).
 - Desde este cambio, el origen `instagram` puede crecer y `facebook` bajar: no es que cambie el tráfico, es que antes se
   confundían. Lo anterior a este cambio no se corrige.
+
+## El chat recuerda la conversación y conoce el reporte (17 nov. 2026)
+
+- **Nivel 1:** la conversación del chat se guarda en la pestaña (`sessionStorage`, 24 h). Si recarga /chat o vuelve de
+  otra app, la ve y sigue con la misma sesión del agente (`chat_restored`). Si el agente se reinició, se abre otra sesión
+  con su resultado sin que lo note. Ir al test desde el chat o "Empezar de nuevo" la borra.
+- **Nivel 2:** al ir del resultado o del reporte al chat, además de los 4 puntajes y la señal de alerta, el agente recibe
+  hasta 6 síntomas que marcó como moderados o más, sus metas, su rango de edad y cómo está su regla. El servidor
+  (`cleanResultado`) y el agente (`detalle_reporte`) solo aceptan valores de listas cerradas. Política actualizada.

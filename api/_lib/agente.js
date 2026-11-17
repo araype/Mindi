@@ -3,12 +3,14 @@
 // Corre SOLO en el servidor (ruta /api/agent de Vercel): el navegador nunca habla directo con
 // Cloud Run. Aquí se valida todo lo que viaja al agente:
 //   - el id de sesión es un UUID generado por la web, sin datos de la usuaria
-//   - resultado_mrs solo lleva los 4 puntajes y senal_alerta (ver agentMrsResult en mrs.js)
+//   - resultado_mrs lleva los 4 puntajes, senal_alerta y, desde el 17 nov. 2026, el detalle del reporte
+//     (síntomas más fuertes, metas, edad y regla), todo de listas cerradas (ver cleanResultado)
 //   - cada mensaje tiene un largo máximo
 // No se guarda ninguna conversación en Mindi: el agente la mantiene en memoria mientras dura.
 // (Carpeta _lib: Vercel no la publica como ruta.)
 
 import { agentAuthorization } from './gcp.js';
+import { GOAL_OPTIONS } from '../../supabase/functions/_shared/autocuidado.js';
 // Lista cerrada de temas de /chat?tema= (la misma que usa la web): al agente solo le llega la etiqueta.
 export { chatTopic } from '../../src/agente.js';
 
@@ -40,6 +42,13 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const validSession = (id) => typeof id === 'string' && UUID.test(id);
 
 const MAX = { total: 44, somatico: 16, psicologico: 16, urogenital: 12 };
+/* Detalle del reporte para el chat (17 nov. 2026). Las mismas opciones del test (src/main.js) y del agente
+   (SINTOMAS_MRS, METAS, EDADES y CICLOS en Mindi_agents): si cambian allá, cambian aquí. */
+export const SYMPTOM_IDS = ['p3', 'p4', 'p5', 'p6', 'p7', 'p8', 'p9', 'p10', 'p11', 'p12', 'p13'];
+export const MAX_SYMPTOMS = 6;
+export const AGE_OPTIONS = ['Menor de 40', '40 a 45', '46 a 52', 'Mayor de 52'];
+export const CYCLE_OPTIONS = ['Sigue regular', 'Es irregular (varía o se retrasa)', 'Más de 60 días sin regla',
+  'Más de 12 meses sin regla', 'Me hicieron una histerectomía'];
 const isScore = (v, max) => typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= max;
 
 /** Deja pasar solo lo que el agente necesita; cualquier otra cosa se descarta. null si no es válido. */
@@ -51,6 +60,19 @@ export function cleanResultado(r) {
     out[k] = r[k];
   }
   out.senal_alerta = r.senal_alerta === true;
+  // Detalle del reporte (opcional): solo valores de estas listas, nunca texto libre.
+  if (Array.isArray(r.sintomas)) {
+    const s = r.sintomas
+      .filter((x) => x && SYMPTOM_IDS.includes(x.id) && Number.isInteger(x.nivel) && x.nivel >= 2 && x.nivel <= 4)
+      .slice(0, MAX_SYMPTOMS).map((x) => ({ id: x.id, nivel: x.nivel }));
+    if (s.length) out.sintomas = s;
+  }
+  if (Array.isArray(r.metas)) {
+    const m = GOAL_OPTIONS.filter((g) => r.metas.includes(g));
+    if (m.length) out.metas = m;
+  }
+  if (AGE_OPTIONS.includes(r.edad)) out.edad = r.edad;
+  if (CYCLE_OPTIONS.includes(r.ciclo)) out.ciclo = r.ciclo;
   return out;
 }
 

@@ -122,6 +122,15 @@ export function createAgentClient({ newId, fetchImpl = (...a) => fetch(...a), ti
     /** { nivel?: 'A'|'B'|'C'|'alert', desde_tema?: bool, is_test?: bool, compartir?: bool, consent_text_version?: string } */
     setContext(c) { context = { ...(c || {}) }; },
     get limitReached() { return sent >= MAX_MESSAGES; },
+    /** Para guardar la conversación en la pestaña (main.js, CHAT_STORE): la sesión con el agente y el contexto. */
+    snapshot() { return { session, started, resultado, tema, sent }; },
+    /** Retoma una sesión guardada. Si el agente ya no la recuerda (se reinició), ask() abre una nueva (410). */
+    restore(s) {
+      if (!s || typeof s.session !== 'string' || !/^[0-9a-f-]{36}$/i.test(s.session)) return false;
+      session = s.session; started = s.started === true; resultado = s.resultado || null;
+      tema = chatTopic(s.tema); sent = Number.isInteger(s.sent) ? s.sent : 0;
+      return true;
+    },
     /** Al abrir el chat: despierta al agente en segundo plano. Nunca falla ni bloquea. */
     warm() { api({ action: 'warm' }).catch(() => {}); },
     /** → { text, area, action } (action: 'recommend_test' o null). Lanza un Error con .status si falla. */

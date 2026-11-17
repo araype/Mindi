@@ -38,9 +38,9 @@ test('el campo de texto del chat con IA nunca aparece durante el test (sesiones 
 });
 
 test('del chat al test: botón solo con recommend_test, máximo dos veces, nunca con resultado; abre /test?origen=chat', () => {
-  assert.match(main, /if\(reply\.action === 'recommend_test'\) recommendTest\(\);/);
+  assert.match(main, /if\(reply\.action === 'recommend_test' && recommendTest\(\)\) chatLog\.push\(\{r:'cta', t:''\}\);/);
   const fn = main.slice(main.indexOf('function recommendTest('), main.indexOf('function recommendTest(') + 600);
-  assert.match(fn, /if\(chatResult \|\| testRecommendations >= MAX_TEST_RECOMMENDATIONS\) return;/);
+  assert.match(fn, /if\(chatResult \|\| testRecommendations >= MAX_TEST_RECOMMENDATIONS\) return false;/);
   assert.match(fn, /href="\/test\?origen=chat"/);
   assert.match(fn, /track\('chat_test_recommended'/);
   assert.match(main, /const MAX_TEST_RECOMMENDATIONS = 2;/);
@@ -284,4 +284,40 @@ test('origen de la visita: TikTok, Instagram (antes que Facebook), Facebook, Wha
   assert.equal(detectOrigin({ ua: CHROME, search: '?utm_source=TikTok' }), 'tiktok');
   assert.equal(detectOrigin({ ua: CHROME }), null); // WhatsApp sin navegador propio: no se puede saber
   assert.equal(detectOrigin({ ua: CHROME, referrer: 'https://mindifem.com/' }), null);
+});
+
+
+test('chat: la conversación se guarda en la pestaña (24 h) y se retoma con la misma sesión del agente', async () => {
+  assert.match(main, /const CHAT_STORE = 'mindi_chat';/);
+  assert.match(main, /if\(restoreChat\(topic\)\) return;/);
+  assert.match(main, /Date\.now\(\) - s\.ts > 864e5 \|\| s\.key !== chatKey\(topic\)/);
+  assert.match(main, /clearChat\(\); \/\/ con el resultado nuevo, el chat empieza de nuevo/);
+  assert.doesNotMatch(main, /localStorage\.setItem\(CHAT_STORE/);
+  const { createAgentClient } = await import('../src/agente.js');
+  const calls = [];
+  const fetchImpl = async (_, o) => { const b = JSON.parse(o.body); calls.push(b.action); return { ok: true, status: 200, json: async () => (b.action === 'message' ? { text: 'hola' } : { ok: true }) }; };
+  const a = createAgentClient({ newId: () => '11111111-2222-4333-8444-555555555555', fetchImpl });
+  await a.ask('primera');
+  const snap = a.snapshot();
+  const b = createAgentClient({ newId: () => '99999999-2222-4333-8444-555555555555', fetchImpl });
+  assert.equal(b.restore(snap), true);
+  calls.length = 0;
+  await b.ask('segunda'); // misma sesión: no abre una nueva
+  assert.deepEqual(calls, ['message']);
+  assert.equal(b.snapshot().session, '11111111-2222-4333-8444-555555555555');
+  assert.equal(b.restore({ session: 'no-es-un-uuid' }), false);
+});
+
+test('chat: el detalle del reporte va al agente solo con valores de listas cerradas', async () => {
+  const { cleanResultado, SYMPTOM_IDS, AGE_OPTIONS, CYCLE_OPTIONS } = await import('../api/_lib/agente.js');
+  const base = { total: 21, somatico: 10, psicologico: 8, urogenital: 3, senal_alerta: false };
+  assert.deepEqual(cleanResultado({ ...base, sintomas: [{ id: 'p3', nivel: 4 }, { id: 'p99', nivel: 3 }, { id: 'p9', nivel: 1 }],
+    metas: ['Dormir mejor', 'Recétame'], edad: '46 a 52', ciclo: 'otra cosa', nombre: 'Ana' }),
+    { ...base, sintomas: [{ id: 'p3', nivel: 4 }], metas: ['Dormir mejor'], edad: '46 a 52' });
+  assert.deepEqual(cleanResultado(base), base); // sin detalle, igual que antes
+  // Las listas son las mismas opciones del test.
+  for (const id of SYMPTOM_IDS) assert.match(main, new RegExp(`id:'${id}'`));
+  for (const a of AGE_OPTIONS) assert.ok(main.includes(`label:'${a}'`), a);
+  for (const c of CYCLE_OPTIONS) assert.ok(main.includes(`label:'${c}'`), c);
+  assert.match(main, /sessionStorage\.setItem\(RESULT_STORE, JSON\.stringify\(agentTestContext\(\)\)\);/);
 });

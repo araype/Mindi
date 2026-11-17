@@ -1382,6 +1382,23 @@ function setupWhatsAppShare(btn, filePromise){
 /* Del resultado al chat con IA (10.5.1, paso 6): /chat recibe los 4 puntajes y la señal de alerta
    por sessionStorage (solo esta pestaña; sin respuestas una por una ni datos de contacto). */
 const RESULT_STORE = 'mindi_resultado';
+/* Lo que el chat sabe del test (17 nov. 2026): los 4 puntajes y la señal de alerta, más el detalle del reporte
+   para que pueda responder sin que ella lo repita: hasta 6 síntomas que marcó como moderados o más (id y
+   nivel 2-4), sus metas, su edad y cómo está su regla. Sin nombre ni contacto. */
+function agentTestContext(){
+  const sintomas = MRS_ITEMS
+    .map(it=> ({id:it.id, nivel:state.answers[it.id]}))
+    .filter(x=> Number.isInteger(x.nivel) && x.nivel >= 2)
+    .sort((a,b)=> b.nivel - a.nivel)
+    .slice(0, 6);
+  return {
+    ...agentMrsResult(state.scores, hasFlag()),
+    ...(sintomas.length ? {sintomas} : {}),
+    ...(state.goals && state.goals.length ? {metas: state.goals} : {}),
+    ...(state.age ? {edad: state.age} : {}),
+    ...(state.cycle ? {ciclo: state.cycle} : {}),
+  };
+}
 const ALERT_STORE = 'mindi_alerta';
 const SHARE_STORE = 'mindi_compartir'; // aceptó compartir después del resultado
 function chatButton(withResult){
@@ -1396,7 +1413,7 @@ document.addEventListener('click', (e)=>{
   track('test_to_chat', {source:b.dataset.toChat});
   try{
     if(withResult){
-      sessionStorage.setItem(RESULT_STORE, JSON.stringify(agentMrsResult(state.scores, hasFlag())));
+      sessionStorage.setItem(RESULT_STORE, JSON.stringify(agentTestContext()));
       // Solo para el saludo del chat (no va al agente): emergencia (rf2) o evaluación.
       sessionStorage.setItem(ALERT_STORE, hasFlag() ? (state.redFlags.includes('rf2') ? 'emergencia' : 'evaluacion') : '');
       sessionStorage.setItem(SHARE_STORE, state.research ? '1' : '');
@@ -1735,7 +1752,11 @@ function storedResult(){
   try{
     const r = JSON.parse(sessionStorage.getItem(RESULT_STORE) || 'null');
     const ok = r && ['total','somatico','psicologico','urogenital'].every(k=> Number.isFinite(r[k]));
-    return ok ? {total:r.total, somatico:r.somatico, psicologico:r.psicologico, urogenital:r.urogenital, senal_alerta:r.senal_alerta === true} : null;
+    if(!ok) return null;
+    const out = {total:r.total, somatico:r.somatico, psicologico:r.psicologico, urogenital:r.urogenital, senal_alerta:r.senal_alerta === true};
+    // Detalle del reporte (el servidor lo valida contra listas cerradas): síntomas, metas, edad y regla.
+    for(const k of ['sintomas','metas','edad','ciclo']) if(r[k] != null) out[k] = r[k];
+    return out;
   }catch{ return null; }
 }
 
@@ -1822,6 +1843,43 @@ let chatAccepted = false;
 function storedShare(){ try{ return sessionStorage.getItem(SHARE_STORE) === '1'; }catch{ return false; } }
 function storedAlertType(){ try{ return sessionStorage.getItem(ALERT_STORE) || null; }catch{ return null; } }
 
+/* La conversación no se pierde en la pestaña (17 nov. 2026): si recarga /chat o vuelve de otra app (WhatsApp,
+   el test), ve su conversación y sigue con la misma sesión del agente. Solo sessionStorage (esta pestaña) y
+   por 24 horas; si cambió su resultado o el tema con el que llegó, empieza de nuevo. Si el agente se reinició y
+   ya no recuerda la sesión, agente.js abre otra con su resultado (410), sin que ella lo note. */
+const CHAT_STORE = 'mindi_chat';
+let chatLog = []; // [{r:'u'|'m'|'cta', t}]
+function chatKey(topic){ return JSON.stringify({resultado: chatResult || null, tema: topic || null}); }
+function saveChat(topic){
+  try{
+    sessionStorage.setItem(CHAT_STORE, JSON.stringify({ts:Date.now(), key:chatKey(topic), agent:agentClient.snapshot(),
+      log:chatLog.slice(-60), share:{on:chatShareOn, version:chatShareVersion, asked:chatShareAsked},
+      conv:chatConvId, replies:agentReplies, recs:testRecommendations}));
+  }catch{}
+}
+function clearChat(){ try{ sessionStorage.removeItem(CHAT_STORE); }catch{} chatLog = []; }
+function restoreChat(topic){
+  let s = null;
+  try{ s = JSON.parse(sessionStorage.getItem(CHAT_STORE) || 'null'); }catch{}
+  if(!s || Date.now() - s.ts > 864e5 || s.key !== chatKey(topic) || !Array.isArray(s.log) || !s.log.length) return false;
+  if(!agentClient.restore(s.agent)) return false;
+  chatAccepted = true;
+  chatShareAsked = !!(s.share && s.share.asked);
+  if(typeof s.conv === 'string') chatConvId = s.conv;
+  if(CHAT_RESEARCH_ENABLED && s.share) setChatShare(s.share.on, s.share.version);
+  agentReplies = Number(s.replies) || 0; agentAnswered = agentReplies > 0;
+  testRecommendations = Number(s.recs) || 0;
+  chatLog = s.log.filter(m=> m && typeof m.t === 'string' && ['u','m','cta'].includes(m.r));
+  for(const m of chatLog){
+    if(m.r === 'u') addBubble(m.t, 'user');
+    else if(m.r === 'm') addAgentBubble(m.t);
+    else if(m.r === 'cta' && !chatResult) chat.insertAdjacentHTML('beforeend', `<div class="row bot"><div class="chat-cta"><a class="btn" href="/test?origen=chat" data-chat-to-test>Haz el test de 5 min →</a></div></div>`);
+  }
+  track('chat_restored', {n: chatLog.length});
+  botSay(['Aquí sigue nuestra conversación. ¿En qué más te ayudo?']).then(renderQuestionInput);
+  return true;
+}
+
 function openAiChat(){
   aiMode = true;
   document.body.classList.add('chat-ai');
@@ -1846,6 +1904,8 @@ function openAiChat(){
   chatShareCtx = ctx;
   chatConvId = newConvId();
   if(CHAT_RESEARCH_ENABLED && storedShare()){ setChatShare(true, RESEARCH_VERSION); chatShareAsked = true; } // aceptó en el resultado
+  if(restoreChat(topic)) return; // volvió a la pestaña: su conversación sigue ahí
+  chatLogTopic = topic;
   const greeting = chatGreeting(chatResult, storedAlertType(), topic);
   // Como Geocito: el aviso va en su propia burbuja y la tarjeta queda corta (6 nov. 2026).
   botSay([greeting.text, CONSENT_LEAD]).then(()=>{
@@ -1888,6 +1948,7 @@ function openAiChat(){
     if(!isTouch) row.querySelector('[data-accept]').focus({preventScroll:true});
   });
 }
+let chatLogTopic = null;
 const CONSENT_LEAD = 'Para poder ayudarte, revisa esta información por favor 👇';
 const SHARE_ACCEPT_VERSION = 'chat-v4'; // tarjeta de un botón: guarda la conversación (026) con el código de usuaria (027)
 let chatSuggestions = [], chatSuggestFrom = 'landing';
@@ -1933,7 +1994,7 @@ function addAgentBubble(text){
 
 /* Botón dentro del chat, justo debajo de la respuesta (10.5.1, paso 3). */
 function recommendTest(){
-  if(chatResult || testRecommendations >= MAX_TEST_RECOMMENDATIONS) return;
+  if(chatResult || testRecommendations >= MAX_TEST_RECOMMENDATIONS) return false;
   testRecommendations++;
   const row = document.createElement('div');
   row.className = 'row bot';
@@ -1941,12 +2002,14 @@ function recommendTest(){
   chat.appendChild(row);
   scrollBottom();
   track('chat_test_recommended', {n:testRecommendations});
+  return true;
 }
 document.addEventListener('click', (e)=>{
   if(!(e.target.closest && e.target.closest('[data-chat-to-test]'))) return;
   track('chat_to_test');
   releaseSessionId(); // el test va en una sesión nueva
   try{ sessionStorage.removeItem(RESULT_STORE); }catch{}
+  clearChat(); // con el resultado nuevo, el chat empieza de nuevo
 });
 
 /* Si el agente falla o no responde a tiempo: mensaje y WhatsApp en la conversación, y se puede
@@ -1973,6 +2036,7 @@ function askFeedback(area){
 }
 async function askAgent(text, {echo = true} = {}){
   if(echo) addBubble(text.slice(0, 1000), 'user');
+  chatLog.push({r:'u', t:text.slice(0, 1000)});
   clearComposer();
   if(agentClient.limitReached){ track('agent_limit', {source:chatSource}); agentFallback(LIMIT_TEXT); return renderQuestionInput(); }
   showTyping(agentAnswered ? '' : FIRST_WAIT_TEXT);
@@ -1982,11 +2046,13 @@ async function askAgent(text, {echo = true} = {}){
     agentAnswered = true;
     hideTyping();
     addAgentBubble(reply.text);
+    chatLog.push({r:'m', t:reply.text});
     agentReplies++;
     track('agent_message', {source:chatSource, area:reply.area || 'otro'});
     track('agent_latency', {ms: Math.round(performance.now() - t0), n: agentReplies}); // tiempo hasta la respuesta (arranque en frío)
-    if(reply.action === 'recommend_test') recommendTest();
+    if(reply.action === 'recommend_test' && recommendTest()) chatLog.push({r:'cta', t:''});
     if(agentReplies === 2) askFeedback(reply.area || 'otro');
+    saveChat(chatLogTopic);
   }catch(e){
     hideTyping();
     track('agent_error', {source:chatSource, code:e.status || 0});
@@ -2003,7 +2069,7 @@ const APP_VIEW = PATH === '/test' || PATH === '/chat' || location.hash === '#con
 // Los botones se conectan antes de abrir /chat: openAiChat quita la tarjeta de inicio (y su botón).
 document.getElementById('restartBtn').addEventListener('click', ()=>{
   track('restart');
-  try{ sessionStorage.removeItem(REPORT_STORE); sessionStorage.removeItem(SESSION_STORE); }catch{}
+  try{ sessionStorage.removeItem(REPORT_STORE); sessionStorage.removeItem(SESSION_STORE); sessionStorage.removeItem(CHAT_STORE); }catch{}
   location.hash = 'conversar'; location.reload();
 });
 document.getElementById('exitBtn').addEventListener('click', async ()=>{
