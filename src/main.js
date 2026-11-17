@@ -14,7 +14,7 @@ import { whatsappUrl, WHATSAPP_TEXT } from './whatsapp.js';
 import { createAgentClient, agentHtml, chatGreeting, chatTopic, ERROR_TEXT, LIMIT_TEXT, SHARE_QUESTIONS_VERSION, RESULT_SUGGESTIONS } from './agente.js';
 import { glossaryMore } from './glosario.js';
 import { initLanding, waitlistRow, waitlistFields, WAITLIST_NOTICE, WAITLIST_CONSENT_VERSION } from './landing.js';
-import { mountSlotPicker, citaDoneText } from './citas.js';
+import { mountSlotPicker, citaDoneText, mountCitaWhatsapp } from './citas.js';
 import { mountTurnstile } from './turnstile.js';
 
 /* ---------- Backend: todo pasa por /api (funciones de Vercel, handoff 11.1) ----------
@@ -1472,7 +1472,7 @@ function pdfContents(){
    la landing) con origen `reporte`, para que el equipo la contacte. Es el seguimiento del test. */
 function citaHtml(id){
   return `<div class="report-cita">` +
-    `<p><strong>¿Quieres que un especialista revise tu caso?</strong> Déjanos tus datos y te contactamos para coordinar tu cita.</p>` +
+    `<p><strong>¿Quieres que un especialista revise tu caso?</strong> ${WHATSAPP_NUMBER ? 'Elige un horario y coordinamos tu cita por WhatsApp.' : 'Déjanos tus datos y te contactamos para coordinar tu cita.'}</p>` +
     `<button type="button" class="rbtn rbtn-cita" id="${id}c" aria-expanded="false" aria-controls="${id}cf">${ICON_CALENDAR}<span>Agendar cita con un especialista</span></button>` +
     `<div id="${id}cf" hidden></div></div>`;
 }
@@ -1606,7 +1606,9 @@ function showReport({restored = false} = {}){
       setupResearchAgain(document.getElementById(id + 'r'));
       setupToggleForm(document.getElementById(id + 'c'), document.getElementById(id + 'cf'), (box)=>{
         track('cita_open');
-        mountInlineWaitlist(box, 'consultas', {origin:'reporte', submit:'Quiero agendar mi cita', done:citaDoneText(null), slots:true});
+        // 17 nov. 2026: se agenda por WhatsApp (el equipo se entera al instante). Sin número configurado, el formulario.
+        if(WHATSAPP_NUMBER) mountCitaWhatsapp(box, {waUrl:(t)=> whatsappUrl(WHATSAPP_NUMBER, t), desde:'reporte', track});
+        else mountInlineWaitlist(box, 'consultas', {origin:'reporte', submit:'Quiero agendar mi cita', done:citaDoneText(null), slots:true});
       });
     }
     reportSatisfaction(document.getElementById(id + 's'));
@@ -2045,6 +2047,7 @@ if(!APP_VIEW){
     track, api, mountTurnstile, backendOn:BACKEND_ON, consentVersion:CONSENT_VERSION, isTest:TEST_MODE, origin:ORIGIN,
     chatAvailable:AGENT_ENABLED,
     whatsappHref:whatsappUrl(WHATSAPP_NUMBER, WHATSAPP_TEXT.landing),
+    whatsappTo: WHATSAPP_NUMBER ? (t)=> whatsappUrl(WHATSAPP_NUMBER, t) : null, // "Agendar cita" por WhatsApp
     whatsappDisplay: digits.length === 11 && digits.startsWith('51') ? `+51 ${digits.slice(2,5)} ${digits.slice(5,8)} ${digits.slice(8)}` : (digits ? '+' + digits : ''),
   });
 }

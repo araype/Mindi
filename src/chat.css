@@ -401,3 +401,6 @@ body.no-scroll{overflow:hidden}
 /* Aviso al pie de los formularios cortos (en lugar de la casilla de la política) */
 .inline-wl .wl-notice,.l-consent{margin:2px 0 0;font-size:12.5px;line-height:1.45;color:var(--plum-soft)}
 .inline-wl .wl-notice a,.l-consent a{color:var(--magenta-text)}
+/* "Agendar por WhatsApp": horarios y el botón verde, en el reporte y en la landing */
+.cw-btn{margin-top:12px;text-decoration:none}
+.l-cita{display:flex;flex-direction:column;gap:14px;padding:26px 22px 22px}

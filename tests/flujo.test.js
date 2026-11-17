@@ -249,3 +249,17 @@ test('agendar cita: WhatsApp obligatorio, correo opcional, horario junto al cont
   assert.match(sql, /alter column contact drop not null/);
   assert.match(sql, /check \(contact is not null or whatsapp is not null\)/);
 });
+
+test('agendar por WhatsApp: mensaje con el horario y sin datos de salud; landing y reporte', async () => {
+  const { citaWhatsappText, SLOT_NOTE_WA } = await import('../src/citas.js');
+  assert.equal(citaWhatsappText(null), 'Hola Mindi, quiero agendar una cita con un especialista.');
+  assert.equal(citaWhatsappText('jueves 19 · 3:00 p. m.'),
+    'Hola Mindi, quiero agendar una cita con un especialista. Horario que prefiero: jueves 19 · 3:00 p. m.');
+  assert.doesNotMatch(citaWhatsappText('x'), /resultado|puntaje|síntoma|MRS/i); // sin datos de salud
+  assert.match(SLOT_NOTE_WA, /coordinamos tu cita contigo por WhatsApp/);
+  assert.match(main, /if\(WHATSAPP_NUMBER\) mountCitaWhatsapp\(box, \{waUrl:\(t\)=> whatsappUrl\(WHATSAPP_NUMBER, t\), desde:'reporte', track\}\);/);
+  const { readFile } = await import('node:fs/promises');
+  const landing = await readFile(new URL('../src/landing.js', import.meta.url), 'utf8');
+  assert.match(landing, /if \(list === 'consultas' && whatsappTo\) \{/);
+  assert.match(landing, /mountCitaWhatsapp\(dialog\.querySelector\('\.l-cita-body'\), \{ waUrl: whatsappTo, desde: 'landing', track \}\);/);
+});

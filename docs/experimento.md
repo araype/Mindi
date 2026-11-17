@@ -212,3 +212,13 @@ Cada evento de `events` lleva `props.flujo` desde cierre-v2. Los eventos sin `fl
 - En los formularios de listas (cita, diario, Plus, especialistas, empresas), la casilla "Acepto la Política de privacidad"
   se reemplazó por un aviso al pie: "Al enviar, aceptas que te contactemos solo para esto…" (`consent_text_version:
   aviso-envio-v1`). La casilla de investigación (datos de salud) sigue siendo una casilla aparte, opcional y desmarcada.
+
+## "Agendar por WhatsApp" (17 nov. 2026)
+
+- En la landing y en el reporte, "Agendar cita" ya no muestra un formulario: horarios tentativos y el botón
+  "Agendar por WhatsApp", que abre el WhatsApp del equipo con "Hola Mindi, quiero agendar una cita con un
+  especialista. Horario que prefiero: …". El mensaje no lleva el resultado ni los síntomas.
+- El equipo se entera en el momento (cierra el círculo que antes quedaba abierto: nadie veía la lista `consultas`).
+- Eventos: `cita_slots_shown`, `cita_slot` y **`cita_whatsapp`** (`answer`: horario o `sin_horario`), con `desde`.
+  Indicador: **# usuarias que abren WhatsApp para agendar**; cuántas terminan en cita lo cuenta el equipo en WhatsApp.
+- Sin `VITE_WHATSAPP_NUMBER`, se usa el formulario anterior (lista `consultas`).
