@@ -1,5 +1,5 @@
 // POST /api/lead — copia del reporte por correo y casillas opcionales.
-//   { session_id, email?, name?, news, research, consent_text_version, is_test, turnstile }
+//   { session_id, email?, name?, goals?, news, research, consent_text_version, is_test, turnstile }
 // Con correo: Turnstile, el correo cifrado en `leads` (cifrado.js) y el envío (send-report).
 // La casilla de investigación va en `research_consents`, sin nombre ni contacto.
 import { route, readJson, send, clientIp } from './_lib/http.js';
@@ -8,6 +8,7 @@ import { leadRequest } from './_lib/validar.js';
 import { verifyTurnstile } from './_lib/turnstile.js';
 import { encryptContact } from './_lib/cifrado.js';
 import { insert, callFunction, supabaseOn } from './_lib/supabase.js';
+import { cleanGoals } from '../supabase/functions/_shared/autocuidado.js';
 
 export default route(async (req, res) => {
   const ip = clientIp(req);
@@ -24,7 +25,8 @@ export default route(async (req, res) => {
 
   const lead = { ...base, name: r.lead.name, contact: encryptContact(r.lead.email), consent: true, opt_news: r.lead.news };
   if (!(await insert('leads', lead))) return send(res, 502, { error: 'not_saved' });
-  const sent = await callFunction('send-report', { session_id: r.session_id });
+  // Las metas van solo al PDF adjunto ("Tus metas"); no se guardan.
+  const sent = await callFunction('send-report', { session_id: r.session_id, goals: cleanGoals(body.goals) });
   const ok = sent.status === 200 && sent.body && sent.body.ok;
   return send(res, 200, { ok: true, report: ok ? 'sent' : 'failed', channel: ok ? sent.body.channel : undefined });
 }, { requires: ['TURNSTILE_SECRET_KEY', 'LEADS_ENC_KEY', 'SEND_REPORT_SECRET'] });

@@ -7,13 +7,13 @@ import {
   AREAS, areaStatus, AREA_TAG, SKIPPED_INTIMATE_NOTE, doctorRecommendation, EMERGENCY_NOW, agentMrsResult,
   areaNotes as mrsAreaNotes, SUBSCALES,
 } from '../supabase/functions/_shared/mrs.js';
-import { prioritizedSelfCare, SELF_CARE_SOURCE } from '../supabase/functions/_shared/autocuidado.js';
+import { prioritizedSelfCare, SELF_CARE_SOURCE, GOAL_OPTIONS } from '../supabase/functions/_shared/autocuidado.js';
 import { whyNotes, WHY_TITLE } from '../supabase/functions/_shared/notas.js';
 import { stageFilter, STAGE_EXIT } from './etapa.js';
-import { whatsappUrl, WHATSAPP_TEXT, channelUrl } from './whatsapp.js';
+import { whatsappUrl, WHATSAPP_TEXT } from './whatsapp.js';
 import { createAgentClient, agentHtml, chatGreeting, chatTopic, ERROR_TEXT, LIMIT_TEXT, SHARE_QUESTIONS_VERSION, RESULT_SUGGESTIONS } from './agente.js';
 import { glossaryMore } from './glosario.js';
-import { initLanding } from './landing.js';
+import { initLanding, waitlistRow } from './landing.js';
 import { mountTurnstile } from './turnstile.js';
 
 /* ---------- Backend: todo pasa por /api (funciones de Vercel, handoff 11.1) ----------
@@ -51,6 +51,22 @@ function newId(){
    test (/test, que recarga la página) cuenten como la misma visita en el embudo. Se descarta
    apenas se guarda la sesión del test: el siguiente test de esta pestaña usa uno nuevo. */
 const SESSION_STORE = 'mindi_session';
+/* Reporte guardado en esta pestaña (16 nov. 2026): si la página se recarga al volver de WhatsApp, del
+   correo o de la descarga (pasa mucho en el celular y en los navegadores de TikTok e Instagram), Mindi
+   muestra de nuevo el reporte en vez de empezar de cero. Solo sessionStorage (esta pestaña) y por
+   24 horas: no queda en el celular. "Empezar de nuevo" lo borra. */
+const REPORT_STORE = 'mindi_reporte';
+const SAVED_REPORT = (()=>{
+  try{
+    const r = JSON.parse(sessionStorage.getItem(REPORT_STORE) || 'null');
+    if(r && typeof r.id === 'string' && /^[0-9a-f-]{36}$/i.test(r.id) && r.s && Date.now() - r.ts < 864e5){
+      sessionStorage.setItem(SESSION_STORE, r.id); // la misma sesión: el PDF, el enlace y el correo siguen funcionando
+      return r;
+    }
+    sessionStorage.removeItem(REPORT_STORE);
+  }catch{}
+  return null;
+})();
 const SESSION_ID = (()=>{
   try {
     const s = sessionStorage.getItem(SESSION_STORE);
@@ -95,7 +111,7 @@ window.dataLayer = window.dataLayer || [];
 /* Si el test se abrió desde el botón del chat con IA (/test?origen=chat, handoff 10.5.1), sus eventos
    llevan origen: 'chat' (los que ya traen su propio origen, como whatsapp_click, no se tocan). */
 const TEST_ORIGEN = new URLSearchParams(location.search).get('origen') === 'chat' ? 'chat' : null;
-const FLOW_VERSION = 'cierre-v2'; // docs/experimento.md
+const FLOW_VERSION = 'cierre-v3'; // docs/experimento.md
 function track(event, props){
   if(TEST_ORIGEN && !(props && props.origen)) props = Object.assign({}, props, {origen:TEST_ORIGEN});
   const payload = Object.assign({event:'mindi_'+event, ts:Date.now()}, props||{});
@@ -128,16 +144,8 @@ const AGENT_ENABLED = import.meta.env.VITE_AGENT_CHAT_ENABLED === 'true';
 const CHAT_RESEARCH_ENABLED = AGENT_ENABLED && import.meta.env.VITE_CHAT_RESEARCH_ENABLED === 'true';
 const agentClient = AGENT_ENABLED ? createAgentClient({newId}) : null;
 
-/* Invitación al canal de tips al final del flujo (VITE_WHATSAPP_CHANNEL_URL). Sin enlace válido,
-   no se muestra. Los clics se registran como channel_click {desde}, aparte de whatsapp_click. */
-const CHANNEL_URL = channelUrl(import.meta.env.VITE_WHATSAPP_CHANNEL_URL);
-function channelInvite(desde){
-  if(!CHANNEL_URL) return Promise.resolve();
-  return revealCard(
-    `<p>¿Quieres seguir aprendiendo sobre esta etapa? Síguenos en ` +
-    `<a href="${CHANNEL_URL}" target="_blank" rel="noopener" data-channel="${desde}">nuestro canal de WhatsApp</a> ` +
-    `para recibir tips de bienestar cada semana.</p>`, 'calm', 400);
-}
+/* La invitación al canal de tips de WhatsApp al final del flujo se quitó el 16 nov. 2026 (no aportaba).
+   VITE_WHATSAPP_CHANNEL_URL ya no se usa en el test. */
 
 /* Respuestas del test → /api/session. El servidor recalcula el puntaje y el nivel (11.3). */
 function saveSession(){
@@ -158,6 +166,7 @@ function saveSession(){
 function sendLead({email, news, research, turnstile, version}){
   return (state.sessionSaved || Promise.resolve()).then(()=> api('lead', {
     session_id:SESSION_ID, email:email || undefined, name: email ? (state.name || undefined) : undefined,
+    goals: email && state.goals && state.goals.length ? state.goals : undefined, // solo para el PDF adjunto
     news:!!news, research:!!research, consent_text_version:version || CONSENT_VERSION, is_test:TEST_MODE, turnstile,
   })).then(r=>{
     if(!email) return r;
@@ -238,7 +247,13 @@ const NONE_TEXT = RED_FLAGS.find(f=>f.id==='none').text;
 const ICON_CHECK = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
 /* Ícono discreto del aviso de emergencia (10.3): un corazón con línea, en ciruela. */
 const ICON_CARE  = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.8 5.6a5 5 0 0 0-7.1 0L12 7.3l-1.7-1.7a5 5 0 1 0-7.1 7.1L12 21.5l8.8-8.8a5 5 0 0 0 0-7.1z"/><path d="M3.5 12h4l1.5-3 3 6 1.5-3h7"/></svg>';
-const ICON_SEND  = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h15M13 6l6 6-6 6"/></svg>';
+/* Íconos de los botones del reporte. El de WhatsApp es su marca (Simple Icons, CC0), solo para señalar
+   que el botón abre WhatsApp. */
+const ICON_DOWNLOAD = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10.5l5 5 5-5M5 20h14"/></svg>';
+const ICON_MAIL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M3.5 7l8.5 6 8.5-6"/></svg>';
+const ICON_WHATSAPP = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>';
+const ICON_CALENDAR = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>';
+const ICON_SEND  ='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h15M13 6l6 6-6 6"/></svg>';
 
 /* ---------- Estado ---------- */
 const state = {
@@ -423,9 +438,8 @@ async function showResultsCardSequence(){
   // sesión ya existe (research_consents tiene clave foránea a sessions), sin nombre ni contacto.
   if(state.research) sendLead({research:true, version:RESEARCH_VERSION});
   await askContinue();
-  // "Preguntas para tu médico" ya no va aquí (cierre-v2): está en el reporte, igual que en el PDF.
-  // Las recomendaciones de autocuidado y el aviso "solo orientación" ya no van aquí: están en
-  // "Tu reporte" (ver reportFullHtml), al final del chat, igual que en el PDF y el correo.
+  // "Preguntas para tu médico" y las recomendaciones de autocuidado están en el PDF y el correo; el aviso
+  // "solo orientación" va al pie de "Tu reporte".
 }
 
 const DISCLAIMER = 'Esto es solo orientación informativa según la Guía HNHU (RD N° 211-2024-DG/HNHU). Solo un profesional de salud puede evaluarte con exámenes clínicos en consulta presencial.';
@@ -604,8 +618,20 @@ const FACE_MOUTHS = [
   'M7,14.3 Q12,19 17,14.3',
 ];
 const STAR_PATH = 'M8 1.5l1.6 3.3 3.6.5-2.6 2.5.6 3.7L8 9.8 4.8 11.5l.6-3.7-2.6-2.5 3.6-.5z';
+/* Las 5 caritas. renderFaceScale las pone en el chat; reportSatisfaction, dentro de "Tu reporte". */
 function renderFaceScale(onPick){
   clearComposer();
+  const wrap = faceScaleEl((i, label)=>{
+    addBubble(label, 'user');
+    advance();
+    clearComposer();
+    onPick(i, label);
+  });
+  composer.appendChild(wrap);
+  scrollBottom();
+  wrap.querySelector('button')?.focus({preventScroll:true});
+}
+function faceScaleEl(onPick){
   const wrap = document.createElement('div');
   wrap.className = 'face-scale';
   wrap.setAttribute('role','group');
@@ -642,17 +668,10 @@ function renderFaceScale(onPick){
 
     btn.appendChild(faceWrap);
     btn.appendChild(label);
-    btn.onclick = ()=>{
-      addBubble(FACE_LABELS[i], 'user');
-      advance();
-      clearComposer();
-      onPick(i, FACE_LABELS[i]);
-    };
+    btn.onclick = ()=> onPick(i, FACE_LABELS[i]);
     wrap.appendChild(btn);
   }
-  composer.appendChild(wrap);
-  scrollBottom();
-  wrap.querySelector('button')?.focus({preventScroll:true});
+  return wrap;
 }
 
 function renderTextInput(placeholder, opts, onSubmit){
@@ -728,9 +747,30 @@ async function start(){
   openChatShell();
   setSection('Bienvenida');
   setProgress(1);
-  // La bienvenida, el consentimiento y el aviso de emergencias ya se vieron en la tarjeta de inicio
-  // (index.html): aquí va directo la primera pregunta.
-  askAge();
+  // El consentimiento y el aviso de emergencias ya se vieron en la tarjeta de inicio (index.html), que
+  // desaparece al tocar "Empezar". Un saludo corto antes de la primera pregunta (16 nov. 2026: varias
+  // usuarias notaron que el chat empezaba sin un hola).
+  // Nombre al inicio (opcional): Mindi lo usa durante el test y en el reporte. Vive solo en esta pestaña;
+  // se guarda únicamente si deja su correo (como antes).
+  // Saludo cálido (16 nov. 2026): bienvenida, para qué está Mindi, y recién después el nombre.
+  await botSay(TEST_ORIGEN === 'chat' ? [
+    '¡Hola de nuevo! Qué bueno que volviste.',
+    'Ahora sí, veamos cómo te has sentido.',
+    {text:'Antes, ¿cómo te gustaría que te llame?', cls:'question'},
+  ] : [
+    '¡Hola! Qué bueno tenerte aquí.',
+    'Soy Mindi. Te voy a acompañar a entender lo que estás sintiendo en esta etapa.',
+    {text:'Antes de empezar, ¿cómo te gustaría que te llame?', cls:'question'},
+  ]);
+  renderTextInput('Tu nombre o un apodo', {skipLabel:'Prefiero no decirlo', skipValue:''}, (val)=>{
+    state.name = String(val || '').trim().slice(0, 40);
+    track('name_step', {captured: !!state.name});
+    botSay([
+      state.name ? `Encantada de conocerte, ${state.name}.` : 'Está bien, no hay problema.',
+      'Muchas mujeres sienten estos cambios y no saben por dónde empezar. Vamos paso a paso, juntas.',
+      'Son preguntas cortas y respondes con un toque.',
+    ]).then(askAge);
+  });
 }
 
 /* Entre pregunta y pregunta, cada mensaje del bot cabe en UNA línea a 360 px (unos 35
@@ -825,11 +865,11 @@ function askInterest(segment){
       if(val){
         interestCaptcha.token().then(turnstile=>{ interestCaptcha.remove(); return api('waitlist', {segment, email:val, consent_text_version:CONSENT_VERSION, is_test:TEST_MODE, turnstile}); });
         track('interest_signup');
-        botSay(['Listo, te avisaremos. Cuídate.']).then(()=> channelInvite('filtro')).then(()=> afterGuided(false));
+        botSay(['Listo, te avisaremos. Cuídate.']).then(()=> afterGuided(false));
       } else {
         interestCaptcha.remove();
         track('interest_skip');
-        botSay(['Está bien. Cuídate mucho.']).then(()=> channelInvite('filtro')).then(()=> afterGuided(false));
+        botSay(['Está bien. Cuídate mucho.']).then(()=> afterGuided(false));
       }
     });
   });
@@ -873,7 +913,7 @@ function askItem(items, idx, domain){
 function finishMrs(){
   track('mrs_complete');
   setSection('Contexto para tu reporte');
-  botSay(['Gracias por contarme todo esto.']).then(()=> askSmoking());
+  botSay([state.name ? `Gracias por contarme todo esto, ${state.name}.` : 'Gracias por contarme todo esto.']).then(()=> askSmoking());
 }
 
 /* Preguntas de contexto: no suman puntos. Cada respuesta dispara `answer` con su id
@@ -1000,48 +1040,52 @@ function markedSymptoms(key){
     .sort((a,b)=> b.v - a.v)
     .slice(0, 2);
 }
+/* Tarjeta del resultado (16 nov. 2026, más corta): título con el área que más pesa (o "pesan por igual"
+   si empatan), la recomendación, y las tres barras con SUS síntomas más fuertes debajo de cada una, para
+   que "Cuerpo", "Ánimo" y "Vida íntima" no queden genéricos. El texto de la guía de cada área, la escala
+   y el puntaje total van en "Entender mi resultado". La derivación a salud mental queda siempre visible. */
+const joinY = (xs)=> xs.length > 1 ? `${xs.slice(0,-1).join(', ')} y ${xs[xs.length-1]}` : (xs[0] || '');
 function resultCard(msg){
   const notes = mrsAreaNotes(state.scores);
   const main = notes[0] || null;
+  const tied = main ? notes.filter(n=> n.pct === main.pct) : [];
+  const isMain = (key)=> tied.some(n=> n.key === key);
   const s = state.scores;
   const bars = AREAS.map(a=>{
     const pct = Math.round((s[a.key]/a.max)*100);
-    const incomplete = areaStatus(a.key, s[a.key], state.skippedIntimate) === 'incomplete';
-    return `<div class="area${main && main.key === a.key ? ' is-main' : ''}">
+    const st = areaStatus(a.key, s[a.key], state.skippedIntimate);
+    const marked = markedSymptoms(a.key);
+    const symptoms = marked.length ? marked.map(m=> m.it.short).join(' · ') : 'Sin molestias importantes';
+    return `<div class="area${isMain(a.key) ? ' is-main' : ''}">
       <div class="area-top"><span class="area-name">${a.label}</span><span class="meter-pct">${pct}%</span></div>
       <div class="meter" role="progressbar" aria-label="${a.label}" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"><span style="--w:${pct}%"></span></div>
-      ${incomplete ? `<span class="area-tag">${AREA_TAG.user.incomplete}</span>` : ''}
+      <span class="area-symptoms${marked.length ? '' : ' none'}">${symptoms}${st === 'incomplete' ? ` · ${AREA_TAG.user.incomplete}` : ''}</span>
     </div>`;
   }).join('');
-  const meaning = `<details class="result-more" data-seccion="significado"><summary>Qué significa este resultado</summary>` +
-    `<p><strong>${msg.title}</strong></p><p>${levelText(msg)}</p>` +
-    `<p class="cite">Evaluación gráfica de conjunto según la Escala MRS (Menopause Rating Scale), no una calificación.</p></details>`;
-  let html = `<span class="result-chip">${msg.badge}</span>`;
-  if(main){
-    const marked = markedSymptoms(main.key);
-    html += `<h3>Lo que más pesa hoy: ${AREA_IN_TEXT[main.key]}</h3>` + doctorReco();
-    if(marked.length) html += `<p class="marked-title">Lo que marcaste:</p><ul class="marked">` +
-      marked.map(m=>`<li>${m.it.short} · <strong>${SCALE_LABELS[m.v]}</strong></li>`).join('') + `</ul>`;
-    html += `<p class="main-note">${main.text}</p><span class="cite">${main.source}</span>`;
-  } else {
-    html += `<h3>Tus síntomas hoy</h3>` + doctorReco() + `<p class="main-note"><strong>${msg.title}</strong><br>${levelText(msg)}</p>`;
-  }
-  html += `<div class="bars">${bars}</div>`;
-  const others = notes.slice(1);
-  if(others.length){
-    const names = others.map(n=> AREAS.find(a=>a.key===n.key).label);
-    const list = names.length > 1 ? `${names.slice(0,-1).join(', ')} y ${names[names.length-1]}` : names[0];
-    html += `<p class="area-also">${list} también ${names.length > 1 ? 'alcanzan' : 'alcanza'} el punto en que la guía sugiere comentarlo con tu médico.</p>`;
-  }
-  // Derivación a salud mental: visible siempre que Ánimo alcance su corte (si es el área principal,
-  // ya va en su nota).
-  if(others.some(n=> n.key === 'psicologico'))
-    html += `<p class="mh-note">${MENTAL_HEALTH_LINE}</p>`;
+  const areaRows = AREAS.map(a=>{
+    const st = areaStatus(a.key, s[a.key], state.skippedIntimate);
+    const note = notes.find(n=> n.key === a.key);
+    const marked = markedSymptoms(a.key);
+    const what = marked.length ? `<p class="card-note">Lo que marcaste: ${marked.map(m=>`${m.it.short} (${SCALE_LABELS[m.v].toLowerCase()})`).join(', ')}.</p>` : '';
+    const extra = note ? `<p>${note.text}</p><span class="cite">${note.source}</span>` : '';
+    return `<div class="area-note"><div class="area-note-header"><strong>${a.label}</strong>` +
+      `<span class="area-tag${st === 'over' ? ' hi' : ''}">${AREA_TAG.user[st]}</span></div>${what}${extra}</div>`;
+  }).join('');
+  const meaning = `<details class="result-more" data-seccion="significado"><summary>Entender mi resultado</summary>` +
+    `<p><strong>La escala.</strong> Usamos la Escala MRS (Menopause Rating Scale), la que usan los ginecólogos para medir cuánto te afectan los síntomas de esta etapa. Va de 0 a 44: tu puntaje es <strong>${s.total}</strong>.</p>` +
+    `<p><strong>Las barras.</strong> Muestran cuánto te afecta cada área frente al máximo posible: <strong>cuerpo</strong> (bochornos, corazón, dolores y sueño), <strong>ánimo</strong> (ánimo, irritabilidad, ansiedad y cansancio) y <strong>vida íntima</strong> (deseo, orina y sequedad). "Conviene comentarlo" significa que esa área alcanza el punto en que la Guía HNHU sugiere conversarlo con tu médico.</p>` +
+    `<p><strong>Tus tres áreas.</strong></p>${areaRows}` +
+    `<p><strong>Tu puntaje total.</strong> ${msg.badge.replace(/ · Guía HNHU$/, '')}. ${levelText(msg)}</p>` +
+    `<p class="cite">Es una orientación según la Escala MRS y la Guía HNHU (RD N° 211-2024-DG/HNHU), no un diagnóstico ni una calificación.</p></details>`;
+  let title;
+  if(!main) title = msg.title;
+  else if(tied.length === 3) title = 'Tus tres áreas pesan por igual';
+  else title = `Lo que más pesa hoy: ${joinY(tied.map(n=> AREA_IN_TEXT[n.key]))}`;
+  let html = `<h3>${title}</h3>` + doctorReco() + `<div class="bars">${bars}</div>`;
+  // Derivación a salud mental: visible siempre que Ánimo alcance su corte.
+  if(notes.some(n=> n.key === 'psicologico')) html += `<p class="mh-note">${MENTAL_HEALTH_LINE}</p>`;
   if(state.skippedIntimate) html += `<p class="skipped-note">${SKIPPED_INTIMATE_NOTE}</p>`;
-  if(main) html += meaning;
-  if(others.length) html += `<details class="result-more" data-seccion="areas"><summary>Ver las tres áreas en detalle</summary>` +
-    others.map(n=>`<div class="area-note"><div class="area-note-header"><strong>${n.title}</strong></div><p>${n.text}</p><span class="cite">${n.source}</span></div>`).join('') +
-    `</details>`;
+  html += meaning;
   return html;
 }
 const MENTAL_HEALTH_LINE = 'Por tu puntaje en el ánimo, vale la pena comentarlo también con un profesional de salud mental.';
@@ -1050,7 +1094,30 @@ const MENTAL_HEALTH_LINE = 'Por tu puntaje en el ánimo, vale la pena comentarlo
    inicio (index.html, #researchStart), aparte de los Términos (Ley 29733). Si la marca, cubre sus
    respuestas del test y sus preguntas del chat (no se le vuelve a preguntar). Reemplaza la tarjeta
    de permiso que aparecía después del resultado (resultado-v1). */
-const RESEARCH_VERSION = 'inicio-v3';
+const RESEARCH_VERSION = 'inicio-v4'; // v4: tarjeta destacada encima de "Empezar" (v3: letra chica debajo)
+/* Segunda oportunidad (reporte-v1): quien no marcó la casilla al inicio ve una invitación en el reporte,
+   con un botón. Tampoco viene marcada: solo cuenta si toca "Sí, compartir". */
+const RESEARCH_AGAIN_VERSION = 'reporte-v1';
+function researchAgainHtml(id){
+  return `<div class="research-again" id="${id}">` +
+    `<p><strong>¿Nos ayudas a investigar la menopausia en el Perú?</strong> Si quieres, usamos tus respuestas, sin tus datos de contacto, para mejorar Mindi y para estudios sobre la menopausia.</p>` +
+    `<button type="button" class="btn btn-ghost" data-research-again>Sí, compartir mis respuestas</button>` +
+    `<p class="research-fine">Es opcional. <a href="/privacidad" target="_blank" rel="noopener">Más información</a></p>` +
+    `</div>`;
+}
+function setupResearchAgain(box){
+  if(!box) return;
+  const btn = box.querySelector('[data-research-again]');
+  btn.addEventListener('click', ()=>{
+    btn.disabled = true;
+    sendLead({research:true, version:RESEARCH_AGAIN_VERSION}).then(r=>{
+      if(!(r && r.ok)){ btn.disabled = false; return; }
+      state.research = true;
+      track('research_consent', {captured:true, desde:'reporte'});
+      box.innerHTML = '<p role="status">Gracias. Tus respuestas van a ayudar a otras mujeres.</p>';
+    });
+  });
+}
 /* Después del resultado: un botón para seguir (antes lo hacía la tarjeta del permiso). */
 function askContinue(){
   return new Promise(resolve=>{
@@ -1105,7 +1172,7 @@ function showResultsTopics(){
   clearComposer();
   const level = computeLevel();
 
-  botSay(['Esto es lo que noto:']).then(async ()=>{
+  botSay([state.name ? `${state.name}, esto es lo que noto:` : 'Esto es lo que noto:']).then(async ()=>{
     await showResultsCardSequence();
     track('result');
     continueToGoals();
@@ -1143,17 +1210,7 @@ function showSafetyMessage(){
 /* ---------- Metas + validación de precio + datos + satisfacción ----------
    Comparten el mismo cierre sin importar si hubo bandera roja: ya se mostró la
    información que corresponde (resultados o aviso de seguridad) antes de llegar aquí. */
-const GOAL_OPTIONS = [
-  'Manejar la perimenopausia o menopausia',
-  'Detener los sofocos o sudores nocturnos',
-  'Dormir mejor',
-  'Tener claridad mental y concentración',
-  'Controlar mi peso',
-  'Mejorar mi ánimo o ansiedad',
-  'Mejorar mi vida íntima (libido, comodidad)',
-  'Aliviar el dolor articular',
-  'Aliviar la sequedad vaginal',
-];
+// GOAL_OPTIONS viene de _shared/autocuidado.js: las mismas metas en el test, el reporte y el PDF.
 
 function continueToGoals(){
   askGoals();
@@ -1167,21 +1224,11 @@ function askGoals(){
       const labels = selected.map(id => GOAL_OPTIONS[+id.slice(1)]);
       state.goals = labels;
       track('goals');
-      askSatisfaction(askName);
+      askToolInterest(); // cierre-v3: metas → ¿usarías una herramienta? → reporte
     });
   });
 }
 
-function askName(){
-  setSection('Tu reporte');
-  // Opcional: solo personaliza el saludo del reporte (PDF y correo). No se guarda si no deja su correo.
-  botSay([{text:'¿Cómo quieres que te llame en tu reporte?', cls:'question'}]).then(()=>{
-    renderTextInput('Tu nombre o un apodo', {skipLabel:'Prefiero no decirlo', skipValue:''}, (val)=>{
-      state.name = val || '';
-      showReport();
-    });
-  });
-}
 
 /* Correo para la copia del reporte (el número de WhatsApp ya no se pide). validContact sigue
    aceptando WhatsApp solo para la inscripción a los conversatorios. */
@@ -1210,30 +1257,24 @@ function whySection(){
   const rows = notes.map(n=>`<li><strong>${n.label}:</strong> ${n.text}</li>`).join('');
   return `<section><h3>${WHY_TITLE}</h3><ul class="card-list">${rows}</ul></section>`;
 }
-function reportFullHtml(){
-  const msg = levelMessage(state.scores);
-  const alertNote = hasFlag()
-    ? `<p class="card-note"><strong>Marcaste una señal de alerta.</strong> Conviene revisarla con tu médico antes de considerar cualquier tratamiento.</p>` : '';
-  return `<details class="report-more" data-seccion="reporte"><summary>Ver el reporte completo</summary><div class="report-full">` +
-    `<section>${alertNote}${levelCard(msg)}</section>` +
-    `<section><h3>Sobre tu etapa</h3><p>${stageNote()}</p><span class="cite">${PERU_AGE_NOTE} Fuente: Guía HNHU (RD N° 211-2024-DG/HNHU), secciones 5.4 y 6.2.1.</span></section>` +
-    whySection() +
-    `<section><h3>Recomendaciones de autocuidado</h3>${selfCareBody()}</section>` +
-    `<section><h3>Preguntas para tu médico</h3>${consultBody()}</section>` +
-    `<section><h3>Tus 11 respuestas</h3>${reportAnswersList()}</section>` +
-    `<p class="topics-disclaimer">${DISCLAIMER}</p>` +
-    `</div></details>`;
-}
 
 /* Resumen del reporte (10.4): Escala MRS, síntoma principal y banderas rojas, con el valor en
-   --magenta-text. Síntoma principal = el ítem con el puntaje más alto (el primero si empatan). */
+   --magenta-text. Síntoma principal = el ítem con el puntaje más alto. Si empatan (16 nov. 2026), no se
+   elige uno al azar: con dos se nombran ambos y con tres o más se dice cuántos están en ese nivel. */
+function topSymptomRow(answers){
+  const max = Math.max(0, ...MRS_ITEMS.map(it=> answers[it.id] || 0));
+  if(!max) return ['Síntoma principal', 'Ninguno'];
+  const top = MRS_ITEMS.filter(it=> answers[it.id] === max);
+  if(top.length === 1) return ['Síntoma principal', top[0].short];
+  if(top.length === 2) return ['Síntomas más fuertes', `${top[0].short} y ${top[1].short}`];
+  return ['Síntomas más fuertes', `${top.length} en nivel ${SCALE_LABELS[max].toLowerCase()}`];
+}
 function reportSummary(){
-  let top = null;
-  MRS_ITEMS.forEach(it=>{ const v = state.answers[it.id]; if(v && (!top || v > state.answers[top.id])) top = it; });
+  const [label, value] = topSymptomRow(state.answers);
   const flags = hasFlag() ? state.redFlags.length : 0;
   return `<dl class="report-summary">` +
     `<div><dt>Escala MRS</dt><dd>${state.scores.total} de 44</dd></div>` +
-    `<div><dt>Síntoma principal</dt><dd>${top ? top.short : 'Ninguno'}</dd></div>` +
+    `<div><dt>${label}</dt><dd>${value}</dd></div>` +
     `<div><dt>Banderas rojas</dt><dd>${flags ? `${flags} ${flags === 1 ? 'señal' : 'señales'} de alerta` : 'Ninguna'}</dd></div>` +
     `</dl>`;
 }
@@ -1256,8 +1297,8 @@ function setupWhatsAppShare(btn, filePromise){
   if(filePromise) filePromise.then(f=>{ file = f; });
   const canShareFile = (f)=> !!f && !!navigator.canShare && (()=>{ try{ return navigator.canShare({files:[f]}); }catch{ return false; } })();
   const note = (html)=>{
-    let p = btn.closest('.report-actions').nextElementSibling;
-    if(!p || !p.classList.contains('report-share-ok')){ p = document.createElement('p'); p.className = 'report-share-ok'; p.setAttribute('role','status'); btn.closest('.report-actions').after(p); }
+    let p = btn.closest('.report-buttons').nextElementSibling;
+    if(!p || !p.classList.contains('report-share-ok')){ p = document.createElement('p'); p.className = 'report-share-ok'; p.setAttribute('role','status'); btn.closest('.report-buttons').after(p); }
     p.innerHTML = html;
   };
   async function openWaLink(){
@@ -1274,7 +1315,8 @@ function setupWhatsAppShare(btn, filePromise){
     }
     track('report_share', {method:'whatsapp'});
     if(w){ w.opener = null; w.location.href = waShareUrl(link); }
-    else location.href = waShareUrl(link);
+    // Si el navegador no abre ventanas nuevas, un enlace para tocar: nunca se sale de esta página.
+    else note(`<a href="${waShareUrl(link)}" target="_blank" rel="noopener">Abrir WhatsApp</a>`);
   }
   btn.addEventListener('click', (e)=>{
     e.preventDefault();
@@ -1316,19 +1358,45 @@ document.addEventListener('click', (e)=>{
   location.href = '/chat';
 });
 
-/* El PDF para compartir por WhatsApp desde el celular: se trae por /api/report (action 'pdf') apenas
-   aparece el reporte, solo si el navegador puede compartir archivos. */
+/* El PDF del reporte: se trae por /api/report (action 'pdf') apenas aparece el reporte. Lo usan
+   "Descargar PDF" (descarga directa) y, en el celular, "Compartir por WhatsApp" (menú de compartir). */
 const PDF_NAME = 'reporte-mindi.pdf';
 function requestPdfFile(){
   if(!BACKEND_ON) return Promise.resolve(null);
   return (state.sessionSaved || Promise.resolve()).then(()=> fetch('/api/report', {
     method:'POST', headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({action:'pdf', session_id:SESSION_ID, name: state.name || undefined}),
+    body:JSON.stringify({action:'pdf', session_id:SESSION_ID, name: state.name || undefined, goals: state.goals || undefined}),
   })).then(async r=>{
     const ok = r.ok && (r.headers.get('content-type') || '').includes('application/pdf');
-    if(!ok){ track('report_failed', {error:String(r.status), channel:'whatsapp'}); return null; }
+    if(!ok){ track('report_failed', {error:String(r.status), channel:'download'}); return null; }
     return new File([await r.blob()], PDF_NAME, {type:'application/pdf'});
-  }).catch(()=>{ track('report_failed', {error:'network', channel:'whatsapp'}); return null; });
+  }).catch(()=>{ track('report_failed', {error:'network', channel:'download'}); return null; });
+}
+function savePdf(file){
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(file); a.download = PDF_NAME; a.rel = 'noopener';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=> URL.revokeObjectURL(a.href), 60000);
+}
+/* "Descargar PDF" (16 nov. 2026, vuelve como botón principal): solo descarga, en el celular y en la
+   computadora; compartir es del botón de WhatsApp. Mide report_download. Mientras se prepara el PDF
+   dice "Preparando tu PDF…"; si falla, invita a pedirlo por correo. */
+function setupDownloadButton(btn, filePromise){
+  filePromise.then(file=>{
+    const label = btn.querySelector('span');
+    btn.removeAttribute('aria-busy');
+    if(!file){
+      label.textContent = 'No se pudo preparar el PDF';
+      btn.closest('.report-buttons').insertAdjacentHTML('beforebegin', '<p class="card-note">Te lo enviamos por correo: toca "Enviar a mi correo".</p>');
+      return;
+    }
+    btn.disabled = false;
+    label.textContent = 'Descargar PDF';
+    btn.addEventListener('click', ()=>{
+      savePdf(file);
+      track('report_download', {in_app: IN_APP_BROWSER, method:'download'});
+    });
+  });
 }
 /* ¿Este navegador puede compartir un PDF? Se prueba con un archivo vacío antes de pedir el real. */
 const CAN_SHARE_PDF = isTouch && !!navigator.canShare && (()=>{
@@ -1341,30 +1409,153 @@ document.addEventListener('toggle', (e)=>{
 }, true);
 
 let reportSeq = 0;
-function showReport(){
+/* "Ver el reporte completo" se quitó (16 nov. 2026): repetía en la pantalla lo que ya trae el PDF. En su
+   lugar, una línea dice qué incluye el PDF, para que valga la pena descargarlo o enviarlo. */
+function pdfContents(){
+  return `Tu PDF incluye ${state.goals && state.goals.length ? 'tus metas con un primer paso, ' : ''}` +
+    `recomendaciones de la guía, preguntas para tu médico y tus 11 respuestas, para llevarlo a tu consulta.`;
+}
+/* "Agendar cita con un especialista" (16 nov. 2026): deja sus datos en la lista `consultas` (la misma de
+   la landing) con origen `reporte`, para que el equipo la contacte. Es el seguimiento del test. */
+function citaHtml(id){
+  return `<div class="report-cita">` +
+    `<p><strong>¿Quieres que un especialista revise tu caso?</strong> Déjanos tus datos y te contactamos para coordinar tu cita.</p>` +
+    `<button type="button" class="rbtn rbtn-cita" id="${id}c" aria-expanded="false" aria-controls="${id}cf">${ICON_CALENDAR}<span>Agendar cita con un especialista</span></button>` +
+    `<div id="${id}cf" hidden></div></div>`;
+}
+/* Formulario corto dentro del chat para una lista de espera (consultas o el diario), con la misma
+   validación que la landing (waitlistRow) y Turnstile recién al abrirlo. */
+function mountInlineWaitlist(box, list, {origin, submit, done}){
+  const form = document.createElement('form');
+  form.className = 'inline-wl';
+  form.noValidate = true;
+  form.innerHTML =
+    `<label>Nombre<input class="m-input" name="name" autocomplete="name" maxlength="80" required></label>` +
+    `<label>Correo<input class="m-input" name="email" type="email" autocomplete="email" maxlength="120" required></label>` +
+    `<label>WhatsApp (opcional)<input class="m-input" name="whatsapp" type="tel" autocomplete="tel" maxlength="20"></label>` +
+    `<label class="opt"><input type="checkbox" name="consent"><span>Acepto la <a href="/privacidad" target="_blank" rel="noopener">Política de privacidad</a>. Usaremos estos datos solo para contactarte sobre esto.</span></label>` +
+    `<div class="wl-ts"></div><p class="hint err" role="alert" hidden></p>` +
+    `<button type="submit" class="rbtn rbtn-main"><span>${submit}</span></button>`;
+  box.appendChild(form);
+  if(state.name) form.elements.name.value = state.name;
+  const captcha = mountTurnstile(form.querySelector('.wl-ts'));
+  form.onsubmit = async (e)=>{
+    e.preventDefault();
+    const values = {name:form.elements.name.value, email:form.elements.email.value, whatsapp:form.elements.whatsapp.value, consent:form.elements.consent.checked};
+    const { error } = waitlistRow(list, values);
+    const err = form.querySelector('.err');
+    if(error){ err.textContent = error; err.hidden = false; return; }
+    err.hidden = true;
+    const btn = form.querySelector('[type=submit]'); btn.disabled = true;
+    const turnstile = await captcha.token();
+    const r = await api('waitlist', {list, values:{...values, consent:true}, consent_text_version:CONSENT_VERSION, is_test:TEST_MODE, origin, turnstile});
+    track('waitlist_join', {list, captured: !!(r && r.ok), desde: origin});
+    if(!(r && r.ok)){
+      btn.disabled = false; captcha.reset && captcha.reset();
+      err.textContent = 'No pudimos enviar tus datos. Inténtalo de nuevo en un momento.'; err.hidden = false;
+      return;
+    }
+    captcha.remove();
+    box.innerHTML = `<p class="email-done" role="status">${done}</p>`;
+  };
+}
+/* ¿Usaría una herramienta para su meta? (16 nov. 2026): valida el interés en el diario con cada usuaria,
+   sin pedirle datos (tool_interest {answer}). Si dice que sí, puede dejar su correo para que le avisemos
+   (lista `plus`, origen `reporte_diario`). Después, el reporte. */
+const TOOL_ANSWERS = [{label:'Sí', value:'si', primary:true}, {label:'Tal vez', value:'tal_vez'}, {label:'No', value:'no'}];
+/* Nombra todo lo que eligió (antes solo la primera meta, y parecía que ignoraba las demás). */
+function toolQuestion(goals){
+  if(goals.length === 1) return `Elegiste “${goals[0]}”. ¿Usarías una herramienta que te ayude a lograrlo día a día?`;
+  const which = goals.length === 2 ? `“${goals[0]}” y “${goals[1]}”` : `${goals.length} metas`;
+  return `Elegiste ${which}. ¿Usarías una herramienta que te ayude a lograrlas día a día?`;
+}
+function askToolInterest(){
+  if(!state.goals || !state.goals.length) return showReport();
+  botSay([{text:toolQuestion(state.goals), cls:'question'}]).then(()=>{
+    renderChips(TOOL_ANSWERS, (v)=>{
+      state.toolInterest = v;
+      track('tool_interest', {answer:v});
+      if(v !== 'si') return botSay([v === 'tal_vez' ? 'Gracias, lo tomo en cuenta. Aquí va tu reporte.' : 'Entendido. Aquí va tu reporte.']).then(showReport);
+      botSay(['¡Qué bueno! Estamos creando un diario para eso.']).then(()=>{
+        if(!BACKEND_ON) return showReport();
+        const id = 'dia' + (reportSeq + 1);
+        return revealCard(
+          `<p>¿Te avisamos cuando esté listo? Es opcional.</p>` +
+          `<button type="button" class="rbtn rbtn-mail" id="${id}b" aria-expanded="false" aria-controls="${id}f"><span>Sí, avísame</span></button>` +
+          `<div id="${id}f" hidden></div>`, 'calm', 300
+        ).then(()=>{
+          setupToggleForm(document.getElementById(id + 'b'), document.getElementById(id + 'f'), (box)=>{
+            track('diario_invite_open');
+            mountInlineWaitlist(box, 'plus', {origin:'reporte_diario', submit:'Avísame cuando esté listo', done:'¡Listo! Te avisaremos apenas el diario esté disponible.'});
+          });
+          showReport();
+        });
+      });
+    });
+  });
+}
+function setupToggleForm(btn, box, mount){
+  btn.addEventListener('click', ()=>{
+    const open = box.hidden;
+    box.hidden = !open;
+    btn.setAttribute('aria-expanded', String(open));
+    if(open && !box.firstChild) mount(box);
+  });
+}
+/* Guarda el reporte en esta pestaña (ver REPORT_STORE). */
+function saveReportState(){
+  const keys = ['answers','redFlags','age','cycle','smoking','obesity','familyBreastCa','migraine','currentTreatment','scores','skippedIntimate','goals','name','research','satisfaction'];
+  try{ sessionStorage.setItem(REPORT_STORE, JSON.stringify({id:SESSION_ID, ts:Date.now(), s:Object.fromEntries(keys.map(k=>[k, state[k]]))})); }catch{}
+}
+/* Volvió a la página con un reporte guardado: lo muestra de nuevo, sin repetir el test. */
+function restoreReport(){
+  started = true;
+  Object.assign(state, SAVED_REPORT.s);
+  openChatShell();
+  setProgress(TOTAL_STEPS);
+  track('report_restored');
+  botSay([state.name ? `Hola de nuevo, ${state.name}. Aquí sigue tu reporte.` : 'Aquí sigue tu reporte.']).then(()=> showReport({restored:true}));
+}
+
+function showReport({restored = false} = {}){
   setSection('Tu reporte');
+  if(!restored) saveReportState();
   const id = 'rep' + (++reportSeq);
   const inApp = IN_APP_BROWSER
-    ? `<p class="report-inapp">Si WhatsApp no abre aquí, abre esta página en tu navegador (menú ··· › Abrir en el navegador) o recíbelo en tu correo.</p>` : '';
-  // "Tu reporte está listo" (16 nov. 2026): solo dos botones del mismo tamaño, correo y WhatsApp.
+    ? `<p class="report-inapp">Si la descarga o WhatsApp no abren aquí, abre esta página en tu navegador (menú ··· › Abrir en el navegador) o recíbelo en tu correo.</p>` : '';
+  // "Tu reporte está listo" (16 nov. 2026, noche): tres botones apilados, del mismo ancho y con ícono:
+  // "Descargar PDF" (principal), "Enviar a mi correo" (contorno) y "Compartir por WhatsApp" (verde WhatsApp).
   const actions = BACKEND_ON
-    ? `<div class="report-actions report-two">` +
-        `<button type="button" class="btn" id="${id}m" aria-expanded="false" aria-controls="${id}e">Enviar a mi correo</button>` +
-        `<button type="button" class="btn" id="${id}w">Compartir por WhatsApp</button>` +
+    ? `<div class="report-buttons">` +
+        `<button type="button" class="rbtn rbtn-main" id="${id}d" disabled aria-busy="true">${ICON_DOWNLOAD}<span>Preparando tu PDF…</span></button>` +
+        `<button type="button" class="rbtn rbtn-mail" id="${id}m" aria-expanded="false" aria-controls="${id}e">${ICON_MAIL}<span>Enviar a mi correo</span></button>` +
+        `<button type="button" class="rbtn rbtn-wa" id="${id}w">${ICON_WHATSAPP}<span>Compartir por WhatsApp</span></button>` +
       `</div>` +
       `<div class="report-email" id="${id}e" hidden></div>`
     : '';
   revealCard(
-    `<h3>Tu reporte está listo</h3><p class="card-note">Todo lo que vimos, para llevarlo a tu consulta.</p>` +
-    reportSummary() + actions + inApp + reportFullHtml(), 'report'
+    `<h3>Tu reporte está listo</h3><p class="card-note">${pdfContents()}</p>` +
+    reportSummary() + actions + inApp + (BACKEND_ON ? citaHtml(id) : '') +
+    `<div class="report-sat" id="${id}s"><p><strong>${SATISFACTION_QUESTION}</strong></p></div>` +
+    (BACKEND_ON && !state.research ? researchAgainHtml(id + 'r') : '') +
+    `<p class="topics-disclaimer">${DISCLAIMER}</p>`, 'report'
   ).then(()=>{
-    track('report_shown', {in_app: IN_APP_BROWSER});
+    track('report_shown', {in_app: IN_APP_BROWSER, desde: restored ? 'restaurado' : 'test'});
     if(BACKEND_ON){
-      setupWhatsAppShare(document.getElementById(id + 'w'), CAN_SHARE_PDF ? requestPdfFile() : null);
+      const pdf = requestPdfFile();
+      setupDownloadButton(document.getElementById(id + 'd'), pdf);
+      setupWhatsAppShare(document.getElementById(id + 'w'), CAN_SHARE_PDF ? pdf : null);
       setupEmailButton(document.getElementById(id + 'm'), document.getElementById(id + 'e'));
+      setupResearchAgain(document.getElementById(id + 'r'));
+      setupToggleForm(document.getElementById(id + 'c'), document.getElementById(id + 'cf'), (box)=>{
+        track('cita_open');
+        mountInlineWaitlist(box, 'consultas', {origin:'reporte', submit:'Quiero agendar mi cita', done:'¡Listo! Te escribiremos pronto para coordinar tu cita.'});
+      });
     }
+    reportSatisfaction(document.getElementById(id + 's'));
     clearComposer();
-    closeFlow();
+    if(restored) return afterGuided(true);
+    closeFlow(); // cierre-v3: la satisfacción va dentro de la tarjeta del reporte y no bloquea el cierre
   });
 }
 
@@ -1427,33 +1618,25 @@ function mountEmailForm(box){
    Excepción deliberada a "sin emojis" del sistema de diseño (ver renderFaceScale). */
 /* cierre-v2 (5 nov. 2026): la satisfacción va antes del reporte, con "Prefiero no responder" visible.
    El reporte no depende de responder. */
-const SATISFACTION_QUESTION = 'Mientras preparamos tu reporte: ¿te sirvió este resultado?';
-function askSatisfaction(next){
-  setSection('¿Te sirvió?');
-  addCard(`<h3>${SATISFACTION_QUESTION}</h3>`, '');
-  renderFaceScale((score, label)=>{
+/* Satisfacción dentro de "Tu reporte" (16 nov. 2026): la ve todo el que llega al reporte, aunque se vaya
+   después de descargar, y no bloquea nada. Evento NUEVO, report_satisfaction {answer, score}: el evento
+   anterior, satisfaction (pregunta y lugar distintos), queda cerrado para no mezclar las series. */
+const SATISFACTION_QUESTION = '¿Te sirvió este resultado?';
+function reportSatisfaction(box){
+  if(!box) return;
+  if(state.satisfaction){ box.remove(); return; } // ya respondió (reporte restaurado): no se pregunta dos veces
+  box.appendChild(faceScaleEl((score, label)=>{
     state.satisfaction = label;
-    track('satisfaction', {answer:label, score});
-    const reply = score >= 3 ? 'Qué bueno, gracias.'
-      : score === 2 ? 'Gracias, lo tomo en cuenta.'
-      : 'Gracias, de verdad ayuda a mejorar.';
-    botSay([reply]).then(next);
-  });
-  const skip = document.createElement('div');
-  skip.className = 'chips suggestRow';
-  skip.innerHTML = '<button type="button" class="chip quiet">Prefiero no responder</button>';
-  skip.querySelector('button').onclick = ()=>{
-    addBubble('Prefiero no responder', 'user'); advance(); clearComposer();
-    track('satisfaction_skip');
-    next();
-  };
-  composer.appendChild(skip);
-  scrollBottom();
+    track('report_satisfaction', {answer:label, score});
+    saveReportState();
+    const reply = score >= 3 ? '¡Qué bueno! Gracias por contarnos.' : score === 2 ? 'Gracias, lo tomamos en cuenta.' : 'Gracias, de verdad nos ayuda a mejorar.';
+    box.innerHTML = `<p class="email-done" role="status">${reply}</p>`;
+  }));
 }
 
 /* Cierre: aparece siempre debajo del reporte, deje o no su correo. */
 function closeFlow(){
-  botSay(['Fue un gusto. Cuídate mucho.']).then(()=> channelInvite('final')).then(()=> afterGuided(true));
+  botSay(['Fue un gusto. Cuídate mucho.']).then(()=> afterGuided(true));
 }
 
 /* Oculta el degradado del carrusel de síntomas cuando ya no hay más hacia dónde
@@ -1765,7 +1948,11 @@ async function askAgent(text, {echo = true} = {}){
 const PATH = location.pathname.replace(/\/+$/, '') || '/';
 const APP_VIEW = PATH === '/test' || PATH === '/chat' || location.hash === '#conversar';
 // Los botones se conectan antes de abrir /chat: openAiChat quita la tarjeta de inicio (y su botón).
-document.getElementById('restartBtn').addEventListener('click', ()=>{ track('restart'); location.hash = 'conversar'; location.reload(); });
+document.getElementById('restartBtn').addEventListener('click', ()=>{
+  track('restart');
+  try{ sessionStorage.removeItem(REPORT_STORE); sessionStorage.removeItem(SESSION_STORE); }catch{}
+  location.hash = 'conversar'; location.reload();
+});
 document.getElementById('exitBtn').addEventListener('click', async ()=>{
   if(aiMode && CHAT_RESEARCH_ENABLED && !chatShareOn && !chatShareAsked && chatPending.length){ await askShareAtEnd(); await new Promise(r=> setTimeout(r, 900)); }
   location.href = '/';
@@ -1791,6 +1978,7 @@ if(APP_VIEW){
   document.body.classList.add('app-view');
   setFocus(true);
   if(PATH === '/chat' && AGENT_ENABLED){ track('cta_click', {source:'ruta_chat'}); openAiChat(); }
+  else if(SAVED_REPORT) restoreReport();
 }
 
 /* ---------- Landing (src/landing.js) ---------- */

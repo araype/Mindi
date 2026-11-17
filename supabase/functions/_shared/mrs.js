@@ -193,7 +193,7 @@ export function agentMrsResult(scores, hasAlert) {
 export const AREA_NOTES = {
   somatico: {
     title: 'Sobre tu cuerpo',
-    text: 'Los bochornos, el cansancio o los dolores que marcaste están afectando tu día a día más de lo habitual. Hay formas de aliviarlos, y tu médico puede ayudarte a elegir la que mejor se adapte a ti. Lleva este reporte a tu próxima consulta.',
+    text: 'Los bochornos, las palpitaciones, los dolores o el mal sueño que marcaste están afectando tu día a día más de lo habitual. Hay formas de aliviarlos, y tu médico puede ayudarte a elegir la que mejor se adapte a ti. Lleva este reporte a tu próxima consulta.',
     source: 'Fuente: Guía HNHU (RD N° 211-2024-DG/HNHU), Figura 6.',
   },
   psicologico: {

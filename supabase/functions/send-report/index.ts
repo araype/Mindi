@@ -38,7 +38,7 @@ import {
   doctorRecommendation, EMERGENCY_NOW, areaNotes,
 } from '../_shared/mrs.js';
 // Autocuidado: la misma lista que el chat (allí se muestran 2; aquí, todas).
-import { prioritizedSelfCare, SELF_CARE_SOURCE } from '../_shared/autocuidado.js';
+import { prioritizedSelfCare, SELF_CARE_SOURCE, goalSteps } from '../_shared/autocuidado.js';
 // "Por qué puede pasarte": las mismas notas por síntoma que el reporte del chat.
 import { whyNotes, WHY_TITLE } from '../_shared/notas.js';
 
@@ -621,6 +621,16 @@ async function buildPdf(session: Record<string, any>, lead: Record<string, any>)
       para(n.source, { size: 8, color: PDF_COLOR.inkSoft, gap: 10 });
     }
 
+    // "Tus metas" (16 nov. 2026): lo que eligió en el test, con un primer paso para cada una. Las metas
+    // llegan en el pedido (no se guardan); sin metas, la sección no aparece.
+    const goals = goalSteps(lead.goals);
+    if (goals.length) {
+      heading('Tus metas');
+      para('Lo que elegiste lograr, con un primer paso para cada meta:', { size: 9, color: PDF_COLOR.inkSoft, gap: 6 });
+      for (const [g, , d] of goals) bulletBlock(g, d.charAt(0).toUpperCase() + d.slice(1));
+      para(`Fuente: ${SELF_CARE_SOURCE}`, { size: 7.5, color: PDF_COLOR.inkSoft, gap: 10 });
+    }
+
     heading('Algunas cosas que pueden ayudarte');
     para('No reemplazan un tratamiento si tu médico lo indica — son medidas seguras para cualquier momento de esta etapa.', { size: 8.5, color: PDF_COLOR.inkSoft, gap: 8 });
     const care = selfCare(session);
@@ -656,12 +666,14 @@ Deno.serve(async (req) => {
 
   let session_id: string | undefined;
   let bodyName: string | undefined;
+  let bodyGoals: string[] = [];
   let downloadOnly = false;
   let share = false;
   try {
     const body = await req.json();
     session_id = body.session_id;
     bodyName = typeof body.name === 'string' ? body.name.slice(0, 80) : undefined;
+    bodyGoals = Array.isArray(body.goals) ? body.goals : [];
     downloadOnly = !!body.download_only;
     share = !!body.share;
   } catch {
@@ -695,7 +707,7 @@ Deno.serve(async (req) => {
   if (downloadOnly) {
     let pdfBytes: Uint8Array;
     try {
-      pdfBytes = await buildPdf(session, { name: bodyName });
+      pdfBytes = await buildPdf(session, { name: bodyName, goals: bodyGoals });
     } catch (e) {
       console.error('No se pudo generar el PDF de descarga:', e);
       return fail('pdf_failed');
@@ -759,7 +771,7 @@ Deno.serve(async (req) => {
   // Si no se puede armar, el correo sale igual con el enlace: nunca se pierde el reporte por el PDF.
   let attachments: { filename: string; content: string }[] | undefined;
   try {
-    const pdfBytes = await buildPdf(session, { name: lead.name || undefined });
+    const pdfBytes = await buildPdf(session, { name: lead.name || undefined, goals: bodyGoals });
     attachments = [{ filename: 'reporte-mindi.pdf', content: toBase64(pdfBytes) }];
   } catch (e) {
     console.error('No se pudo generar el PDF adjunto:', e);

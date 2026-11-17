@@ -279,17 +279,37 @@ body.no-scroll{overflow:hidden}
 /* Bienvenida: casilla opcional de investigación, en letra pequeña */
 .chat-start .start-opt{display:flex;gap:10px;align-items:flex-start;margin:0 0 14px;font-size:13px;line-height:1.45;color:var(--plum-soft);cursor:pointer}
 .chat-start .start-opt input{width:20px;height:20px;margin:0;flex:none;accent-color:var(--magenta-text)}
-.chat-start .start-research{margin-top:16px;padding-top:14px;border-top:1px solid var(--line-soft, rgba(0,0,0,.08))}
-.chat-start .start-research .start-opt{margin:0}
+/* inicio-v4: tarjeta destacada encima de "Empezar" */
+.chat-start .start-research{margin:0 0 16px;padding:14px 14px 10px;border:1.5px solid var(--bubble-bot-border);border-radius:16px;background:#fff}
+.chat-start .start-research-title{margin:0 0 8px;font-family:var(--font-display);font-weight:700;font-size:16px;line-height:1.25;color:var(--plum)}
+.chat-start .start-research .start-opt{margin:0;font-size:14px;color:var(--plum)}
 .chat-start .start-more{margin:6px 0 0 30px;font-size:13px;line-height:1.45;color:var(--plum-soft)}
+/* Segunda oportunidad en el reporte (reporte-v1): quien no marcó la casilla al inicio */
+.research-again{margin:14px 0 4px;padding:12px 14px;border:1.5px solid var(--bubble-bot-border);border-radius:16px;background:#fff}
+.research-again p{margin:0 0 10px;font-size:14.5px;line-height:1.45}
+.research-again .btn{width:100%}
+.research-again .research-fine{margin:8px 0 0;font-size:12.5px;color:var(--plum-soft)}
+.research-again .research-fine a{color:var(--magenta-text)}
 .chat-start .start-more summary{cursor:pointer;color:var(--magenta-text);font-weight:600;text-decoration:underline;text-underline-offset:3px;min-height:28px;list-style:none}
 .chat-start .start-more summary::-webkit-details-marker{display:none}
 .chat-start .start-more p{margin:4px 0 0;font-size:13px}
 .chat-start .start-more a{color:var(--magenta-text)}
-/* Reporte: dos botones del mismo tamaño (correo y WhatsApp) */
-.card .report-actions.report-two{flex-direction:row;gap:10px}
-.card .report-actions.report-two .btn{flex:1 1 0;width:auto;min-width:0;padding-left:12px;padding-right:12px}
-@media (max-width:380px){.card .report-actions.report-two{flex-direction:column}.card .report-actions.report-two .btn{width:100%}}
+/* Reporte: tres botones apilados, mismo ancho y alto, ícono a la izquierda del texto */
+.report-buttons{display:grid;gap:10px;margin:14px 0 6px}
+.rbtn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;min-height:52px;padding:12px 18px;
+  border:2px solid transparent;border-radius:var(--radius-pill);font-family:var(--font-display);font-weight:700;font-size:17px;line-height:1.15;
+  cursor:pointer;transition:background-color .15s,border-color .15s,color .15s,transform .1s}
+.rbtn svg{width:21px;height:21px;flex:none}
+.rbtn:active{transform:scale(.98)}
+.rbtn:focus-visible{outline:3px solid var(--plum);outline-offset:2px}
+.rbtn[disabled]{opacity:.65;cursor:progress}
+.rbtn-main{background:var(--magenta-btn);border-color:var(--magenta-btn);color:#fff}
+.rbtn-main:not([disabled]):hover{background:var(--magenta-deep);border-color:var(--magenta-deep)}
+.rbtn-mail{background:#fff;border-color:var(--magenta-btn);color:var(--magenta-text)}
+.rbtn-mail:hover,.rbtn-mail[aria-expanded="true"]{background:var(--pink-bg)}
+/* WhatsApp: su verde de siempre */
+.rbtn-wa{background:#25D366;border-color:#25D366;color:#fff}
+.rbtn-wa:hover{background:#1EBE5A;border-color:#1EBE5A}
 /* Correo dentro de la tarjeta del reporte */
 .report-email{margin-top:12px}
 .report-email .email-title{margin:0 0 8px;font-size:15px}
@@ -337,3 +357,27 @@ body.no-scroll{overflow:hidden}
 .fb-ask{display:flex;align-items:center;gap:8px;margin-left:46px;font-size:13px;color:var(--plum-soft)}
 .fb-btn{border:1.5px solid var(--bubble-bot-border);background:#fff;border-radius:999px;padding:6px 14px;min-height:36px;font:inherit;font-weight:600;color:var(--magenta-text);cursor:pointer}
 .fb-btn:hover,.fb-btn:focus-visible{border-color:var(--magenta-text)}
+/* Reporte (cierre-v3): metas, cita con especialista y formularios cortos dentro del chat */
+.report-goals{margin:12px 0 0;padding:10px 12px;border-radius:12px;background:var(--pink-bg);font-size:14px;line-height:1.45}
+.report-cita{margin:16px 0 4px;padding:14px;border:1.5px solid var(--bubble-bot-border);border-radius:16px;background:#fff}
+.report-cita p{margin:0 0 10px;font-size:14.5px;line-height:1.45}
+.rbtn-cita{background:#fff;border-color:var(--plum);color:var(--plum)}
+.rbtn-cita:hover,.rbtn-cita[aria-expanded="true"]{background:var(--pink-bg)}
+.inline-wl{display:flex;flex-direction:column;gap:10px;margin-top:12px}
+.inline-wl label{display:flex;flex-direction:column;gap:4px;font-size:13.5px;font-weight:600;color:var(--plum)}
+.inline-wl .m-input{font:inherit;font-weight:400;font-size:16px;padding:10px 12px;border:1.5px solid var(--bubble-bot-border);border-radius:12px;background:#fff;color:var(--plum)}
+.inline-wl .opt{flex-direction:row;align-items:flex-start;gap:10px;font-weight:400;font-size:13px;color:var(--plum-soft)}
+.inline-wl .opt input{width:20px;height:20px;margin:0;flex:none;accent-color:var(--magenta-text)}
+.inline-wl .opt a{color:var(--magenta-text)}
+.inline-wl .err{margin:0;color:var(--magenta-text);font-size:13px}
+.card.calm .rbtn{margin-top:10px}
+/* Resultado corto: síntomas de cada área debajo de su barra */
+.area-symptoms{display:block;margin-top:5px;font-size:13.5px;line-height:1.35;color:var(--plum)}
+.area-symptoms.none{color:var(--plum-soft)}
+.card .bars{margin-top:14px}
+.card .bars .area + .area{margin-top:14px}
+/* Satisfacción dentro de "Tu reporte" */
+.report-sat{margin:16px 0 4px;padding:12px 8px 6px;border-top:1px solid var(--bubble-bot-border);text-align:center}
+.report-sat p{margin:0 0 4px;font-size:15px}
+.report-sat .face-scale{flex-wrap:nowrap}
+.report-sat .face-btn{min-width:0;flex:1 1 0;padding:8px 2px}

@@ -87,3 +87,34 @@ export function prioritizedSelfCare(answers, max = 3) {
   const all = [...specific, ...SELF_CARE_UNIVERSAL];
   return { top: all.slice(0, max).map((s) => [s.t, s.d]), rest: all.slice(max).map((s) => s.short) };
 }
+
+/* ---------- Metas (pantalla "¿Qué te gustaría lograr?") ----------
+   Las mismas opciones en el test, en el reporte web y en el PDF. Cada meta lleva un primer paso que es
+   una de las recomendaciones de arriba (Guía HNHU 6.4.1): no hay contenido clínico nuevo. */
+export const GOAL_OPTIONS = [
+  'Manejar la perimenopausia o menopausia',
+  'Detener los sofocos o sudores nocturnos',
+  'Dormir mejor',
+  'Tener claridad mental y concentración',
+  'Controlar mi peso',
+  'Mejorar mi ánimo o ansiedad',
+  'Mejorar mi vida íntima (libido, comodidad)',
+  'Aliviar el dolor articular',
+  'Aliviar la sequedad vaginal',
+];
+const bySymptom = (id) => SELF_CARE_SPECIFIC.find((s) => s.ids.includes(id));
+const GOAL_STEP = [
+  SELF_CARE_UNIVERSAL[1], // cuerpo en general
+  bySymptom('p3'), bySymptom('p6'), bySymptom('p10'),
+  SELF_CARE_UNIVERSAL[0], // alimentación
+  bySymptom('p7'), bySymptom('p13'), bySymptom('p5'), bySymptom('p13'),
+];
+/** Solo metas conocidas, sin repetir, en el orden de GOAL_OPTIONS. Lo que venga de afuera se descarta. */
+export function cleanGoals(goals) {
+  if (!Array.isArray(goals)) return [];
+  return GOAL_OPTIONS.filter((g) => goals.includes(g));
+}
+/** Cada meta con su primer paso → [meta, título, texto][]. */
+export function goalSteps(goals) {
+  return cleanGoals(goals).map((g) => { const s = GOAL_STEP[GOAL_OPTIONS.indexOf(g)]; return [g, s.t, s.d]; });
+}

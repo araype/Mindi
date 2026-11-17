@@ -124,3 +124,67 @@ Cada evento de `events` lleva `props.flujo` desde cierre-v2. Los eventos sin `fl
   día y los 6 siguientes (solo usuarias cuyo primer día fue hace 7 días o más); preguntas promedio por conversación.
   El periodo se cuenta por el día de la primera conversación. No se filtra por origen.
 - Export de conversaciones: columna `usuaria` (CSV) y "· usuaria u-…" en el texto.
+
+## Permiso al inicio y reporte con dos botones (16 nov. 2026) — `inicio-v3`
+
+- Sale la tarjeta "¿Me ayudas a mejorar Mindi?" del resultado (`resultado-v1`). El permiso pasa a una casilla opcional y
+  desmarcada en la tarjeta de inicio, aparte de los Términos. `research_consent` (`desde: inicio`) al tocar "Empezar".
+  **La tasa de consentimiento no es comparable con `resultado-v1`.**
+- "Tu reporte está listo": solo "Enviar a mi correo" (Turnstile al tocarlo; `report_email_open`) y "Compartir por
+  WhatsApp" (`report_share` con `method: file` en el celular o `whatsapp` con wa.me). Sin "Descargar PDF": **`report_download`
+  deja de existir** (las descargas del panel quedan en 0). Sin la casilla de avisos del acompañamiento.
+- El correo lleva el PDF adjunto (send-report).
+
+## Permiso más visible y segunda oportunidad — `inicio-v4` y `reporte-v1`
+
+- La casilla va en una tarjeta destacada **encima** de "Empezar" ("¿Nos ayudas a investigar la menopausia en el Perú?").
+  Sigue desmarcada. Versión `inicio-v4`. **No comparable con `inicio-v3`.**
+- Quien no la marcó ve en el reporte una invitación con el botón "Sí, compartir mis respuestas" (`reporte-v1`,
+  `research_consent` con `desde: reporte`). Tasa total de permiso = (`inicio-v4` + `reporte-v1`) / tests completados.
+
+## Vuelve "Descargar PDF" (16 nov. 2026, noche)
+
+- "Tu reporte está listo": "Descargar PDF" como botón principal (descarga directa en celular y computadora,
+  `report_download` con `method: download`) y, debajo, "Enviar a mi correo" y "Compartir por WhatsApp" (en verde).
+  Entre el despliegue de la tarde y este no hubo botón: esas horas tienen 0 descargas. Compartir el archivo ya no cuenta como descarga:
+  va en `report_share` (`method: file` o `whatsapp`).
+- Saludo al empezar: "Hola, soy Mindi." y "Vamos a ver juntas cómo te has sentido. Respondes con un toque." antes
+  de la primera pregunta ("Hola de nuevo." si llega desde el chat).
+
+## cierre-v3 (16 nov. 2026, noche)
+
+- **Orden:** saludo → **nombre (opcional)** → 11 preguntas + contexto + señales → resultado → metas → **reporte** →
+  invitación al diario → satisfacción → cierre. Antes: … metas → satisfacción → nombre → reporte.
+  `props.flujo = cierre-v3`. **No comparar el paso resultado → reporte con cierre-v2.**
+- Saludo cálido ("¡Hola! Qué bueno tenerte aquí." + para qué está Mindi) y nombre: "¿cómo te gustaría que te llame?" (`name_step` con `captured`). Mindi lo usa en el test y en el reporte;
+  solo vive en la pestaña y se guarda únicamente si deja su correo (como antes).
+- Satisfacción: "¿Te sirvió este resultado?", después del reporte.
+- Reporte: "Tus metas" (línea visible + sección con un primer paso por meta, de la Guía HNHU 6.4.1); también en el PDF
+  (descarga, WhatsApp y correo). Las metas viajan con el pedido del PDF y no se guardan.
+- "Agendar cita con un especialista" en el reporte: formulario corto → lista `consultas` con `origin: reporte`
+  (`cita_open`, `waitlist_join` con `list: consultas` y `desde: reporte`). **Nuevo indicador posible: # usuarias que piden cita.**
+- Invitación al diario después del reporte, con la primera meta: lista `plus` con `origin: reporte_diario`
+  (`diario_invite_shown`, `diario_invite_open`, `waitlist_join` con `list: plus`).
+- Se quitó la invitación al canal de tips de WhatsApp (`channel_click` deja de existir).
+- El reporte se guarda en la pestaña (sessionStorage, 24 h): si la página se recarga al volver de WhatsApp o de la
+  descarga, se muestra de nuevo (`report_shown` con `desde: restaurado`, `report_restored`). "Empezar de nuevo" lo borra.
+- Ajuste del mismo día (antes de desplegar): el resultado tiene un solo desplegable, "Entender mi resultado"
+  (escala MRS, barras, las tres áreas con su estado y el puntaje total; `result_detail_open` con `seccion: significado`;
+  ya no existe `seccion: areas`). Después de las metas: "¿Usarías una herramienta que te ayude a lograrlo día a día?"
+  (`tool_interest` con `answer`: `si`, `tal_vez` o `no`; **validación del diario**). Si dice que sí, puede dejar su correo
+  (lista `plus`, `origin: reporte_diario`). La invitación al diario después del reporte y la línea "Tus metas" de la
+  tarjeta se quitaron ("Tus metas" sigue en el reporte completo y en el PDF). Orden final: resultado → metas →
+  herramienta → reporte → satisfacción → cierre.
+- Tarjeta del resultado más corta: título con el área que más pesa ("Tus tres áreas pesan por igual" o "… y …" si empatan),
+  la recomendación y las tres barras con los síntomas que marcó (moderado o más) debajo de cada una. Sin la etiqueta de
+  nivel, "Lo que marcaste", el texto largo del área ni "también alcanzan…" (todo eso va en "Entender mi resultado").
+  La línea de salud mental sigue visible cuando el ánimo alcanza su corte.
+- Texto del área Cuerpo (mrs.js, web y PDF): decía "Los bochornos, el cansancio o los dolores…", pero el cansancio es del
+  área Ánimo en la escala MRS. Ahora: "Los bochornos, las palpitaciones, los dolores o el mal sueño…".
+- Se quitó "Ver el reporte completo" de "Tu reporte" (repetía lo que trae el PDF; `result_detail_open` con
+  `seccion: reporte` deja de existir). En su lugar, una línea dice qué incluye el PDF, y el aviso de orientación
+  queda al pie de la tarjeta.
+- **Satisfacción dentro de "Tu reporte"** ("¿Te sirvió este resultado?", 5 caritas, no bloquea nada). **Evento nuevo:
+  `report_satisfaction` (`answer`, `score`)**. El evento `satisfaction` (y `satisfaction_skip`) deja de registrarse, así
+  la serie anterior (otra pregunta y otro lugar del flujo) queda intacta y no se mezcla. Si ya respondió y la página se
+  recarga, no se vuelve a preguntar. El panel todavía lee `satisfaction`: hay que sumar `report_satisfaction` como serie aparte.
