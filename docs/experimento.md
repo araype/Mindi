@@ -241,3 +241,11 @@ Cada evento de `events` lleva `props.flujo` desde cierre-v2. Los eventos sin `fl
 - **Nivel 2:** al ir del resultado o del reporte al chat, además de los 4 puntajes y la señal de alerta, el agente recibe
   hasta 6 síntomas que marcó como moderados o más, sus metas, su rango de edad y cómo está su regla. El servidor
   (`cleanResultado`) y el agente (`detalle_reporte`) solo aceptan valores de listas cerradas. Política actualizada.
+
+## La cita según el nivel y lista para la especialista (17 nov. 2026)
+
+- Resultado: botón "Agendar con un especialista" solo en nivel B, C o alerta de evaluación (nunca en emergencia).
+  Reporte: caja destacada para quien la necesita y discreta en nivel A. Chat: el agente puede ofrecerla
+  (`ofrecer_cita`). Eventos nuevos: `cita_offer` (`desde`, `answer`), `cita_open` con `desde`, `cita_reserva`.
+- Integración con la especialista por variables de Vercel (`VITE_CITA_URL`, `VITE_CITA_ESPECIALISTA`,
+  `VITE_CITA_MODALIDAD`, `VITE_CITA_PRECIO`). Guía y plantillas de WhatsApp en `docs/citas-especialista.md`.

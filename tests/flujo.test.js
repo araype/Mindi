@@ -162,7 +162,7 @@ test('reporte: "Tus metas", agendar cita (lista consultas) y diario (lista plus)
   assert.equal(GOAL_OPTIONS.length, 9);
   assert.deepEqual(goalSteps(['Dormir mejor', 'otra cosa']).map(x => x[1]), ['Para dormir mejor']);
   assert.equal(goalSteps(GOAL_OPTIONS).length, 9); // cada meta tiene su primer paso
-  assert.match(main, /mountInlineWaitlist\(box, 'consultas', \{origin:'reporte'/);
+  assert.match(main, /else mountInlineWaitlist\(box, 'consultas', \{origin:desde,/); // sin WhatsApp ni calendario: el formulario
   assert.match(main, /mountInlineWaitlist\(box, 'plus', \{origin:'reporte_diario'/);
   assert.match(main, /const \{ error \} = waitlistRow\(list, values\);/);
 });
@@ -230,7 +230,7 @@ test('agendar cita: horarios tentativos (lun a sáb), opcionales y sin prometer 
   assert.match(SLOT_NOTE, /te escribiremos para confirmar/);
   assert.equal(citaDoneText('lunes 23 · 3:00 p. m.'), '¡Listo! Guardamos tu horario preferido (lunes 23 · 3:00 p. m.). Te escribiremos para confirmar tu cita.');
   assert.doesNotMatch(citaDoneText('x'), /confirmada/);
-  assert.match(main, /mountInlineWaitlist\(box, 'consultas', \{origin:'reporte'[^}]*slots:true\}\)/);
+  assert.match(main, /mountInlineWaitlist\(box, 'consultas', \{origin:desde[^}]*slots:true\}\)/);
 });
 
 test('agendar cita: WhatsApp obligatorio, correo opcional, horario junto al contacto y aviso en lugar de casilla', async () => {
@@ -257,11 +257,11 @@ test('agendar por WhatsApp: mensaje con el horario y sin datos de salud; landing
     'Hola Mindi, quiero agendar una cita con un especialista. Horario que prefiero: jueves 19 · 3:00 p. m.');
   assert.doesNotMatch(citaWhatsappText('x'), /resultado|puntaje|síntoma|MRS/i); // sin datos de salud
   assert.match(SLOT_NOTE_WA, /coordinamos tu cita contigo por WhatsApp/);
-  assert.match(main, /if\(WHATSAPP_NUMBER\) mountCitaWhatsapp\(box, \{waUrl:\(t\)=> whatsappUrl\(WHATSAPP_NUMBER, t\), desde:'reporte', track\}\);/);
+  assert.match(main, /if\(CITA_ACTIVA\) mountCita\(box, \{cfg:CITA_CFG, waUrl:\(t\)=> whatsappUrl\(WHATSAPP_NUMBER, t\), desde, track\}\);/);
   const { readFile } = await import('node:fs/promises');
   const landing = await readFile(new URL('../src/landing.js', import.meta.url), 'utf8');
-  assert.match(landing, /if \(list === 'consultas' && whatsappTo\) \{/);
-  assert.match(landing, /mountCitaWhatsapp\(dialog\.querySelector\('\.l-cita-body'\), \{ waUrl: whatsappTo, desde: 'landing', track \}\);/);
+  assert.match(landing, /if \(list === 'consultas' && \(whatsappTo \|\| \(citaCfg && citaCfg\.url\)\)\) \{/);
+  assert.match(landing, /mountCita\(dialog\.querySelector\('\.l-cita-body'\), \{ cfg: citaCfg, waUrl: whatsappTo, desde: 'landing', track \}\);/);
 });
 
 test('origen de la visita: TikTok, Instagram (antes que Facebook), Facebook, WhatsApp, Google y atajos ?src=', async () => {
@@ -320,4 +320,42 @@ test('chat: el detalle del reporte va al agente solo con valores de listas cerra
   for (const a of AGE_OPTIONS) assert.ok(main.includes(`label:'${a}'`), a);
   for (const c of CYCLE_OPTIONS) assert.ok(main.includes(`label:'${c}'`), c);
   assert.match(main, /sessionStorage\.setItem\(RESULT_STORE, JSON\.stringify\(agentTestContext\(\)\)\);/);
+});
+
+
+test('cita según el nivel y lista para la especialista (VITE_CITA_*)', async () => {
+  const { citaNecesidad, citaConfig, citaDetalle, CITA_TEXTO } = await import('../src/citas.js');
+  assert.equal(citaNecesidad({ nivel: 'A' }), 'opcional');
+  assert.equal(citaNecesidad({ nivel: 'B' }), 'recomendada');
+  assert.equal(citaNecesidad({ nivel: 'C' }), 'urgente');
+  assert.equal(citaNecesidad({ nivel: 'A', alerta: 'evaluacion' }), 'urgente');
+  assert.equal(citaNecesidad({ nivel: 'C', alerta: 'emergencia' }), 'emergencia');
+  // Resultado: botón solo si conviene consultar; nunca en emergencia (ahí, el 106).
+  const fn = main.slice(main.indexOf('function resultCitaHtml('), main.indexOf('function citaHtml('));
+  assert.match(fn, /if\(need !== 'urgente' && need !== 'recomendada'\) return '';/);
+  assert.ok(CITA_TEXTO.urgente && CITA_TEXTO.recomendada && CITA_TEXTO.opcional);
+  // Configuración: sin variables, como hoy (WhatsApp); con calendario, solo https y texto escapado.
+  assert.deepEqual(citaConfig({}), { url: null, especialista: null, modalidad: null, precio: null });
+  assert.equal(citaConfig({ VITE_CITA_URL: 'javascript:alert(1)' }).url, null);
+  assert.equal(citaConfig({ VITE_CITA_URL: 'https://cal.com/dra-x' }).url, 'https://cal.com/dra-x');
+  assert.equal(citaDetalle(citaConfig({ VITE_CITA_ESPECIALISTA: 'la Dra. <b>X</b>', VITE_CITA_MODALIDAD: 'virtual', VITE_CITA_PRECIO: 'S/ 120' })),
+    '<p class="cita-detalle">Con la Dra. &lt;b&gt;X&lt;/b&gt; · Consulta virtual · S/ 120</p>');
+  assert.equal(citaDetalle(citaConfig({})), '');
+  assert.match(main, /const CITA_CFG = citaConfig\(import\.meta\.env\);/);
+});
+
+
+test('chat: el agente puede ofrecer la cita (ofrecer_cita) y la web muestra el botón', async () => {
+  const { extractReply, OFFER_CITA_TOOL } = await import('../api/_lib/agente.js');
+  assert.equal(OFFER_CITA_TOOL, 'ofrecer_cita');
+  const turn = (mostrar) => [
+    { author: 'mindi', content: { parts: [{ functionResponse: { name: 'ofrecer_cita', response: { mostrar_boton: mostrar } } }] } },
+    { author: 'mindi', content: { parts: [{ text: 'Si quieres, puedes agendar aquí una cita con un especialista.' }] } },
+  ];
+  assert.equal(extractReply(turn(true)).cita, true);
+  assert.equal(extractReply(turn(false)).cita, undefined); // la regla de la herramienta manda
+  assert.match(main, /if\(reply\.cita && offerCitaInChat\(\)\) chatLog\.push\(\{r:'cita', t:''\}\);/);
+  const fn = main.slice(main.indexOf('function offerCitaInChat('), main.indexOf('/* Botón dentro del chat'));
+  assert.match(fn, /if\(chatResult && chatResult\.senal_alerta && storedAlertType\(\) !== 'evaluacion'\) return false;/);
+  assert.match(fn, /mountCitaEn\(box, 'chat'\)/);
 });

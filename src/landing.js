@@ -7,7 +7,7 @@
 
 /** Formularios de lista de espera (handoff 2.1 y 2.6). Los nombres de campo son las columnas de
  *  interest_signups (SQL 017). `contact` es siempre el correo. */
-import { mountSlotPicker, citaDoneText, mountCitaWhatsapp } from './citas.js';
+import { mountSlotPicker, citaDoneText, mountCita } from './citas.js';
 
 export const WAITLISTS = {
   plus: { title: 'Mindi Plus', lead: 'Quiero acceso anticipado.', fields: ['name', 'email', 'whatsapp'] },
@@ -61,7 +61,7 @@ export function waitlistRow(list, values) {
 /** Rutas de la landing que abren una lista de espera (vercel.json las reescribe a index.html). */
 export const WAITLIST_ROUTES = { '/empresas': 'empresas', '/especialistas': 'especialistas' };
 
-export function initLanding({ track, api, mountTurnstile, backendOn, consentVersion, isTest, origin, chatAvailable, whatsappHref, whatsappDisplay, whatsappTo }) {
+export function initLanding({ track, api, mountTurnstile, backendOn, consentVersion, isTest, origin, chatAvailable, whatsappHref, whatsappDisplay, whatsappTo, citaCfg }) {
   const $ = (id) => document.getElementById(id);
   const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   document.documentElement.classList.add('js');
@@ -472,11 +472,11 @@ export function initLanding({ track, api, mountTurnstile, backendOn, consentVers
     const cfg = WAITLISTS[list];
     if (!cfg || !dialog.showModal) return;
     // "Agendar cita" por WhatsApp (17 nov. 2026): horarios tentativos y el WhatsApp del equipo, sin formulario.
-    if (list === 'consultas' && whatsappTo) {
+    if (list === 'consultas' && (whatsappTo || (citaCfg && citaCfg.url))) {
       dialog.innerHTML = `<div class="l-cita"><button class="l-dialog-x" type="button" aria-label="Cerrar">×</button>
         <h2 id="waitlistTitle">${cfg.title}</h2><div class="l-cita-body"></div></div>`;
       dialog.querySelector('.l-dialog-x').addEventListener('click', () => dialog.close());
-      mountCitaWhatsapp(dialog.querySelector('.l-cita-body'), { waUrl: whatsappTo, desde: 'landing', track });
+      mountCita(dialog.querySelector('.l-cita-body'), { cfg: citaCfg, waUrl: whatsappTo, desde: 'landing', track });
       dialog.showModal();
       return;
     }

@@ -76,3 +76,55 @@ export function mountCitaWhatsapp(box, { waUrl, desde, track, now }) {
   a.addEventListener('click', () => track('cita_whatsapp', { desde, answer: slots.value || 'sin_horario' }));
   return slots;
 }
+
+/* ---------- Integración con la especialista (17 nov. 2026) ----------
+   Todo se configura con variables de Vercel, sin tocar código:
+   - VITE_CITA_URL: enlace de reserva real (Cal.com, Calendly o el de la especialista, solo https). Si está,
+     "Agendar" abre ese calendario. Si no, horarios tentativos + WhatsApp del equipo (como hasta ahora).
+   - VITE_CITA_ESPECIALISTA, VITE_CITA_MODALIDAD (virtual | presencial | ambas) y VITE_CITA_PRECIO: si están,
+     se muestran junto al botón. Vacíos, no aparecen. */
+const clean = (v, max = 60) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, max) : null);
+const MODALIDAD = { virtual: 'Consulta virtual', presencial: 'Consulta presencial', ambas: 'Virtual o presencial' };
+export function citaConfig(env = {}) {
+  const url = clean(env.VITE_CITA_URL, 300);
+  return {
+    url: url && /^https:\/\/[^\s"'<>]+$/.test(url) ? url : null,
+    especialista: clean(env.VITE_CITA_ESPECIALISTA),
+    modalidad: MODALIDAD[env.VITE_CITA_MODALIDAD] || null,
+    precio: clean(env.VITE_CITA_PRECIO, 30),
+  };
+}
+const escHtml = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+/** "Con la Dra. X · Consulta virtual · S/ 120" (solo lo configurado), ya escapado. '' si no hay nada. */
+export function citaDetalle(cfg) {
+  const partes = [cfg.especialista && `Con ${cfg.especialista}`, cfg.modalidad, cfg.precio].filter(Boolean);
+  return partes.length ? `<p class="cita-detalle">${escHtml(partes.join(' · '))}</p>` : '';
+}
+
+/* ¿Cuánto necesita una consulta? Según la guía (el mismo nivel del resultado): nunca se empuja una cita a
+   quien no la necesita, y en una emergencia lo primero es el 106, no una cita. */
+export function citaNecesidad({ nivel, alerta } = {}) {
+  if (alerta === 'emergencia') return 'emergencia';
+  if (alerta === 'evaluacion' || nivel === 'C') return 'urgente';
+  if (nivel === 'B') return 'recomendada';
+  return 'opcional';
+}
+export const CITA_TEXTO = {
+  urgente: 'Por lo que marcaste, conviene que te vea un especialista pronto. Coordinemos tu cita.',
+  recomendada: 'Tu resultado sugiere conversarlo con un especialista. Coordinemos tu cita.',
+  opcional: '¿Quieres que un especialista revise tu caso? Puedes agendar una cita cuando quieras.',
+};
+
+/** "Agendar": con VITE_CITA_URL, el calendario real de la especialista; si no, horarios tentativos + WhatsApp. */
+export function mountCita(box, { cfg, waUrl, desde, track }) {
+  if (cfg && cfg.url) {
+    box.innerHTML = citaDetalle(cfg) +
+      `<a class="rbtn rbtn-main cw-btn" href="${escHtml(cfg.url)}" target="_blank" rel="noopener"><span>Elegir día y hora</span></a>`;
+    track('cita_slots_shown', { desde, answer: 'calendario' });
+    box.querySelector('a').addEventListener('click', () => track('cita_reserva', { desde }));
+    return null;
+  }
+  const slots = mountCitaWhatsapp(box, { waUrl, desde, track });
+  if (cfg) box.insertAdjacentHTML('afterbegin', citaDetalle(cfg));
+  return slots;
+}

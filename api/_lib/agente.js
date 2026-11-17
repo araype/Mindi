@@ -26,6 +26,9 @@ export const LEGACY_OFFER_TOOL = 'ofrecer_test';
 export const RECOMMEND_TEST = 'recommend_test';
 /* Tema de cada pregunta (nivel 1, tabla chat_topics): el agente llama a clasificar_tema con una etiqueta. */
 export const TOPIC_TOOL = 'clasificar_tema';
+/* Cita con un especialista (17 nov. 2026): como recomendar_test, la herramienta aplica las reglas (máximo dos
+   veces, nunca con alerta de emergencia o autolesión) y responde { mostrar_boton }. La web dibuja el botón. */
+export const OFFER_CITA_TOOL = 'ofrecer_cita';
 export const CHAT_TOPIC_LABELS = ['bochornos', 'sueno', 'animo', 'peso', 'vida_intima', 'terapia_hormonal',
   'remedios_naturales', 'edad_inicio', 'duracion', 'trabajo', 'otro'];
 export const MAX_TEXT = 1000;
@@ -94,6 +97,8 @@ export function extractReply(events) {
       && p.functionResponse.response && p.functionResponse.response.mostrar_boton === true)
     || parts.some((p) => p.functionCall && p.functionCall.name === LEGACY_OFFER_TOOL);
   const action = recommend ? RECOMMEND_TEST : null;
+  const cita = parts.some((p) => p.functionResponse && p.functionResponse.name === OFFER_CITA_TOOL
+      && p.functionResponse.response && p.functionResponse.response.mostrar_boton === true);
   // Primera etiqueta del turno (si el coordinador transfiere, el área también puede clasificar).
   const call = parts.find((p) => p.functionCall && p.functionCall.name === TOPIC_TOOL);
   const raw = call && call.functionCall.args && call.functionCall.args.tema;
@@ -101,7 +106,7 @@ export function extractReply(events) {
   for (let i = events.length - 1; i >= 0; i--) {
     const e = events[i] || {};
     const text = partsOf(e).filter((p) => typeof p.text === 'string' && !p.thought).map((p) => p.text).join('').trim();
-    if (text && e.author && e.author !== 'user') return { text, area: AREA_BY_AUTHOR[e.author] || 'otro', action, topic };
+    if (text && e.author && e.author !== 'user') return { text, area: AREA_BY_AUTHOR[e.author] || 'otro', action, topic, ...(cita ? { cita: true } : {}) };
   }
   return null; // el botón nunca va solo: siempre debajo de una respuesta
 }

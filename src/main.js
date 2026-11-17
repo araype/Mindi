@@ -14,7 +14,7 @@ import { whatsappUrl, WHATSAPP_TEXT } from './whatsapp.js';
 import { createAgentClient, agentHtml, chatGreeting, chatTopic, ERROR_TEXT, LIMIT_TEXT, SHARE_QUESTIONS_VERSION, RESULT_SUGGESTIONS } from './agente.js';
 import { glossaryMore } from './glosario.js';
 import { initLanding, waitlistRow, waitlistFields, WAITLIST_NOTICE, WAITLIST_CONSENT_VERSION } from './landing.js';
-import { mountSlotPicker, citaDoneText, mountCitaWhatsapp } from './citas.js';
+import { mountSlotPicker, citaDoneText, citaConfig, citaNecesidad, mountCita, CITA_TEXTO } from './citas.js';
 import { detectOrigin, cleanOrigin } from './origen.js';
 import { mountTurnstile } from './turnstile.js';
 
@@ -448,8 +448,8 @@ function revealCard(html, kind, ms){
     const delay = reduceMotion ? 0 : (ms !== undefined ? ms : TYPING_MS);
     setTimeout(()=>{
       hideTyping();
-      addCard(html, kind);
-      setTimeout(resolve, reduceMotion ? 0 : 320);
+      const c = addCard(html, kind);
+      setTimeout(()=> resolve(c), reduceMotion ? 0 : 320);
     }, delay);
   });
 }
@@ -480,7 +480,12 @@ function revealCardWithPause(introMsg, html, kind, isLast = false, continueText 
 /* Secuencia de cards de resultado compartida entre el flujo normal y el de banderas rojas */
 async function showResultsCardSequence(){
   const msg = levelMessage(state.scores);
-  await revealCard(resultCard(msg), '', 400);
+  const card = await revealCard(resultCard(msg), '', 400);
+  const citaBtn = card && card.querySelector('[data-cita-btn]');
+  if(citaBtn){
+    track('cita_offer', {desde:'resultado', answer: citaNivel()});
+    setupToggleForm(citaBtn, card.querySelector('[data-cita-box]'), (box)=> mountCitaEn(box, 'resultado'));
+  }
   // El permiso de investigación se pidió en el inicio (casilla opcional). Se guarda aquí, cuando la
   // sesión ya existe (research_consents tiene clave foránea a sessions), sin nombre ni contacto.
   if(state.research) sendLead({research:true, version:RESEARCH_VERSION});
@@ -1132,6 +1137,7 @@ function resultCard(msg){
   // Derivación a salud mental: visible siempre que Ánimo alcance su corte.
   if(notes.some(n=> n.key === 'psicologico')) html += `<p class="mh-note">${MENTAL_HEALTH_LINE}</p>`;
   if(state.skippedIntimate) html += `<p class="skipped-note">${SKIPPED_INTIMATE_NOTE}</p>`;
+  html += resultCitaHtml();
   html += meaning;
   return html;
 }
@@ -1481,9 +1487,33 @@ function pdfContents(){
 }
 /* "Agendar cita con un especialista" (16 nov. 2026): deja sus datos en la lista `consultas` (la misma de
    la landing) con origen `reporte`, para que el equipo la contacte. Es el seguimiento del test. */
+/* La cita en todo el flujo (17 nov. 2026): según el nivel del test (citaNecesidad), con la especialista que
+   se configure en Vercel (VITE_CITA_*, ver src/citas.js) o, sin calendario real, horarios tentativos + WhatsApp. */
+const CITA_CFG = citaConfig(import.meta.env);
+const CITA_ACTIVA = !!(CITA_CFG.url || WHATSAPP_NUMBER);
+function citaNivel(){
+  return citaNecesidad({nivel: computeLevel(), alerta: hasFlag() ? (state.redFlags.includes('rf2') ? 'emergencia' : 'evaluacion') : null});
+}
+function mountCitaEn(box, desde){
+  track('cita_open', {desde});
+  if(CITA_ACTIVA) mountCita(box, {cfg:CITA_CFG, waUrl:(t)=> whatsappUrl(WHATSAPP_NUMBER, t), desde, track});
+  else mountInlineWaitlist(box, 'consultas', {origin:desde, submit:'Quiero agendar mi cita', done:citaDoneText(null), slots:true});
+}
+/* Resultado: botón de cita solo si la guía sugiere consultar (B, C o alerta de evaluación). Nunca en una
+   emergencia: ahí lo primero es el 106. */
+function resultCitaHtml(){
+  const need = citaNivel();
+  if(need !== 'urgente' && need !== 'recomendada') return '';
+  return `<div class="result-cita${need === 'urgente' ? ' is-urgente' : ''}">` +
+    `<p>${CITA_TEXTO[need]}</p>` +
+    `<button type="button" class="rbtn rbtn-cita" data-cita-btn aria-expanded="false">${ICON_CALENDAR}<span>Agendar con un especialista</span></button>` +
+    `<div data-cita-box hidden></div></div>`;
+}
+/* Reporte: la caja de cita destacada para quien la necesita y discreta para el nivel A. */
 function citaHtml(id){
-  return `<div class="report-cita">` +
-    `<p><strong>¿Quieres que un especialista revise tu caso?</strong> ${WHATSAPP_NUMBER ? 'Elige un horario y coordinamos tu cita por WhatsApp.' : 'Déjanos tus datos y te contactamos para coordinar tu cita.'}</p>` +
+  const need = citaNivel() === 'emergencia' ? 'urgente' : citaNivel(); // después de la emergencia, la consulta
+  return `<div class="report-cita${need === 'opcional' ? ' is-discreta' : ''}">` +
+    `<p>${need === 'opcional' ? CITA_TEXTO.opcional : `<strong>${CITA_TEXTO[need]}</strong>`}</p>` +
     `<button type="button" class="rbtn rbtn-cita" id="${id}c" aria-expanded="false" aria-controls="${id}cf">${ICON_CALENDAR}<span>Agendar cita con un especialista</span></button>` +
     `<div id="${id}cf" hidden></div></div>`;
 }
@@ -1615,12 +1645,7 @@ function showReport({restored = false} = {}){
       setupWhatsAppShare(document.getElementById(id + 'w'), CAN_SHARE_PDF ? pdf : null);
       setupEmailButton(document.getElementById(id + 'm'), document.getElementById(id + 'e'));
       setupResearchAgain(document.getElementById(id + 'r'));
-      setupToggleForm(document.getElementById(id + 'c'), document.getElementById(id + 'cf'), (box)=>{
-        track('cita_open');
-        // 17 nov. 2026: se agenda por WhatsApp (el equipo se entera al instante). Sin número configurado, el formulario.
-        if(WHATSAPP_NUMBER) mountCitaWhatsapp(box, {waUrl:(t)=> whatsappUrl(WHATSAPP_NUMBER, t), desde:'reporte', track});
-        else mountInlineWaitlist(box, 'consultas', {origin:'reporte', submit:'Quiero agendar mi cita', done:citaDoneText(null), slots:true});
-      });
+      setupToggleForm(document.getElementById(id + 'c'), document.getElementById(id + 'cf'), (box)=> mountCitaEn(box, 'reporte'));
     }
     reportSatisfaction(document.getElementById(id + 's'));
     clearComposer();
@@ -1848,7 +1873,7 @@ function storedAlertType(){ try{ return sessionStorage.getItem(ALERT_STORE) || n
    por 24 horas; si cambió su resultado o el tema con el que llegó, empieza de nuevo. Si el agente se reinició y
    ya no recuerda la sesión, agente.js abre otra con su resultado (410), sin que ella lo note. */
 const CHAT_STORE = 'mindi_chat';
-let chatLog = []; // [{r:'u'|'m'|'cta', t}]
+let chatLog = []; // [{r:'u'|'m'|'cta'|'cita', t}]
 function chatKey(topic){ return JSON.stringify({resultado: chatResult || null, tema: topic || null}); }
 function saveChat(topic){
   try{
@@ -1869,10 +1894,11 @@ function restoreChat(topic){
   if(CHAT_RESEARCH_ENABLED && s.share) setChatShare(s.share.on, s.share.version);
   agentReplies = Number(s.replies) || 0; agentAnswered = agentReplies > 0;
   testRecommendations = Number(s.recs) || 0;
-  chatLog = s.log.filter(m=> m && typeof m.t === 'string' && ['u','m','cta'].includes(m.r));
+  chatLog = s.log.filter(m=> m && typeof m.t === 'string' && ['u','m','cta','cita'].includes(m.r));
   for(const m of chatLog){
     if(m.r === 'u') addBubble(m.t, 'user');
     else if(m.r === 'm') addAgentBubble(m.t);
+    else if(m.r === 'cita') offerCitaInChat({restoring:true});
     else if(m.r === 'cta' && !chatResult) chat.insertAdjacentHTML('beforeend', `<div class="row bot"><div class="chat-cta"><a class="btn" href="/test?origen=chat" data-chat-to-test>Haz el test de 5 min →</a></div></div>`);
   }
   track('chat_restored', {n: chatLog.length});
@@ -1992,6 +2018,21 @@ function addAgentBubble(text){
   scrollBottom();
 }
 
+/* Cita desde el chat (17 nov. 2026): cuando el agente llama a ofrecer_cita, debajo de su respuesta. Nunca si el
+   test marcó una emergencia (ahí lo primero es el 106; el agente tampoco la ofrece con esa alerta). */
+function offerCitaInChat({restoring = false} = {}){
+  if(chatResult && chatResult.senal_alerta && storedAlertType() !== 'evaluacion') return false;
+  const row = document.createElement('div');
+  row.className = 'row bot';
+  row.innerHTML = `<div class="result-cita chat-cita">` +
+    `<button type="button" class="rbtn rbtn-cita" data-cita-btn aria-expanded="false">${ICON_CALENDAR}<span>Agendar con un especialista</span></button>` +
+    `<div data-cita-box hidden></div></div>`;
+  chat.appendChild(row);
+  setupToggleForm(row.querySelector('[data-cita-btn]'), row.querySelector('[data-cita-box]'), (box)=> mountCitaEn(box, 'chat'));
+  if(!restoring){ track('cita_offer', {desde:'chat'}); scrollBottom(); }
+  return true;
+}
+
 /* Botón dentro del chat, justo debajo de la respuesta (10.5.1, paso 3). */
 function recommendTest(){
   if(chatResult || testRecommendations >= MAX_TEST_RECOMMENDATIONS) return false;
@@ -2051,6 +2092,7 @@ async function askAgent(text, {echo = true} = {}){
     track('agent_message', {source:chatSource, area:reply.area || 'otro'});
     track('agent_latency', {ms: Math.round(performance.now() - t0), n: agentReplies}); // tiempo hasta la respuesta (arranque en frío)
     if(reply.action === 'recommend_test' && recommendTest()) chatLog.push({r:'cta', t:''});
+    if(reply.cita && offerCitaInChat()) chatLog.push({r:'cita', t:''});
     if(agentReplies === 2) askFeedback(reply.area || 'otro');
     saveChat(chatLogTopic);
   }catch(e){
@@ -2108,6 +2150,7 @@ if(!APP_VIEW){
     chatAvailable:AGENT_ENABLED,
     whatsappHref:whatsappUrl(WHATSAPP_NUMBER, WHATSAPP_TEXT.landing),
     whatsappTo: WHATSAPP_NUMBER ? (t)=> whatsappUrl(WHATSAPP_NUMBER, t) : null, // "Agendar cita" por WhatsApp
+    citaCfg: CITA_CFG, // calendario real de la especialista, si se configura (VITE_CITA_*)
     whatsappDisplay: digits.length === 11 && digits.startsWith('51') ? `+51 ${digits.slice(2,5)} ${digits.slice(5,8)} ${digits.slice(8)}` : (digits ? '+' + digits : ''),
   });
 }
