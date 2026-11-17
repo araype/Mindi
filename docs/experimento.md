@@ -222,3 +222,13 @@ Cada evento de `events` lleva `props.flujo` desde cierre-v2. Los eventos sin `fl
 - Eventos: `cita_slots_shown`, `cita_slot` y **`cita_whatsapp`** (`answer`: horario o `sin_horario`), con `desde`.
   Indicador: **# usuarias que abren WhatsApp para agendar**; cuántas terminan en cita lo cuenta el equipo en WhatsApp.
 - Sin `VITE_WHATSAPP_NUMBER`, se usa el formulario anterior (lista `consultas`).
+
+## Origen de la visita: Instagram, WhatsApp y Google (17 nov. 2026)
+
+- Además de TikTok y Facebook, se detectan solos **Instagram** (su navegador interno o `l.instagram.com`), **Google**
+  (la visita viene de google.*) y **LinkedIn**. Instagram se revisa antes que Facebook: también agrega `?fbclid=`, y
+  antes esas visitas contaban como Facebook. Detección en `src/origen.js`.
+- **WhatsApp** solo se detecta en las versiones con navegador propio: casi siempre abre el navegador normal sin dejar
+  rastro. Para WhatsApp, compartir **`mindifem.com/?src=wa`** (atajos: `?src=ig`, `?src=tt`, `?src=fb`).
+- Desde este cambio, el origen `instagram` puede crecer y `facebook` bajar: no es que cambie el tráfico, es que antes se
+  confundían. Lo anterior a este cambio no se corrige.

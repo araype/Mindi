@@ -15,6 +15,7 @@ import { createAgentClient, agentHtml, chatGreeting, chatTopic, ERROR_TEXT, LIMI
 import { glossaryMore } from './glosario.js';
 import { initLanding, waitlistRow, waitlistFields, WAITLIST_NOTICE, WAITLIST_CONSENT_VERSION } from './landing.js';
 import { mountSlotPicker, citaDoneText, mountCitaWhatsapp } from './citas.js';
+import { detectOrigin, cleanOrigin } from './origen.js';
 import { mountTurnstile } from './turnstile.js';
 
 /* ---------- Backend: todo pasa por /api (funciones de Vercel, handoff 11.1) ----------
@@ -77,24 +78,17 @@ const SESSION_ID = (()=>{
 })();
 function releaseSessionId(){ try { sessionStorage.removeItem(SESSION_STORE); } catch {} }
 
-/* Origen de la visita (p. ej. TikTok), para separar canales en el panel sin tocar la data
-   anterior: lo ya registrado no tiene origen y queda como "Sin origen".
-   1) ?utm_source=tiktok (o ?src=tiktok) en el link — es el que se pone en TikTok.
-   2) Si no viene en el link: el navegador interno de TikTok o Facebook, un referrer de
-      tiktok.com / facebook.com, o el ?fbclid= que Facebook agrega a los links.
-   3) Si tampoco: el origen guardado de una visita anterior en este navegador (vuelve
-      directo, pero llegó por TikTok la primera vez).
+/* Origen de la visita (TikTok, Instagram, Facebook, WhatsApp, Google…), para separar canales en el panel.
+   La detección está en src/origen.js (enlace con ?utm_source= o ?src=, navegador interno de la app o la página
+   de la que viene). Si no se detecta: el origen guardado de una visita anterior en este navegador (vuelve
+   directo, pero llegó por TikTok la primera vez). Lo ya registrado sin origen queda como "Sin origen".
    Se llama `origin` (no `source`: ese ya lo usa cta_click para saber qué botón fue). */
 const ORIGIN_STORE = 'mindi_origin';
 const ORIGIN = (()=>{
-  const clean = (v)=> (v || '').toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 30) || null;
-  const q = new URLSearchParams(location.search);
-  let o = clean(q.get('utm_source') || q.get('src'));
-  if(!o && (/tiktok|musical_ly|bytedance/i.test(navigator.userAgent) || /tiktok\.com/i.test(document.referrer))) o = 'tiktok';
-  if(!o && (/FBAN|FBAV|FB_IAB/.test(navigator.userAgent) || /facebook\.com|fb\.me/i.test(document.referrer) || q.has('fbclid'))) o = 'facebook';
+  let o = detectOrigin({search:location.search, ua:navigator.userAgent, referrer:document.referrer});
   try {
     if(o) localStorage.setItem(ORIGIN_STORE, o);
-    else o = clean(localStorage.getItem(ORIGIN_STORE));
+    else o = cleanOrigin(localStorage.getItem(ORIGIN_STORE));
   } catch {}
   return o;
 })();

@@ -263,3 +263,25 @@ test('agendar por WhatsApp: mensaje con el horario y sin datos de salud; landing
   assert.match(landing, /if \(list === 'consultas' && whatsappTo\) \{/);
   assert.match(landing, /mountCitaWhatsapp\(dialog\.querySelector\('\.l-cita-body'\), \{ waUrl: whatsappTo, desde: 'landing', track \}\);/);
 });
+
+test('origen de la visita: TikTok, Instagram (antes que Facebook), Facebook, WhatsApp, Google y atajos ?src=', async () => {
+  const { detectOrigin } = await import('../src/origen.js');
+  const IG = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Instagram 312.0.0.32.112 (iPhone14,5; iOS 17_0; es_PE)';
+  const FB = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148 [FBAN/FBIOS;FBAV/440.0.0.33.111]';
+  const TT = 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36 musical_ly_2023100030 BytedanceWebview/d8a21c6';
+  const CHROME = 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Mobile Safari/537.36';
+  assert.equal(detectOrigin({ ua: TT }), 'tiktok');
+  assert.equal(detectOrigin({ ua: IG }), 'instagram');
+  assert.equal(detectOrigin({ ua: IG, search: '?fbclid=abc' }), 'instagram'); // Instagram también pone fbclid
+  assert.equal(detectOrigin({ ua: CHROME, referrer: 'https://l.instagram.com/' }), 'instagram');
+  assert.equal(detectOrigin({ ua: FB }), 'facebook');
+  assert.equal(detectOrigin({ ua: CHROME, search: '?fbclid=abc' }), 'facebook');
+  assert.equal(detectOrigin({ ua: CHROME, referrer: 'https://www.google.com/' }), 'google');
+  assert.equal(detectOrigin({ ua: CHROME, referrer: 'https://www.google.com.pe/' }), 'google');
+  assert.equal(detectOrigin({ ua: CHROME + ' WhatsApp/2.24' }), 'whatsapp');
+  assert.equal(detectOrigin({ ua: CHROME, search: '?src=wa' }), 'whatsapp');
+  assert.equal(detectOrigin({ ua: CHROME, search: '?src=ig' }), 'instagram');
+  assert.equal(detectOrigin({ ua: CHROME, search: '?utm_source=TikTok' }), 'tiktok');
+  assert.equal(detectOrigin({ ua: CHROME }), null); // WhatsApp sin navegador propio: no se puede saber
+  assert.equal(detectOrigin({ ua: CHROME, referrer: 'https://mindifem.com/' }), null);
+});
