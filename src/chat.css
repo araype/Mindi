@@ -381,3 +381,23 @@ body.no-scroll{overflow:hidden}
 .report-sat p{margin:0 0 4px;font-size:15px}
 .report-sat .face-scale{flex-wrap:nowrap}
 .report-sat .face-btn{min-width:0;flex:1 1 0;padding:8px 2px}
+/* Chat: botón "Nuevo ↓" cuando hay mensajes debajo y la usuaria subió a leer (17 nov. 2026) */
+.chat-shell{position:relative}
+.chat-new{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);z-index:5;display:inline-flex;align-items:center;gap:6px;
+  min-height:40px;padding:8px 16px;border:0;border-radius:var(--radius-pill);background:var(--plum);color:#fff;
+  font-family:var(--font-display);font-weight:700;font-size:14px;box-shadow:0 6px 18px rgba(42,16,38,.25);cursor:pointer}
+.chat-new[hidden]{display:none}
+/* Horarios tentativos de "Agendar cita" (landing y reporte) */
+.slots{margin:0;padding:0;border:0;display:flex;flex-direction:column;gap:8px}
+.slots legend{margin-bottom:6px;padding:0;font-weight:700;font-size:15px;color:var(--plum)}
+.slots legend span{font-weight:400;color:var(--plum-soft);font-size:13px}
+.slot-row{display:grid;grid-template-columns:52px repeat(3,1fr);gap:6px;align-items:center}
+.slot-day{font-size:13px;font-weight:600;color:var(--plum);text-transform:capitalize}
+.slot{min-height:40px;padding:6px 4px;border:1.5px solid var(--bubble-bot-border);border-radius:12px;background:#fff;color:var(--plum);
+  font:inherit;font-size:13px;line-height:1.2;cursor:pointer}
+.slot:hover{border-color:var(--magenta-btn)}
+.slot[aria-pressed="true"]{background:var(--magenta-text);border-color:var(--magenta-text);color:#fff;font-weight:700}
+.slot-note{margin:4px 0 0;font-size:12.5px;line-height:1.45;color:var(--plum-soft)}
+/* Aviso al pie de los formularios cortos (en lugar de la casilla de la política) */
+.inline-wl .wl-notice,.l-consent{margin:2px 0 0;font-size:12.5px;line-height:1.45;color:var(--plum-soft)}
+.inline-wl .wl-notice a,.l-consent a{color:var(--magenta-text)}

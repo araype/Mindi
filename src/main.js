@@ -13,7 +13,8 @@ import { stageFilter, STAGE_EXIT } from './etapa.js';
 import { whatsappUrl, WHATSAPP_TEXT } from './whatsapp.js';
 import { createAgentClient, agentHtml, chatGreeting, chatTopic, ERROR_TEXT, LIMIT_TEXT, SHARE_QUESTIONS_VERSION, RESULT_SUGGESTIONS } from './agente.js';
 import { glossaryMore } from './glosario.js';
-import { initLanding, waitlistRow } from './landing.js';
+import { initLanding, waitlistRow, waitlistFields, WAITLIST_NOTICE, WAITLIST_CONSENT_VERSION } from './landing.js';
+import { mountSlotPicker, citaDoneText } from './citas.js';
 import { mountTurnstile } from './turnstile.js';
 
 /* ---------- Backend: todo pasa por /api (funciones de Vercel, handoff 11.1) ----------
@@ -297,7 +298,58 @@ function setFocus(on){
 function syncFocus(){ if((started || aiMode) && !focusDismissed) setFocus(true); }
 function setProgress(n){ progressFill.style.width = Math.min(100, Math.round((n/TOTAL_STEPS)*100)) + '%'; }
 function advance(){ step++; setProgress(step); }
-function scrollBottom(){ requestAnimationFrame(()=>{ chat.scrollTop = chat.scrollHeight; }); }
+/* Scroll del chat (17 nov. 2026). Antes cada mensaje saltaba al final una sola vez: con una tarjeta larga
+   (resultado, reporte) solo se veía su parte de abajo, y si la usuaria estaba deslizando o la tarjeta se
+   acomodaba después, la vista quedaba a la mitad ("colgada"). Ahora:
+   - se sigue el final solo si la usuaria está abajo; si subió a leer, no se la arrastra y aparece "Nuevo ↓";
+   - una tarjeta más alta que el 60 % del chat se muestra desde su título (scrollAnchor) hasta que responda;
+   - se vuelve a ajustar un instante después, por si algo terminó de acomodarse tarde. */
+let followBottom = true;
+let scrollAnchor = null;
+let programmaticScroll = false;
+const newBelow = document.createElement('button');
+newBelow.type = 'button';
+newBelow.className = 'chat-new';
+newBelow.hidden = true;
+newBelow.innerHTML = 'Nuevo <span aria-hidden="true">↓</span>';
+newBelow.addEventListener('click', ()=>{ scrollAnchor = null; followBottom = true; newBelow.hidden = true; setChatScroll(chat.scrollHeight, true); });
+chat.parentElement.appendChild(newBelow);
+const nearBottom = ()=> chat.scrollHeight - chat.scrollTop - chat.clientHeight < 72;
+const topInChat = (el)=> el.getBoundingClientRect().top - chat.getBoundingClientRect().top + chat.scrollTop;
+function setChatScroll(top, smooth){
+  programmaticScroll = true;
+  chat.scrollTo({top, behavior: smooth && !reduceMotion ? 'smooth' : 'auto'});
+  setTimeout(()=>{ programmaticScroll = false; }, smooth ? 450 : 60);
+}
+// Un toque, la rueda o el teclado son siempre de la usuaria, aunque el chat se esté moviendo solo.
+['touchstart', 'wheel', 'keydown'].forEach(ev=> chat.addEventListener(ev, ()=>{ programmaticScroll = false; }, {passive:true}));
+chat.addEventListener('scroll', ()=>{
+  if(programmaticScroll) return;
+  followBottom = nearBottom();
+  if(followBottom){ newBelow.hidden = true; scrollAnchor = null; }
+}, {passive:true});
+function placeScroll(){
+  if(scrollAnchor && scrollAnchor.isConnected){
+    if(!nearBottom()) newBelow.hidden = false; // hay algo debajo de la tarjeta (p. ej. "Continuar")
+    return;
+  }
+  if(followBottom){ setChatScroll(chat.scrollHeight); newBelow.hidden = true; }
+  else newBelow.hidden = false;
+}
+function scrollBottom(){
+  requestAnimationFrame(placeScroll);
+  setTimeout(placeScroll, 280); // segundo ajuste: animaciones, fuentes o desplegables que se acomodan tarde
+}
+/* Tarjeta larga: se muestra desde su título y se queda ahí hasta que la usuaria responda o baje. */
+function showFromTop(el){
+  requestAnimationFrame(()=>{
+    if(el.offsetHeight <= chat.clientHeight * 0.6) return scrollBottom();
+    scrollAnchor = el;
+    followBottom = false;
+    // Se mide la fila, no la tarjeta: la tarjeta entra animada (desplazada y achicada) y daría un valor corrido.
+    setChatScroll(Math.max(0, topInChat(el.parentElement || el) - 12));
+  });
+}
 
 /* Teclado en mobile: en pantallas táctiles no se enfoca el campo de texto solo (abriría el
    teclado encima de la pregunta antes de que la usuaria la lea) — lo abre ella al tocarlo.
@@ -327,6 +379,7 @@ if(vv){
    extra no aparezca entre pregunta y pregunta. Con items (glosario, src/glosario.js), cada término
    va en su línea, con el nombre en negrita. */
 function addBubble(text, who, cls, subText, more){
+  if(who === 'user'){ scrollAnchor = null; followBottom = true; }
   const row = document.createElement('div');
   row.className = 'row ' + who;
   const b = document.createElement('div');
@@ -373,7 +426,7 @@ function addCard(html, kind){
   c.innerHTML = html;
   row.appendChild(c);
   chat.appendChild(row);
-  scrollBottom();
+  showFromTop(c);
   // Las barras del resultado se llenan con animación al aparecer (sin animación si reduce motion).
   requestAnimationFrame(()=> requestAnimationFrame(()=> c.classList.add('is-shown')));
   return c;
@@ -1425,30 +1478,34 @@ function citaHtml(id){
 }
 /* Formulario corto dentro del chat para una lista de espera (consultas o el diario), con la misma
    validación que la landing (waitlistRow) y Turnstile recién al abrirlo. */
-function mountInlineWaitlist(box, list, {origin, submit, done}){
+function mountInlineWaitlist(box, list, {origin, submit, done, slots:withSlots}){
   const form = document.createElement('form');
   form.className = 'inline-wl';
   form.noValidate = true;
-  form.innerHTML =
-    `<label>Nombre<input class="m-input" name="name" autocomplete="name" maxlength="80" required></label>` +
-    `<label>Correo<input class="m-input" name="email" type="email" autocomplete="email" maxlength="120" required></label>` +
-    `<label>WhatsApp (opcional)<input class="m-input" name="whatsapp" type="tel" autocomplete="tel" maxlength="20"></label>` +
-    `<label class="opt"><input type="checkbox" name="consent"><span>Acepto la <a href="/privacidad" target="_blank" rel="noopener">Política de privacidad</a>. Usaremos estos datos solo para contactarte sobre esto.</span></label>` +
+  // Campos y obligatoriedad de cada lista (landing.js): en la cita, WhatsApp obligatorio y correo opcional.
+  // En lugar de la casilla de la política, un aviso al pie: enviar es aceptar (aviso-envio-v1).
+  form.innerHTML = (withSlots ? `<div class="wl-slots"></div>` : '') +
+    waitlistFields(list).map(d=> `<label>${d.label}<input class="m-input" name="${d.f}" type="${d.type}" autocomplete="${d.autocomplete}" maxlength="${d.max}"${d.required ? ' required' : ''}></label>`).join('') +
+    `<p class="wl-notice">${WAITLIST_NOTICE}</p>` +
     `<div class="wl-ts"></div><p class="hint err" role="alert" hidden></p>` +
     `<button type="submit" class="rbtn rbtn-main"><span>${submit}</span></button>`;
   box.appendChild(form);
   if(state.name) form.elements.name.value = state.name;
+  // Horarios tentativos (src/citas.js): prueba de demanda para las citas; cita_slot { answer, desde }.
+  const slots = withSlots ? mountSlotPicker(form.querySelector('.wl-slots'), {onPick:(v)=> track('cita_slot', {answer:v, desde:origin})}) : null;
+  if(slots) track('cita_slots_shown', {desde:origin});
   const captcha = mountTurnstile(form.querySelector('.wl-ts'));
   form.onsubmit = async (e)=>{
     e.preventDefault();
-    const values = {name:form.elements.name.value, email:form.elements.email.value, whatsapp:form.elements.whatsapp.value, consent:form.elements.consent.checked};
+    const values = {name:form.elements.name.value, email:form.elements.email.value, whatsapp:form.elements.whatsapp.value, consent:true};
+    if(slots && slots.value) values.horario = slots.value;
     const { error } = waitlistRow(list, values);
     const err = form.querySelector('.err');
     if(error){ err.textContent = error; err.hidden = false; return; }
     err.hidden = true;
     const btn = form.querySelector('[type=submit]'); btn.disabled = true;
     const turnstile = await captcha.token();
-    const r = await api('waitlist', {list, values:{...values, consent:true}, consent_text_version:CONSENT_VERSION, is_test:TEST_MODE, origin, turnstile});
+    const r = await api('waitlist', {list, values, consent_text_version:WAITLIST_CONSENT_VERSION, is_test:TEST_MODE, origin, turnstile});
     track('waitlist_join', {list, captured: !!(r && r.ok), desde: origin});
     if(!(r && r.ok)){
       btn.disabled = false; captcha.reset && captcha.reset();
@@ -1456,7 +1513,7 @@ function mountInlineWaitlist(box, list, {origin, submit, done}){
       return;
     }
     captcha.remove();
-    box.innerHTML = `<p class="email-done" role="status">${done}</p>`;
+    box.innerHTML = `<p class="email-done" role="status">${slots ? citaDoneText(slots.value) : done}</p>`;
   };
 }
 /* ¿Usaría una herramienta para su meta? (16 nov. 2026): valida el interés en el diario con cada usuaria,
@@ -1549,7 +1606,7 @@ function showReport({restored = false} = {}){
       setupResearchAgain(document.getElementById(id + 'r'));
       setupToggleForm(document.getElementById(id + 'c'), document.getElementById(id + 'cf'), (box)=>{
         track('cita_open');
-        mountInlineWaitlist(box, 'consultas', {origin:'reporte', submit:'Quiero agendar mi cita', done:'¡Listo! Te escribiremos pronto para coordinar tu cita.'});
+        mountInlineWaitlist(box, 'consultas', {origin:'reporte', submit:'Quiero agendar mi cita', done:citaDoneText(null), slots:true});
       });
     }
     reportSatisfaction(document.getElementById(id + 's'));

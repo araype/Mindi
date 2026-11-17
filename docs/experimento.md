@@ -188,3 +188,27 @@ Cada evento de `events` lleva `props.flujo` desde cierre-v2. Los eventos sin `fl
   `report_satisfaction` (`answer`, `score`)**. El evento `satisfaction` (y `satisfaction_skip`) deja de registrarse, así
   la serie anterior (otra pregunta y otro lugar del flujo) queda intacta y no se mezcla. Si ya respondió y la página se
   recarga, no se vuelve a preguntar. El panel todavía lee `satisfaction`: hay que sumar `report_satisfaction` como serie aparte.
+
+## Scroll del chat en el celular (17 nov. 2026)
+
+- Las tarjetas más altas que el 60 % del chat (resultado, reporte) se muestran desde su título, no desde el final.
+- El chat solo baja solo si la usuaria está al final; si subió a leer, no la arrastra y aparece "Nuevo ↓".
+- Un segundo ajuste del scroll a los 280 ms evita que la vista quede a la mitad cuando algo se acomoda tarde.
+
+## Horarios tentativos en "Agendar cita" (17 nov. 2026) — prueba de demanda
+
+- En la landing (menú "Agendar cita") y en el reporte ("Agendar cita con un especialista"): los próximos 5 días de
+  atención (lunes a sábado) × 9:00 a. m., 3:00 p. m. y 7:00 p. m., marcados como **tentativos y opcionales**, con la nota
+  "te escribiremos para confirmar". Nunca se muestra como cita confirmada.
+- Eventos: `cita_slots_shown` (`desde`: `landing` o `reporte`) y `cita_slot` (`answer`: p. ej. "jueves 19 · 3:00 p. m.").
+  Tasa de interés = sesiones con `cita_slot` / sesiones con `cita_slots_shown`.
+- El horario elegido va solo en el evento, no en la lista `consultas`: al contactar, el equipo no lo ve junto al correo.
+
+## "Agendar cita": WhatsApp obligatorio y aviso en lugar de casilla (17 nov. 2026)
+
+- **Requiere el SQL 029 antes de desplegar** (el correo pasa a ser opcional y se agrega `horario`).
+- En la cita (landing y reporte), el WhatsApp es obligatorio y el correo, opcional. Las otras listas siguen pidiendo correo.
+- El horario tentativo elegido se guarda junto al contacto (`interest_signups.horario`) y sale en la exportación de `consultas`.
+- En los formularios de listas (cita, diario, Plus, especialistas, empresas), la casilla "Acepto la Política de privacidad"
+  se reemplazó por un aviso al pie: "Al enviar, aceptas que te contactemos solo para esto…" (`consent_text_version:
+  aviso-envio-v1`). La casilla de investigación (datos de salud) sigue siendo una casilla aparte, opcional y desmarcada.

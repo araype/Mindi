@@ -14,7 +14,7 @@ test('lista Plus: nombre y correo obligatorios, WhatsApp opcional y solo dígito
 });
 
 test('sin la casilla de privacidad marcada no se guarda nada', () => {
-  assert.match(waitlistRow('consultas', { name: 'Ana', email: 'ana@mail.com' }).error, /Política de privacidad/);
+  assert.match(waitlistRow('consultas', { name: 'Ana', whatsapp: '987654321' }).error, /Política de privacidad/);
 });
 
 test('demo para empresas: empresa, cargo, n.º de colaboradoras y correo', () => {

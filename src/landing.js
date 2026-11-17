@@ -7,9 +7,12 @@
 
 /** Formularios de lista de espera (handoff 2.1 y 2.6). Los nombres de campo son las columnas de
  *  interest_signups (SQL 017). `contact` es siempre el correo. */
+import { mountSlotPicker, citaDoneText } from './citas.js';
+
 export const WAITLISTS = {
   plus: { title: 'Mindi Plus', lead: 'Quiero acceso anticipado.', fields: ['name', 'email', 'whatsapp'] },
-  consultas: { title: 'Consultas con especialistas', lead: 'Próximamente.', fields: ['name', 'email', 'whatsapp'] },
+  // Citas (17 nov. 2026): lo más común es el WhatsApp, así que es obligatorio y el correo, opcional (SQL 029).
+  consultas: { title: 'Consultas con especialistas', lead: 'Próximamente.', fields: ['name', 'whatsapp', 'email'], required: { whatsapp: true, email: false }, submit: 'Quiero agendar mi cita' },
   especialistas: { title: 'Para especialistas', lead: 'Red Mindi · próximamente.', fields: ['name', 'email', 'whatsapp'] },
   empresas: { title: 'Mindi Enterprise', lead: 'Agenda una demo.', fields: ['company', 'job_title', 'team_size', 'email'], submit: 'Solicitar demo', done: '¡Gracias! Te escribiremos pronto para coordinar.' },
 };
@@ -19,12 +22,21 @@ const WAITLIST_ERROR = 'No pudimos enviar tus datos. Inténtalo de nuevo en un m
 const FIELD = {
   name: { label: 'Nombre', type: 'text', autocomplete: 'name', required: true, max: 80 },
   email: { label: 'Correo', type: 'email', autocomplete: 'email', required: true, max: 120 },
-  whatsapp: { label: 'WhatsApp (opcional)', type: 'tel', autocomplete: 'tel', required: false, max: 20 },
+  whatsapp: { label: 'WhatsApp', type: 'tel', autocomplete: 'tel', required: false, max: 20 },
   company: { label: 'Empresa', type: 'text', autocomplete: 'organization', required: true, max: 120 },
   job_title: { label: 'Cargo', type: 'text', autocomplete: 'organization-title', required: true, max: 80 },
   team_size: { label: 'N.º de colaboradoras', type: 'number', autocomplete: 'off', required: true, max: 7 },
 };
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+/* Aviso en lugar de la casilla de la política (17 nov. 2026): al enviar acepta, y se registra con esta versión. */
+export const WAITLIST_CONSENT_VERSION = 'aviso-envio-v1';
+export const WAITLIST_NOTICE = 'Al enviar, aceptas que te contactemos solo para esto, según nuestra <a href="/privacidad" target="_blank" rel="noopener">Política de privacidad</a>.';
+const isRequired = (cfg, f) => (cfg.required && f in cfg.required ? cfg.required[f] : FIELD[f].required);
+/** Campos de una lista, con "(opcional)" en la etiqueta de los que no son obligatorios. */
+export function waitlistFields(list) {
+  const cfg = WAITLISTS[list];
+  return cfg.fields.map((f) => ({ f, ...FIELD[f], required: isRequired(cfg, f), label: FIELD[f].label + (isRequired(cfg, f) ? '' : ' (opcional)') }));
+}
 
 /** Valida y limpia los datos de un formulario de lista de espera. Devuelve { row } o { error }. */
 export function waitlistRow(list, values) {
@@ -33,7 +45,7 @@ export function waitlistRow(list, values) {
   const row = { segment: list };
   for (const f of cfg.fields) {
     const v = String(values[f] ?? '').trim();
-    if (!v) { if (FIELD[f].required) return { error: `Completa: ${FIELD[f].label}.` }; continue; }
+    if (!v) { if (isRequired(cfg, f)) return { error: `Completa: ${FIELD[f].label}.` }; continue; }
     if (v.length > FIELD[f].max) return { error: `Revisa: ${FIELD[f].label}.` };
     if (f === 'email') { if (!EMAIL_RE.test(v)) return { error: 'Revisa el correo.' }; row.contact = v; continue; }
     if (f === 'whatsapp') { const d = v.replace(/\D/g, ''); if (d.length < 9 || d.length > 15) return { error: 'Revisa el número de WhatsApp (mínimo 9 dígitos).' }; row.whatsapp = d; continue; }
@@ -41,6 +53,8 @@ export function waitlistRow(list, values) {
     row[f] = v;
   }
   if (values.consent !== true) return { error: 'Para continuar, acepta la Política de privacidad.' };
+  // Horario tentativo de "Agendar cita" (src/citas.js), solo para consultas.
+  if (list === 'consultas' && typeof values.horario === 'string' && values.horario.trim()) row.horario = values.horario.trim().slice(0, 40);
   return { row };
 }
 
@@ -457,33 +471,39 @@ export function initLanding({ track, api, mountTurnstile, backendOn, consentVers
   function openWaitlist(list) {
     const cfg = WAITLISTS[list];
     if (!cfg || !dialog.showModal) return;
-    const inputs = cfg.fields.map((f) => {
-      const d = FIELD[f];
+    const inputs = waitlistFields(list).map((d) => {
+      const f = d.f;
       return `<div class="m-field"><label for="wl_${f}">${d.label}</label><input class="m-input" id="wl_${f}" name="${f}" type="${d.type}" autocomplete="${d.autocomplete}"${d.type === 'number' ? ' min="1" inputmode="numeric"' : ` maxlength="${d.max}"`}${d.required ? ' required' : ''}></div>`;
     }).join('');
     dialog.innerHTML = `<form method="dialog" novalidate>
       <button class="l-dialog-x" type="button" aria-label="Cerrar">×</button>
       <h2 id="waitlistTitle">${cfg.title}</h2><p class="m-text-s">${cfg.lead}</p>
+      ${list === 'consultas' ? '<div class="l-slots"></div>' : ''}
       ${inputs}
-      <label class="m-check"><input type="checkbox" name="consent"><span>Acepto la <a href="/privacidad" target="_blank" rel="noopener">Política de privacidad</a>. Usaremos estos datos solo para contactarte sobre Mindi.</span></label>
+      <p class="m-text-s l-consent">${WAITLIST_NOTICE}</p>
       <div class="l-ts"></div>
       <p class="l-err" role="alert" hidden></p>
       <button class="m-btn" type="submit">${cfg.submit || WAITLIST_SUBMIT}</button>
     </form>`;
     const form = dialog.querySelector('form');
+    // "Agendar cita": horarios tentativos (src/citas.js), prueba de demanda; cita_slot { answer, desde }.
+    const slotBox = form.querySelector('.l-slots');
+    const slots = slotBox ? mountSlotPicker(slotBox, { onPick: (v) => track('cita_slot', { answer: v, desde: 'landing' }) }) : null;
+    if (slots) track('cita_slots_shown', { desde: 'landing' });
     const captcha = mountTurnstile ? mountTurnstile(form.querySelector('.l-ts')) : { token: async () => '', remove() {}, reset() {} };
     dialog.querySelector('.l-dialog-x').addEventListener('click', () => dialog.close());
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const values = Object.fromEntries(cfg.fields.map((f) => [f, form.elements[f].value]));
-      values.consent = form.elements.consent.checked;
+      values.consent = true; // aviso al pie del formulario: enviar es aceptar
+      if (slots && slots.value) values.horario = slots.value;
       const { error } = waitlistRow(list, values); // la misma validación corre en el servidor
       const err = form.querySelector('.l-err');
       if (error) { err.textContent = error; err.hidden = false; return; }
       err.hidden = true;
       form.querySelector('[type=submit]').disabled = true;
       const turnstile = await captcha.token();
-      api('waitlist', { list, values: { ...values, consent: true }, consent_text_version: consentVersion, is_test: isTest, origin: origin || undefined, turnstile }).then((r) => {
+      api('waitlist', { list, values: { ...values, consent: true }, consent_text_version: WAITLIST_CONSENT_VERSION, is_test: isTest, origin: origin || undefined, turnstile }).then((r) => {
         const ok = !!(r && r.ok);
         const saved = ok || !backendOn; // sin backend (prototipo local) no hay dónde guardar
         track('waitlist_join', { list, captured: !!ok });
@@ -494,7 +514,7 @@ export function initLanding({ track, api, mountTurnstile, backendOn, consentVers
           return;
         }
         captcha.remove();
-        form.innerHTML = `<button class="l-dialog-x" type="button" aria-label="Cerrar">×</button><h2 id="waitlistTitle">${cfg.title}</h2><p class="l-ok">${cfg.done || WAITLIST_DONE}</p>`;
+        form.innerHTML = `<button class="l-dialog-x" type="button" aria-label="Cerrar">×</button><h2 id="waitlistTitle">${cfg.title}</h2><p class="l-ok">${slots ? citaDoneText(slots.value) : (cfg.done || WAITLIST_DONE)}</p>`;
         form.querySelector('.l-dialog-x').addEventListener('click', () => dialog.close());
       });
     });

@@ -34,7 +34,8 @@ const json = (body: unknown, status = 200) =>
 const WAITLIST_COLS = ['created_at', 'name', 'contact', 'whatsapp', 'origin', 'is_test'];
 const LISTS: Record<string, { table: string; cols: string[]; filter?: [string, string, unknown]; enc: string[]; header: string[] }> = {
   plus:          { table: 'interest_signups', cols: WAITLIST_COLS, filter: ['segment', 'eq', 'plus'], enc: ['name', 'contact', 'whatsapp'], header: ['fecha', 'nombre', 'correo', 'whatsapp', 'origen', 'prueba'] },
-  consultas:     { table: 'interest_signups', cols: WAITLIST_COLS, filter: ['segment', 'eq', 'consultas'], enc: ['name', 'contact', 'whatsapp'], header: ['fecha', 'nombre', 'correo', 'whatsapp', 'origen', 'prueba'] },
+  // Citas: con el horario tentativo que eligió (SQL 029).
+  consultas:     { table: 'interest_signups', cols: ['created_at', 'name', 'whatsapp', 'contact', 'horario', 'origin', 'is_test'], filter: ['segment', 'eq', 'consultas'], enc: ['name', 'contact', 'whatsapp'], header: ['fecha', 'nombre', 'whatsapp', 'correo', 'horario', 'origen', 'prueba'] },
   especialistas: { table: 'interest_signups', cols: WAITLIST_COLS, filter: ['segment', 'eq', 'especialistas'], enc: ['name', 'contact', 'whatsapp'], header: ['fecha', 'nombre', 'correo', 'whatsapp', 'origen', 'prueba'] },
   empresas:      { table: 'interest_signups', cols: ['created_at', 'company', 'job_title', 'team_size', 'contact', 'origin', 'is_test'], filter: ['segment', 'eq', 'empresas'], enc: ['contact'], header: ['fecha', 'empresa', 'cargo', 'colaboradoras', 'correo', 'origen', 'prueba'] },
   interes:       { table: 'interest_signups', cols: ['created_at', 'segment', 'contact', 'is_test'], filter: ['segment', 'in', '(under40_regular,under40_irregular)'], enc: ['contact'], header: ['fecha', 'grupo', 'correo', 'prueba'] },

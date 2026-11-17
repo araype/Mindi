@@ -209,3 +209,43 @@ test('reporte: sin "Ver el reporte completo"; dice qué trae el PDF y mantiene e
   assert.match(main, /<p class="card-note">\$\{pdfContents\(\)\}<\/p>/);
   assert.match(main, /`<p class="topics-disclaimer">\$\{DISCLAIMER\}<\/p>`, 'report'/);
 });
+
+test('scroll del chat: tarjetas largas desde su título y sin arrastrar a quien sube a leer', () => {
+  assert.match(main, /if\(el\.offsetHeight <= chat\.clientHeight \* 0\.6\) return scrollBottom\(\);/);
+  assert.match(main, /setChatScroll\(Math\.max\(0, topInChat\(el\.parentElement \|\| el\) - 12\)\);/);
+  assert.match(main, /function addCard[\s\S]*?showFromTop\(c\);/);
+  assert.match(main, /if\(followBottom\)\{ setChatScroll\(chat\.scrollHeight\); newBelow\.hidden = true; \}/);
+  assert.match(main, /\['touchstart', 'wheel', 'keydown'\]\.forEach/);
+  assert.match(main, /if\(who === 'user'\)\{ scrollAnchor = null; followBottom = true; \}/);
+});
+
+test('agendar cita: horarios tentativos (lun a sáb), opcionales y sin prometer una cita confirmada', async () => {
+  const { tentativeDays, slotLabel, citaDoneText, SLOT_NOTE, SLOT_TIMES } = await import('../src/citas.js');
+  const days = tentativeDays(new Date(2026, 10, 21)); // sábado 21
+  assert.equal(days.length, 5);
+  assert.ok(days.every((d) => d.getDay() !== 0)); // sin domingos
+  assert.equal(days[0].getDate(), 23); // salta el domingo 22
+  assert.equal(slotLabel(days[0], SLOT_TIMES[1]), 'lunes 23 · 3:00 p. m.');
+  assert.ok(slotLabel(days[0], SLOT_TIMES[1]).length <= 40); // cabe en las props del evento
+  assert.match(SLOT_NOTE, /te escribiremos para confirmar/);
+  assert.equal(citaDoneText('lunes 23 · 3:00 p. m.'), '¡Listo! Guardamos tu horario preferido (lunes 23 · 3:00 p. m.). Te escribiremos para confirmar tu cita.');
+  assert.doesNotMatch(citaDoneText('x'), /confirmada/);
+  assert.match(main, /mountInlineWaitlist\(box, 'consultas', \{origin:'reporte'[^}]*slots:true\}\)/);
+});
+
+test('agendar cita: WhatsApp obligatorio, correo opcional, horario junto al contacto y aviso en lugar de casilla', async () => {
+  const { waitlistRow, waitlistFields, WAITLIST_NOTICE } = await import('../src/landing.js');
+  assert.deepEqual(waitlistFields('consultas').map((f) => [f.f, f.required]), [['name', true], ['whatsapp', true], ['email', false]]);
+  assert.equal(waitlistFields('consultas')[2].label, 'Correo (opcional)');
+  assert.deepEqual(waitlistRow('consultas', { name: 'Ana', whatsapp: '987 654 321', consent: true, horario: 'jueves 19 · 3:00 p. m.' }).row,
+    { segment: 'consultas', name: 'Ana', whatsapp: '987654321', horario: 'jueves 19 · 3:00 p. m.' });
+  assert.match(waitlistRow('consultas', { name: 'Ana', email: 'ana@mail.com', consent: true }).error, /WhatsApp/);
+  assert.match(waitlistRow('plus', { name: 'Ana', whatsapp: '987654321', consent: true }).error, /Correo/); // el diario sigue pidiendo correo
+  assert.equal(waitlistRow('plus', { name: 'Ana', email: 'a@b.co', consent: true, horario: 'x' }).row.horario, undefined);
+  assert.match(WAITLIST_NOTICE, /Al enviar, aceptas/);
+  assert.doesNotMatch(main, /name="consent"/);
+  const { readFile } = await import('node:fs/promises');
+  const sql = await readFile(new URL('../supabase/029_cita_whatsapp_horario.sql', import.meta.url), 'utf8');
+  assert.match(sql, /alter column contact drop not null/);
+  assert.match(sql, /check \(contact is not null or whatsapp is not null\)/);
+});
