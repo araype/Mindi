@@ -75,28 +75,11 @@
 
     <div id="tabChat" class="tab-panel" role="tabpanel" aria-labelledby="tabBtnChat">
     <p class="status" id="panelV2Missing" hidden>Corre <code>supabase/023_panel_v2.sql</code> en Supabase para ver el panel actualizado (reporte, PDF, chat con IA e investigación).</p>
-    <!-- Resumen: la North Star y su fórmula (18 nov. 2026). Se calcula con la tabla por canal (030). -->
-    <section class="nsm" id="nsmBlock" aria-label="North Star" hidden>
-      <div class="nsm-head">
-        <div>
-          <span class="nsm-kicker">North Star</span>
-          <h2>Mujeres que completan el test y usan su reporte o piden cita</h2>
-        </div>
-        <div class="nsm-filter" id="nsmFilter" hidden>Solo <strong id="nsmFilterName"></strong><button type="button" id="nsmFilterClear">Ver todos los canales ✕</button></div>
-      </div>
-      <div class="nsm-main">
-        <span class="nsm-value" id="nsmValue">—</span>
-        <span class="nsm-meta" id="nsmMeta"></span>
-        <span class="nsm-delta" id="nsmDelta"></span>
-      </div>
-      <div class="nsm-bar" id="nsmBarWrap" aria-hidden="true"><span id="nsmBar"></span></div>
-      <div class="nsm-formula" aria-label="Fórmula: visitas por porcentaje que completa por porcentaje que usa">
-        <div class="nf"><span class="nf-label">Visitas</span><span class="nf-value" id="nfVisitas">—</span><span class="nf-delta" id="nfVisitasD"></span></div>
-        <span class="nf-op" aria-hidden="true">×</span>
-        <div class="nf"><span class="nf-label">Completan el test</span><span class="nf-value" id="nfComp">—</span><span class="nf-delta" id="nfCompD"></span></div>
-        <span class="nf-op" aria-hidden="true">×</span>
-        <div class="nf"><span class="nf-label">Usan su reporte o piden cita</span><span class="nf-value" id="nfUso">—</span><span class="nf-delta" id="nfUsoD"></span></div>
-      </div>
+    <h2 class="sec-title">Dónde se pierden</h2>
+    <section class="block">
+      <h2>Paso a paso</h2>
+      <p class="block-note">Cada barra es un paso, y solo cuenta a quienes pasaron por todos los anteriores. A la derecha: cuántas siguen respecto al paso anterior — el número más bajo es donde más se pierden.</p>
+      <div class="funnel" id="funnel" role="table" aria-label="Embudo por paso"></div>
     </section>
 
     <h2 class="sec-title">De dónde llegan</h2>
@@ -111,13 +94,6 @@
         </table>
       </div>
       <p class="split-empty" id="canalesEmpty" hidden></p>
-    </section>
-
-    <h2 class="sec-title">Dónde se pierden</h2>
-    <section class="block">
-      <h2>Paso a paso</h2>
-      <p class="block-note">Cada barra es un paso, y solo cuenta a quienes pasaron por todos los anteriores. A la derecha: cuántas siguen respecto al paso anterior — el número más bajo es donde más se pierden.</p>
-      <div class="funnel" id="funnel" role="table" aria-label="Embudo por paso"></div>
     </section>
 
     <h2 class="sec-title">Qué hacen con su reporte</h2>

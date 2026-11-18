@@ -143,11 +143,6 @@ async function load(){
       syncFilterUI(res.filters !== false);
       render(res.funnel, res.generated_at, res.filters !== false, res.sat_reporte);
       renderCanales(res.canales);
-      renderNsm(res.canales, null);
-      // Frente al periodo anterior (hoy, 7 o 30 días): una segunda consulta, sin bloquear el panel.
-      const prev = prevFor(filters.period);
-      if(prev) ask('chat', prev.since, prev.until).then((x)=> x.ok ? x.json() : null)
-        .then((p)=>{ if(p && p.ok && tab === 'chat') renderNsm(res.canales, p.canales, prev.label); }).catch(()=>{});
     }
   } catch {
     showStatus('Sin conexión con Supabase. Revisa tu internet y vuelve a intentarlo con "Actualizar".');
@@ -401,55 +396,8 @@ function renderCanales(rows){
   }).join('');
 }
 
-/* ---------- Resumen: North Star (18 nov. 2026) ----------
-   NSM = Visitas × % que completa el test × % de ellas que usa su reporte o pide cita. Sale de la tabla por canal
-   (030), así cuadra con ella; con un canal elegido, es la fila de ese canal. Meta mensual, prorrateada al periodo. */
-const NSM_META_MES = 30;
-const META_DIAS = {today:1, '7d':7, '30d':30};
+/* Canal elegido al tocar su fila en "Por canal" (null = todos). */
 const canalSel = ()=> filters.origin === 'all' ? null : (filters.origin === 'none' ? 'sin_origen' : filters.origin);
-function sumCanales(rows){
-  if(!rows) return null;
-  const sel = canalSel();
-  return (sel ? rows.filter((r)=> r.canal === sel) : rows).reduce((a, r)=> ({
-    visitas: a.visitas + (r.visitas || 0), completan: a.completan + (r.completan || 0), nsm: a.nsm + (r.nsm || 0)}), {visitas:0, completan:0, nsm:0});
-}
-function prevFor(period){
-  const dias = META_DIAS[period];
-  if(!dias) return null;
-  const since = new Date(sinceFor(period));
-  return {since: new Date(since.getTime() - dias * 86400000).toISOString(), until: since.toISOString(),
-    label: period === 'today' ? 'ayer' : `los ${dias} días anteriores`};
-}
-function deltaTxt(now, before, isPct){
-  if(now == null || before == null) return '';
-  const d = Math.round((now - before) * 10) / 10;
-  if(d === 0) return '<span class="d-eq">= igual</span>';
-  const n = isPct ? `${Math.abs(d).toLocaleString('es-PE')} pts` : fmt(Math.abs(d));
-  return `<span class="${d > 0 ? 'd-up' : 'd-down'}">${d > 0 ? '▲' : '▼'} ${n}</span>`;
-}
-function renderNsm(rows, prevRows, prevLabel){
-  const c = sumCanales(rows);
-  $('nsmBlock').hidden = !c;
-  if(!c) return;
-  const p = sumCanales(prevRows);
-  const comp = pct(c.completan, c.visitas), uso = pct(c.nsm, c.completan);
-  const dias = META_DIAS[filters.period];
-  const meta = dias ? Math.round(NSM_META_MES * dias / 30 * 10) / 10 : null;
-  $('nsmValue').textContent = fmt(c.nsm);
-  $('nsmMeta').textContent = meta != null ? `de ${meta.toLocaleString('es-PE')} · meta: ${NSM_META_MES} al mes` : `Meta: ${NSM_META_MES} al mes. Elige "30 días" para compararla.`;
-  $('nsmBarWrap').hidden = meta == null;
-  $('nsmBar').style.width = meta ? `${Math.min(100, (c.nsm / meta) * 100)}%` : '0%';
-  $('nfVisitas').textContent = fmt(c.visitas);
-  $('nfComp').textContent = pctTxt(comp);
-  $('nfUso').textContent = pctTxt(uso);
-  $('nsmDelta').innerHTML = p ? `${deltaTxt(c.nsm, p.nsm)} <small>vs. ${esc(prevLabel)}</small>` : '';
-  $('nfVisitasD').innerHTML = p ? deltaTxt(c.visitas, p.visitas) : '';
-  $('nfCompD').innerHTML = p ? deltaTxt(comp, pct(p.completan, p.visitas), true) : '';
-  $('nfUsoD').innerHTML = p ? deltaTxt(uso, pct(p.nsm, p.completan), true) : '';
-  const sel = canalSel();
-  $('nsmFilter').hidden = !sel;
-  if(sel) $('nsmFilterName').textContent = canalNombre(sel);
-}
 /* Tocar un canal filtra todo el panel por ese canal; tocarlo de nuevo (o "Ver todos") quita el filtro. */
 function toggleCanal(c){
   const o = c === 'sin_origen' ? 'none' : c;
@@ -461,7 +409,6 @@ $('canalesBody').addEventListener('keydown', (e)=>{
   const tr = e.target.closest('tr[data-canal]');
   if(tr){ e.preventDefault(); toggleCanal(tr.dataset.canal); }
 });
-$('nsmFilterClear').addEventListener('click', ()=> pickOrigin('all'));
 
 function renderFunnel(raw){
   const strict = raw.embudo_visitas != null;
