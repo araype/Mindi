@@ -420,3 +420,33 @@ h1 {
 .tabs{overflow-x:auto;scrollbar-width:none}
 .tabs::-webkit-scrollbar{display:none}
 .tabs [role="tab"]{white-space:nowrap;flex:none}
+
+/* Resumen: North Star (18 nov. 2026) */
+.nsm { padding: 22px; background: var(--surface); border: 1px solid var(--border); border-radius: 18px; display: grid; gap: 14px; }
+.nsm-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 10px; }
+.nsm-kicker { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--action); font-weight: 600; }
+.nsm h2 { margin: 2px 0 0; font-size: 17px; font-weight: 600; max-width: 46ch; }
+.nsm-filter { display: flex; align-items: center; gap: 8px; padding: 4px 4px 4px 12px; font-size: 13px; background: var(--track); border: 1px solid var(--border); border-radius: 999px; }
+.nsm-filter button { border: 0; padding: 4px 10px; font: inherit; font-size: 12.5px; color: var(--ink); background: var(--surface); border-radius: 999px; cursor: pointer; }
+.nsm-filter button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.nsm-main { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; }
+.nsm-value { font-family: var(--font-display); font-size: 48px; line-height: 1; font-variant-numeric: tabular-nums; }
+.nsm-meta { font-size: 14px; color: var(--ink-soft); }
+.nsm-delta, .nf-delta { font-size: 12.5px; }
+.nsm-delta small { color: var(--ink-subtle); font-size: 12px; }
+.nsm-bar { height: 8px; background: var(--track); border-radius: 999px; overflow: hidden; }
+.nsm-bar span { display: block; height: 100%; background: var(--action); border-radius: 999px; }
+.nsm-formula { display: flex; flex-wrap: wrap; align-items: stretch; gap: 8px; }
+.nf { flex: 1 1 150px; min-width: 0; display: grid; gap: 2px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 12px; }
+.nf-label { font-size: 12.5px; color: var(--ink-soft); }
+.nf-value { font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.nf-op { align-self: center; font-size: 18px; color: var(--ink-subtle); }
+.d-up { color: var(--div-pos); font-weight: 600; }
+.d-down { color: var(--div-neg); font-weight: 600; }
+.d-eq { color: var(--ink-subtle); }
+.sec-title { margin: 28px 0 10px; font-size: 13px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-soft); }
+.canales tbody tr[data-canal] { cursor: pointer; }
+.canales tbody tr[data-canal]:hover td, .canales tbody tr.is-sel td { background: var(--track); }
+.canales tbody tr.is-sel td:first-child { font-weight: 600; }
+.canales tbody tr[data-canal]:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+@media (max-width: 560px) { .nf-op { display: none; } .nsm-value { font-size: 40px; } }
