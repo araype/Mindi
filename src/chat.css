@@ -405,6 +405,11 @@ body.no-scroll{overflow:hidden}
 .cw-btn{margin-top:12px;text-decoration:none}
 .l-cita{display:flex;flex-direction:column;gap:14px;padding:26px 22px 22px}
 /* La cita según el nivel (17 nov. 2026) */
+.prep-title{display:flex;align-items:center;gap:10px;margin:0 0 8px;font-weight:600}
+.prep-spin{width:16px;height:16px;flex:none;border-radius:50%;border:2px solid var(--bubble-bot-border);border-top-color:var(--magenta-btn);animation:prep-spin .8s linear infinite}
+@keyframes prep-spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.prep-spin{animation:none}}
+.dia-actions{display:flex;flex-direction:column;gap:6px;margin-top:10px}
 .result-cita{margin:14px 0 4px;padding:12px 14px;border:1.5px solid var(--bubble-bot-border);border-radius:14px;background:#fff}
 .result-cita.is-urgente{border-color:var(--magenta-btn)}
 .result-cita p{margin:0 0 10px;font-size:14.5px;line-height:1.45;font-weight:600}

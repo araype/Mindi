@@ -107,12 +107,26 @@
       <div class="funnel" id="funnel" role="table" aria-label="Embudo por paso"></div>
     </section>
 
+    <!-- Por canal (030): una fila por cada ?src= o canal detectado; los canales nuevos aparecen solos -->
+    <section class="block" id="canalesBlock">
+      <h2>Por canal</h2>
+      <p class="block-note">De dónde llega cada visita y hasta dónde avanza. Cada enlace nuevo con <code>?src=</code> (por ejemplo <code>?src=wa_terapia</code>) aparece aquí solo. "Lo usan": descargan, piden copia, comparten su reporte o piden cita. No cambia con el filtro de origen.</p>
+      <div class="table-wrap" id="canalesWrap">
+        <table class="signups canales">
+          <thead><tr><th scope="col">Canal</th><th scope="col">Visitas</th><th scope="col">Inician</th><th scope="col">Completan</th><th scope="col">Ven su reporte</th><th scope="col">Lo usan o piden cita</th></tr></thead>
+          <tbody id="canalesBody"></tbody>
+        </table>
+      </div>
+      <p class="split-empty" id="canalesEmpty" hidden></p>
+    </section>
+
     <section class="splits">
       <div class="block" id="splitReport"></div>
       <div class="block" id="splitPrice"></div>
       <div class="block" id="splitWaOld" hidden></div>
       <div class="block" id="splitResearch"></div>
       <div class="block" id="splitSat"></div>
+      <div class="block" id="splitSatNew" hidden></div>
       <div class="block" id="splitLevel"></div>
       <div class="block" id="splitAge"></div>
     </section>

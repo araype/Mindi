@@ -89,7 +89,12 @@ Deno.serve(async (req) => {
   if (!error) {
     // Conversaciones del chat con IA (024). Si aún no se corrió, el panel lo indica.
     const conv = await supabase.rpc('chat_conversation_stats', args);
-    return json({ ok: true, funnel: data ?? {}, conversaciones: conv.error ? null : (conv.data ?? {}), filters: true, generated_at });
+    // Embudo por canal (030): una fila por cada ?src= o canal detectado; no se filtra por origen.
+    const can = await supabase.rpc('panel_canales', { p_since: since, p_until: until, p_include_test: includeTest });
+    // Satisfacción dentro del reporte (031, desde el 16 nov. 2026): serie aparte de la anterior.
+    const sat = await supabase.rpc('panel_satisfaccion_reporte', { p_since: since, p_until: until, p_include_test: includeTest, p_origin: origin });
+    return json({ ok: true, funnel: data ?? {}, conversaciones: conv.error ? null : (conv.data ?? {}),
+      canales: can.error ? null : (can.data ?? []), sat_reporte: sat.error ? null : (sat.data ?? {}), filters: true, generated_at });
   }
   if (origin) return json({ error: 'Para filtrar por origen, corre supabase/012_origin.sql en Supabase.' }, 500);
 

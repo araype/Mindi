@@ -9,9 +9,12 @@ La cita se ofrece según lo que dice la guía (el mismo nivel del resultado), nu
 | Nivel del test | Resultado | Reporte | Chat con Mindi IA |
 |---|---|---|---|
 | A (sin molestias o leves) | Sin botón | Caja discreta ("cuando quieras") | Solo si ella pregunta cómo consultar o pide un tratamiento |
-| B (conviene evaluarlo) | Botón "Agendar con un especialista" | Caja destacada | Lo ofrece cuando ya respondió su duda |
-| C (tratamiento muy recomendable) | Botón, con borde destacado | Caja destacada | Igual que B |
-| Alerta de evaluación | Botón, con borde destacado | Caja destacada | Igual que B |
+| B (conviene evaluarlo) | Sin botón (solo la recomendación de consultar) | Caja destacada | Lo ofrece cuando ya respondió su duda |
+| C (tratamiento muy recomendable) | Sin botón (solo la recomendación de consultar) | Caja destacada | Igual que B |
+| Alerta de evaluación | Sin botón (solo la recomendación de consultar) | Caja destacada | Igual que B |
+
+Desde el 18 nov. 2026 la tarjeta de resultado ya no lleva el botón "Agendar con un especialista": repetía la
+recomendación que ya está arriba. "Agendar" queda en "Tu reporte" y en el chat.
 | Alerta de emergencia | **Sin botón: primero el 106** | Caja destacada (para después) | Nunca mientras dure la alerta |
 
 En el chat, el agente usa la herramienta `ofrecer_cita` (como máximo dos veces por conversación). La landing mantiene

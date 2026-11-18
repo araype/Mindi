@@ -10,7 +10,8 @@
 import { mountSlotPicker, citaDoneText, mountCita } from './citas.js';
 
 export const WAITLISTS = {
-  plus: { title: 'Mindi Plus', lead: 'Quiero acceso anticipado.', fields: ['name', 'email', 'whatsapp'] },
+  // Correo o WhatsApp (al menos uno): en el test, el aviso del diario pide solo el WhatsApp (18 nov. 2026).
+  plus: { title: 'Mindi Plus', lead: 'Quiero acceso anticipado.', fields: ['name', 'email', 'whatsapp'], required: { email: false }, oneContact: true },
   // Citas (17 nov. 2026): lo más común es el WhatsApp, así que es obligatorio y el correo, opcional (SQL 029).
   consultas: { title: 'Consultas con especialistas', lead: 'Próximamente.', fields: ['name', 'whatsapp', 'email'], required: { whatsapp: true, email: false }, submit: 'Quiero agendar mi cita' },
   especialistas: { title: 'Para especialistas', lead: 'Red Mindi · próximamente.', fields: ['name', 'email', 'whatsapp'] },
@@ -52,6 +53,7 @@ export function waitlistRow(list, values) {
     if (f === 'team_size') { const n = Number(v); if (!Number.isInteger(n) || n < 1 || n > 1000000) return { error: 'Revisa el número de colaboradoras.' }; row.team_size = n; continue; }
     row[f] = v;
   }
+  if (cfg.oneContact && !row.contact && !row.whatsapp) return { error: 'Déjanos tu correo o tu WhatsApp.' };
   if (values.consent !== true) return { error: 'Para continuar, acepta la Política de privacidad.' };
   // Horario tentativo de "Agendar cita" (src/citas.js), solo para consultas.
   if (list === 'consultas' && typeof values.horario === 'string' && values.horario.trim()) row.horario = values.horario.trim().slice(0, 40);

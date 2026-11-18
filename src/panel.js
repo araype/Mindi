@@ -141,7 +141,8 @@ async function load(){
       renderEventos(res.eventos, res.generated_at, res.missing);
     } else {
       syncFilterUI(res.filters !== false);
-      render(res.funnel, res.generated_at, res.filters !== false);
+      render(res.funnel, res.generated_at, res.filters !== false, res.sat_reporte);
+      renderCanales(res.canales);
     }
   } catch {
     showStatus('Sin conexión con Supabase. Revisa tu internet y vuelve a intentarlo con "Actualizar".');
@@ -286,7 +287,7 @@ function renderEventos(e, at, missing){
   $('eListaEmpty').hidden = !!lista.length;
 }
 
-function render(f, at, filtered){
+function render(f, at, filtered, satReporte){
   setMeta(at, filtered);
 
   $('tVisitas').textContent = fmt(f.visitas);
@@ -336,12 +337,21 @@ function render(f, at, filtered){
     ['No, gracias', f.investigacion_no, 'var(--div-neg)'],
   ], v2 ? null : 'Corre supabase/023_panel_v2.sql para ver este desglose.');
 
-  renderSplit($('splitSat'), filters.period === 'exp1' ? '¿Qué tal te pareció esta experiencia?' : '¿Te sirvió este resultado?', `${filters.period === 'exp1' ? 'Experimento 1: al final del test.' : 'Satisfacción, antes del reporte.'}${v2 && f.ven_resultado ? ` Responden ${pctTxt(pct((f.satisfaccion_alta || 0) + (f.satisfaccion_neutra || 0) + (f.satisfaccion_baja || 0), f.ven_resultado))} de quienes ven su resultado.` : ''}`, [
+  renderSplit($('splitSat'), filters.period === 'exp1' ? '¿Qué tal te pareció esta experiencia?' : '¿Te sirvió este resultado?', `${filters.period === 'exp1' ? 'Experimento 1: al final del test.' : 'Pregunta anterior: al final del test (Experimento 1) y antes del reporte (hasta el 16 nov. 2026).'}${v2 && f.ven_resultado ? ` Responden ${pctTxt(pct((f.satisfaccion_alta || 0) + (f.satisfaccion_neutra || 0) + (f.satisfaccion_baja || 0), f.ven_resultado))} de quienes ven su resultado.` : ''}`, [
     ['Alta', f.satisfaccion_alta, 'var(--div-pos)'],
     ['Neutra', f.satisfaccion_neutra, 'var(--div-mid)'],
     ['Baja', f.satisfaccion_baja, 'var(--div-neg)'],
     ...(v2 && filters.period !== 'exp1' ? [['Prefiero no responder', f.satisfaccion_omitida, 'var(--cat-5, #9a8a95)']] : []),
   ]);
+
+  // Satisfacción dentro del reporte (031, desde el 16 nov. 2026): tarjeta aparte para no mezclar las series.
+  const satNew = $('splitSatNew');
+  satNew.hidden = filters.period === 'exp1';
+  if(!satNew.hidden) renderSplit(satNew, '¿Te sirvió este resultado? · en el reporte', 'Pregunta actual, dentro del reporte (desde el 16 nov. 2026).', [
+    ['Alta', satReporte?.alta, 'var(--div-pos)'],
+    ['Neutra', satReporte?.neutra, 'var(--div-mid)'],
+    ['Baja', satReporte?.baja, 'var(--div-neg)'],
+  ], satReporte == null ? 'Corre supabase/031_satisfaccion_reporte.sql en Supabase para ver esta tarjeta.' : null);
 
   const noSessions = filtered ? null : 'Corre supabase/009_panel_stats.sql para ver este desglose.';
   // Mismos nombres que ve la usuaria (acción según la guía HNHU, no intensidad). A se divide
@@ -365,6 +375,30 @@ function render(f, at, filtered){
   ], noSessions);
 
   dash.hidden = false;
+}
+
+/* ---------- Por canal (030): una fila por cada origen; los ?src= nuevos aparecen solos ---------- */
+const CANAL_NOMBRE = {tiktok:'TikTok', instagram:'Instagram', facebook:'Facebook', whatsapp:'WhatsApp', google:'Google',
+  linkedin:'LinkedIn', chat:'Chat con IA', sin_origen:'Sin origen'};
+const CANAL_PREFIJO = {wa:'WhatsApp', fb:'Facebook', ig:'Instagram', tt:'TikTok', li:'LinkedIn', ref:'Referida'};
+/** "wa_terapia" → "WhatsApp · terapia"; "ig_pauta" → "Instagram · pauta"; lo desconocido, tal cual. */
+function canalNombre(c){
+  if(CANAL_NOMBRE[c]) return CANAL_NOMBRE[c];
+  const m = /^([a-z]+)[_-](.+)$/.exec(c || '');
+  return m && CANAL_PREFIJO[m[1]] ? `${CANAL_PREFIJO[m[1]]} · ${m[2].replace(/[_-]+/g, ' ')}` : c;
+}
+function renderCanales(rows){
+  const missing = rows == null;
+  const list = rows || [];
+  $('canalesWrap').hidden = missing || !list.length;
+  $('canalesEmpty').hidden = !missing && list.length > 0;
+  $('canalesEmpty').innerHTML = missing ? 'Corre <code>supabase/030_panel_canales.sql</code> en Supabase para ver esta tabla.' : 'Todavía no hay visitas en este periodo.';
+  const cel = (n, base) => `<td>${fmt(n)}${base ? ` <small>${pctTxt(pct(n, base))}</small>` : ''}</td>`;
+  $('canalesBody').innerHTML = list.map((c) => {
+    const nombre = canalNombre(c.canal);
+    return `<tr><td>${esc(nombre)}${!CANAL_NOMBRE[c.canal] ? `<span class="tag-origin">${esc(c.canal)}</span>` : ''}</td>` +
+      `<td>${fmt(c.visitas)}</td>${cel(c.inician, c.visitas)}${cel(c.completan, c.inician)}${cel(c.ven_reporte, c.completan)}${cel(c.usan, c.ven_reporte)}</tr>`;
+  }).join('');
 }
 
 function renderFunnel(raw){

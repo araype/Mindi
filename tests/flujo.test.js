@@ -94,10 +94,8 @@ test('permiso de investigación: casilla opcional y desmarcada en el inicio, apa
   assert.match(start, /class="start-research-title">¿Nos ayudas a investigar la menopausia en el Perú\?</);
   assert.match(start, /<summary>Más información<\/summary>/);
   assert.match(main, /const RESEARCH_VERSION = 'inicio-v4';/);
-  // Segunda oportunidad en el reporte: solo si no la marcó, con un botón (nada marcado de antemano).
-  assert.match(main, /\(BACKEND_ON && !state\.research \? researchAgainHtml\(id \+ 'r'\) : ''\)/);
-  assert.match(main, /sendLead\(\{research:true, version:RESEARCH_AGAIN_VERSION\}\)/);
-  assert.match(main, /track\('research_consent', \{captured:true, desde:'reporte'\}\);/);
+  // Sin segunda oportunidad en el reporte (18 nov. 2026): el permiso se pide solo al inicio.
+  assert.doesNotMatch(main, /researchAgainHtml|research-again|RESEARCH_AGAIN_VERSION/);
   assert.doesNotMatch(main, /¿Me ayudas a mejorar Mindi\?|askResearchConsent/);
   assert.match(main, /state\.research = !!\(box && box\.checked\);/);
   assert.match(main, /if\(state\.research\) sendLead\(\{research:true, version:RESEARCH_VERSION\}\);/);
@@ -135,16 +133,18 @@ test('inicio del test: saludo y nombre (opcional) antes de la primera pregunta',
   assert.doesNotMatch(main, /function askName\(/);
 });
 
-test('cierre-v3: metas → ¿usarías una herramienta? → reporte (con satisfacción adentro) → cierre', () => {
+test('cierre-v3: metas → ¿usarías una herramienta? → diario → satisfacción mientras se prepara → reporte → cierre', () => {
   assert.match(main, /const FLOW_VERSION = 'cierre-v3';/);
   assert.match(main, /askToolInterest\(\); \/\/ cierre-v3/);
   const tool = main.slice(main.indexOf('function askToolInterest('), main.indexOf('function setupToggleForm('));
   assert.match(tool, /track\('tool_interest', \{answer:v\}\);/);
   assert.match(tool, /mountInlineWaitlist\(box, 'plus', \{origin:'reporte_diario'/);
-  assert.equal((tool.match(/showReport/g) || []).length >= 3, true); // sí, tal vez/no y sin metas llegan al reporte
-  assert.match(main, /closeFlow\(\); \/\/ cierre-v3: la satisfacción va dentro de la tarjeta del reporte/);
-  // Evento nuevo para no mezclar con la serie anterior (otra pregunta y otro lugar).
-  assert.match(main, /track\('report_satisfaction', \{answer:label, score\}\);/);
+  assert.equal((tool.match(/prepareReport/g) || []).length >= 3, true); // sí, tal vez/no y sin metas llegan al reporte
+  assert.match(tool, /only:\['whatsapp'\], optional:true/); // el diario pide solo el WhatsApp, opcional
+  assert.match(main, /closeFlow\(\); \/\/ la satisfacción se pregunta mientras se prepara el reporte/);
+  // La satisfacción va en la espera del reporte (18 nov.): mismo evento, con {desde:'espera'}; no bloquea.
+  assert.match(main, /track\('report_satisfaction', \{answer:label, score, desde:'espera'\}\);/);
+  assert.match(main, /setTimeout\(go, SAT_WAIT_MS\);/);
   assert.doesNotMatch(main, /track\('satisfaction'/);
   assert.match(main, /const SATISFACTION_QUESTION = '¿Te sirvió este resultado\?';/);
 });
@@ -240,7 +240,8 @@ test('agendar cita: WhatsApp obligatorio, correo opcional, horario junto al cont
   assert.deepEqual(waitlistRow('consultas', { name: 'Ana', whatsapp: '987 654 321', consent: true, horario: 'jueves 19 · 3:00 p. m.' }).row,
     { segment: 'consultas', name: 'Ana', whatsapp: '987654321', horario: 'jueves 19 · 3:00 p. m.' });
   assert.match(waitlistRow('consultas', { name: 'Ana', email: 'ana@mail.com', consent: true }).error, /WhatsApp/);
-  assert.match(waitlistRow('plus', { name: 'Ana', whatsapp: '987654321', consent: true }).error, /Correo/); // el diario sigue pidiendo correo
+  assert.equal(waitlistRow('plus', { name: 'Ana', whatsapp: '987654321', consent: true }).row.whatsapp, '987654321'); // el diario: solo WhatsApp
+  assert.match(waitlistRow('plus', { name: 'Ana', consent: true }).error, /correo o tu WhatsApp/);
   assert.equal(waitlistRow('plus', { name: 'Ana', email: 'a@b.co', consent: true, horario: 'x' }).row.horario, undefined);
   assert.match(WAITLIST_NOTICE, /Al enviar, aceptas/);
   assert.doesNotMatch(main, /name="consent"/);
@@ -330,9 +331,8 @@ test('cita según el nivel y lista para la especialista (VITE_CITA_*)', async ()
   assert.equal(citaNecesidad({ nivel: 'C' }), 'urgente');
   assert.equal(citaNecesidad({ nivel: 'A', alerta: 'evaluacion' }), 'urgente');
   assert.equal(citaNecesidad({ nivel: 'C', alerta: 'emergencia' }), 'emergencia');
-  // Resultado: botón solo si conviene consultar; nunca en emergencia (ahí, el 106).
-  const fn = main.slice(main.indexOf('function resultCitaHtml('), main.indexOf('function citaHtml('));
-  assert.match(fn, /if\(need !== 'urgente' && need !== 'recomendada'\) return '';/);
+  // Resultado: sin botón de cita (18 nov. 2026); "Agendar" queda en el reporte y en el chat.
+  assert.doesNotMatch(main, /resultCitaHtml|desde:'resultado'/);
   assert.ok(CITA_TEXTO.urgente && CITA_TEXTO.recomendada && CITA_TEXTO.opcional);
   // Configuración: sin variables, como hoy (WhatsApp); con calendario, solo https y texto escapado.
   assert.deepEqual(citaConfig({}), { url: null, especialista: null, modalidad: null, precio: null });

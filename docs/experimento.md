@@ -249,3 +249,16 @@ Cada evento de `events` lleva `props.flujo` desde cierre-v2. Los eventos sin `fl
   (`ofrecer_cita`). Eventos nuevos: `cita_offer` (`desde`, `answer`), `cita_open` con `desde`, `cita_reserva`.
 - Integración con la especialista por variables de Vercel (`VITE_CITA_URL`, `VITE_CITA_ESPECIALISTA`,
   `VITE_CITA_MODALIDAD`, `VITE_CITA_PRECIO`). Guía y plantillas de WhatsApp en `docs/citas-especialista.md`.
+
+## Cierre más corto: diario, satisfacción en la espera y sin segunda oportunidad (18 nov. 2026)
+
+- Resultado: sin el botón "Agendar con un especialista" (repetía la recomendación de arriba). Desde aquí,
+  `cita_offer` solo viene del chat; "Agendar" sigue en "Tu reporte".
+- Diario: "¡Qué bueno! … ¿Te avisamos cuando esté listo?" en una sola tarjeta, con "Sí, avísame" (abre un campo de
+  WhatsApp opcional, lista `plus`) y "Ahora no". El reporte aparece recién después de elegir. Eventos nuevos:
+  `diario_skip`, `diario_sin_numero`. La lista `plus` acepta correo o WhatsApp (al menos uno).
+- Satisfacción: se pregunta mientras se prepara el reporte ("Estamos preparando tu reporte…"), sin bloquear: el
+  reporte aparece al responder o a los 3 segundos. Mismo evento `report_satisfaction`, ahora con `desde: 'espera'`.
+  Antes (16 al 18 nov.) estaba dentro del reporte: al comparar, separar por esa fecha.
+- Se quitó la segunda oportunidad del permiso de investigación en el reporte (reporte-v1): el permiso se pide solo
+  en la tarjeta del inicio. Desde aquí, `research_consent` solo trae `desde: 'inicio'`.

@@ -480,12 +480,9 @@ function revealCardWithPause(introMsg, html, kind, isLast = false, continueText 
 /* Secuencia de cards de resultado compartida entre el flujo normal y el de banderas rojas */
 async function showResultsCardSequence(){
   const msg = levelMessage(state.scores);
-  const card = await revealCard(resultCard(msg), '', 400);
-  const citaBtn = card && card.querySelector('[data-cita-btn]');
-  if(citaBtn){
-    track('cita_offer', {desde:'resultado', answer: citaNivel()});
-    setupToggleForm(citaBtn, card.querySelector('[data-cita-box]'), (box)=> mountCitaEn(box, 'resultado'));
-  }
+  // La tarjeta de resultado ya no lleva el botón de cita (18 nov. 2026): la recomendación de consultar va
+  // arriba y "Agendar" queda en "Tu reporte" y en el chat.
+  await revealCard(resultCard(msg), '', 400);
   // El permiso de investigación se pidió en el inicio (casilla opcional). Se guarda aquí, cuando la
   // sesión ya existe (research_consents tiene clave foránea a sessions), sin nombre ni contacto.
   if(state.research) sendLead({research:true, version:RESEARCH_VERSION});
@@ -1137,7 +1134,6 @@ function resultCard(msg){
   // Derivación a salud mental: visible siempre que Ánimo alcance su corte.
   if(notes.some(n=> n.key === 'psicologico')) html += `<p class="mh-note">${MENTAL_HEALTH_LINE}</p>`;
   if(state.skippedIntimate) html += `<p class="skipped-note">${SKIPPED_INTIMATE_NOTE}</p>`;
-  html += resultCitaHtml();
   html += meaning;
   return html;
 }
@@ -1148,29 +1144,8 @@ const MENTAL_HEALTH_LINE = 'Por tu puntaje en el ánimo, vale la pena comentarlo
    respuestas del test y sus preguntas del chat (no se le vuelve a preguntar). Reemplaza la tarjeta
    de permiso que aparecía después del resultado (resultado-v1). */
 const RESEARCH_VERSION = 'inicio-v4'; // v4: tarjeta destacada encima de "Empezar" (v3: letra chica debajo)
-/* Segunda oportunidad (reporte-v1): quien no marcó la casilla al inicio ve una invitación en el reporte,
-   con un botón. Tampoco viene marcada: solo cuenta si toca "Sí, compartir". */
-const RESEARCH_AGAIN_VERSION = 'reporte-v1';
-function researchAgainHtml(id){
-  return `<div class="research-again" id="${id}">` +
-    `<p><strong>¿Nos ayudas a investigar la menopausia en el Perú?</strong> Si quieres, usamos tus respuestas, sin tus datos de contacto, para mejorar Mindi y para estudios sobre la menopausia.</p>` +
-    `<button type="button" class="btn btn-ghost" data-research-again>Sí, compartir mis respuestas</button>` +
-    `<p class="research-fine">Es opcional. <a href="/privacidad" target="_blank" rel="noopener">Más información</a></p>` +
-    `</div>`;
-}
-function setupResearchAgain(box){
-  if(!box) return;
-  const btn = box.querySelector('[data-research-again]');
-  btn.addEventListener('click', ()=>{
-    btn.disabled = true;
-    sendLead({research:true, version:RESEARCH_AGAIN_VERSION}).then(r=>{
-      if(!(r && r.ok)){ btn.disabled = false; return; }
-      state.research = true;
-      track('research_consent', {captured:true, desde:'reporte'});
-      box.innerHTML = '<p role="status">Gracias. Tus respuestas van a ayudar a otras mujeres.</p>';
-    });
-  });
-}
+/* La segunda oportunidad en el reporte (reporte-v1, "¿Nos ayudas a investigar…?") se quitó el 18 nov. 2026:
+   el permiso de investigación se pide solo en la tarjeta del inicio. */
 /* Después del resultado: un botón para seguir (antes lo hacía la tarjeta del permiso). */
 function askContinue(){
   return new Promise(resolve=>{
@@ -1499,16 +1474,6 @@ function mountCitaEn(box, desde){
   if(CITA_ACTIVA) mountCita(box, {cfg:CITA_CFG, waUrl:(t)=> whatsappUrl(WHATSAPP_NUMBER, t), desde, track});
   else mountInlineWaitlist(box, 'consultas', {origin:desde, submit:'Quiero agendar mi cita', done:citaDoneText(null), slots:true});
 }
-/* Resultado: botón de cita solo si la guía sugiere consultar (B, C o alerta de evaluación). Nunca en una
-   emergencia: ahí lo primero es el 106. */
-function resultCitaHtml(){
-  const need = citaNivel();
-  if(need !== 'urgente' && need !== 'recomendada') return '';
-  return `<div class="result-cita${need === 'urgente' ? ' is-urgente' : ''}">` +
-    `<p>${CITA_TEXTO[need]}</p>` +
-    `<button type="button" class="rbtn rbtn-cita" data-cita-btn aria-expanded="false">${ICON_CALENDAR}<span>Agendar con un especialista</span></button>` +
-    `<div data-cita-box hidden></div></div>`;
-}
 /* Reporte: la caja de cita destacada para quien la necesita y discreta para el nivel A. */
 function citaHtml(id){
   const need = citaNivel() === 'emergencia' ? 'urgente' : citaNivel(); // después de la emergencia, la consulta
@@ -1519,26 +1484,35 @@ function citaHtml(id){
 }
 /* Formulario corto dentro del chat para una lista de espera (consultas o el diario), con la misma
    validación que la landing (waitlistRow) y Turnstile recién al abrirlo. */
-function mountInlineWaitlist(box, list, {origin, submit, done, slots:withSlots}){
+function mountInlineWaitlist(box, list, {origin, submit, done, slots:withSlots, only, optional, onDone, skipDone}){
   const form = document.createElement('form');
   form.className = 'inline-wl';
   form.noValidate = true;
   // Campos y obligatoriedad de cada lista (landing.js): en la cita, WhatsApp obligatorio y correo opcional.
   // En lugar de la casilla de la política, un aviso al pie: enviar es aceptar (aviso-envio-v1).
   form.innerHTML = (withSlots ? `<div class="wl-slots"></div>` : '') +
-    waitlistFields(list).map(d=> `<label>${d.label}<input class="m-input" name="${d.f}" type="${d.type}" autocomplete="${d.autocomplete}" maxlength="${d.max}"${d.required ? ' required' : ''}></label>`).join('') +
+    waitlistFields(list).filter(d=> !only || only.includes(d.f) || (d.f === 'name' && !state.name)).map(d=> `<label>${d.label}<input class="m-input" name="${d.f}" type="${d.type}" autocomplete="${d.autocomplete}" maxlength="${d.max}"${d.required ? ' required' : ''}></label>`).join('') +
     `<p class="wl-notice">${WAITLIST_NOTICE}</p>` +
     `<div class="wl-ts"></div><p class="hint err" role="alert" hidden></p>` +
     `<button type="submit" class="rbtn rbtn-main"><span>${submit}</span></button>`;
   box.appendChild(form);
-  if(state.name) form.elements.name.value = state.name;
+  if(state.name && form.elements.name) form.elements.name.value = state.name;
   // Horarios tentativos (src/citas.js): prueba de demanda para las citas; cita_slot { answer, desde }.
   const slots = withSlots ? mountSlotPicker(form.querySelector('.wl-slots'), {onPick:(v)=> track('cita_slot', {answer:v, desde:origin})}) : null;
   if(slots) track('cita_slots_shown', {desde:origin});
   const captcha = mountTurnstile(form.querySelector('.wl-ts'));
   form.onsubmit = async (e)=>{
     e.preventDefault();
-    const values = {name:form.elements.name.value, email:form.elements.email.value, whatsapp:form.elements.whatsapp.value, consent:true};
+    const field = (f)=> form.elements[f] ? form.elements[f].value : '';
+    const values = {name: form.elements.name ? field('name') : (state.name || ''), email:field('email'), whatsapp:field('whatsapp'), consent:true};
+    // Campo opcional vacío (aviso del diario): no se envía nada y se sigue.
+    if(optional && only && only.every((f)=> !String(values[f] || '').trim())){
+      captcha.remove();
+      box.innerHTML = `<p class="email-done" role="status">${skipDone || done}</p>`;
+      track('diario_sin_numero');
+      if(onDone) onDone();
+      return;
+    }
     if(slots && slots.value) values.horario = slots.value;
     const { error } = waitlistRow(list, values);
     const err = form.querySelector('.err');
@@ -1555,6 +1529,7 @@ function mountInlineWaitlist(box, list, {origin, submit, done, slots:withSlots})
     }
     captcha.remove();
     box.innerHTML = `<p class="email-done" role="status">${slots ? citaDoneText(slots.value) : done}</p>`;
+    if(onDone) onDone();
   };
 }
 /* ¿Usaría una herramienta para su meta? (16 nov. 2026): valida el interés en el diario con cada usuaria,
@@ -1568,29 +1543,43 @@ function toolQuestion(goals){
   return `Elegiste ${which}. ¿Usarías una herramienta que te ayude a lograrlas día a día?`;
 }
 function askToolInterest(){
-  if(!state.goals || !state.goals.length) return showReport();
+  if(!state.goals || !state.goals.length) return prepareReport();
   botSay([{text:toolQuestion(state.goals), cls:'question'}]).then(()=>{
     renderChips(TOOL_ANSWERS, (v)=>{
       state.toolInterest = v;
       track('tool_interest', {answer:v});
-      if(v !== 'si') return botSay([v === 'tal_vez' ? 'Gracias, lo tomo en cuenta. Aquí va tu reporte.' : 'Entendido. Aquí va tu reporte.']).then(showReport);
-      botSay(['¡Qué bueno! Estamos creando un diario para eso.']).then(()=>{
-        if(!BACKEND_ON) return showReport();
-        const id = 'dia' + (reportSeq + 1);
-        return revealCard(
-          `<p>¿Te avisamos cuando esté listo? Es opcional.</p>` +
-          `<button type="button" class="rbtn rbtn-mail" id="${id}b" aria-expanded="false" aria-controls="${id}f"><span>Sí, avísame</span></button>` +
-          `<div id="${id}f" hidden></div>`, 'calm', 300
-        ).then(()=>{
-          setupToggleForm(document.getElementById(id + 'b'), document.getElementById(id + 'f'), (box)=>{
-            track('diario_invite_open');
-            mountInlineWaitlist(box, 'plus', {origin:'reporte_diario', submit:'Avísame cuando esté listo', done:'¡Listo! Te avisaremos apenas el diario esté disponible.'});
-          });
-          showReport();
-        });
-      });
+      if(v !== 'si') return botSay([v === 'tal_vez' ? 'Gracias, lo tomo en cuenta.' : 'Entendido.']).then(prepareReport);
+      askDiaryNotice().then(prepareReport);
     });
   });
+}
+/* Diario (18 nov. 2026): "¡Qué bueno! … ¿Te avisamos cuando esté listo?" en una sola tarjeta. "Sí, avísame"
+   abre un campo de WhatsApp opcional (lista plus, origen reporte_diario); "Ahora no" sigue. El reporte
+   aparece recién después de elegir. Eventos: diario_invite_open, diario_skip, diario_sin_numero, waitlist_join. */
+function askDiaryNotice(){
+  if(!BACKEND_ON) return botSay(['¡Qué bueno! Estamos creando un diario para eso.']);
+  const id = 'dia' + (reportSeq + 1);
+  return revealCard(
+    `<p>¡Qué bueno! Estamos creando un diario para eso. ¿Te avisamos cuando esté listo?</p>` +
+    `<div class="dia-actions"><button type="button" class="rbtn rbtn-mail" id="${id}b"><span>Sí, avísame</span></button>` +
+    `<button type="button" class="btn btn-ghost" id="${id}n">Ahora no</button></div>` +
+    `<div id="${id}f" hidden></div>`, 'calm', 300
+  ).then(()=> new Promise((resolve)=>{
+    const yes = document.getElementById(id + 'b'), no = document.getElementById(id + 'n'), box = document.getElementById(id + 'f');
+    no.addEventListener('click', ()=>{
+      track('diario_skip');
+      no.closest('.dia-actions').remove();
+      resolve();
+    }, {once:true});
+    yes.addEventListener('click', ()=>{
+      track('diario_invite_open');
+      yes.closest('.dia-actions').remove();
+      box.hidden = false;
+      mountInlineWaitlist(box, 'plus', {origin:'reporte_diario', only:['whatsapp'], optional:true, submit:'Listo',
+        done:'¡Listo! Te avisaremos por WhatsApp apenas el diario esté disponible.',
+        skipDone:'¡Gracias! Tomamos en cuenta tu interés en el diario.', onDone:resolve});
+    }, {once:true});
+  }));
 }
 function setupToggleForm(btn, box, mount){
   btn.addEventListener('click', ()=>{
@@ -1634,8 +1623,6 @@ function showReport({restored = false} = {}){
   revealCard(
     `<h3>Tu reporte está listo</h3><p class="card-note">${pdfContents()}</p>` +
     reportSummary() + actions + inApp + (BACKEND_ON ? citaHtml(id) : '') +
-    `<div class="report-sat" id="${id}s"><p><strong>${SATISFACTION_QUESTION}</strong></p></div>` +
-    (BACKEND_ON && !state.research ? researchAgainHtml(id + 'r') : '') +
     `<p class="topics-disclaimer">${DISCLAIMER}</p>`, 'report'
   ).then(()=>{
     track('report_shown', {in_app: IN_APP_BROWSER, desde: restored ? 'restaurado' : 'test'});
@@ -1644,13 +1631,11 @@ function showReport({restored = false} = {}){
       setupDownloadButton(document.getElementById(id + 'd'), pdf);
       setupWhatsAppShare(document.getElementById(id + 'w'), CAN_SHARE_PDF ? pdf : null);
       setupEmailButton(document.getElementById(id + 'm'), document.getElementById(id + 'e'));
-      setupResearchAgain(document.getElementById(id + 'r'));
       setupToggleForm(document.getElementById(id + 'c'), document.getElementById(id + 'cf'), (box)=> mountCitaEn(box, 'reporte'));
     }
-    reportSatisfaction(document.getElementById(id + 's'));
     clearComposer();
     if(restored) return afterGuided(true);
-    closeFlow(); // cierre-v3: la satisfacción va dentro de la tarjeta del reporte y no bloquea el cierre
+    closeFlow(); // la satisfacción se pregunta mientras se prepara el reporte (prepareReport)
   });
 }
 
@@ -1717,15 +1702,42 @@ function mountEmailForm(box){
    después de descargar, y no bloquea nada. Evento NUEVO, report_satisfaction {answer, score}: el evento
    anterior, satisfaction (pregunta y lugar distintos), queda cerrado para no mezclar las series. */
 const SATISFACTION_QUESTION = '¿Te sirvió este resultado?';
-function reportSatisfaction(box){
+function reportSatisfaction(box, onAnswer){
   if(!box) return;
   if(state.satisfaction){ box.remove(); return; } // ya respondió (reporte restaurado): no se pregunta dos veces
   box.appendChild(faceScaleEl((score, label)=>{
     state.satisfaction = label;
-    track('report_satisfaction', {answer:label, score});
+    track('report_satisfaction', {answer:label, score, desde:'espera'});
     saveReportState();
     const reply = score >= 3 ? '¡Qué bueno! Gracias por contarnos.' : score === 2 ? 'Gracias, lo tomamos en cuenta.' : 'Gracias, de verdad nos ayuda a mejorar.';
     box.innerHTML = `<p class="email-done" role="status">${reply}</p>`;
+    if(onAnswer) onAnswer();
+  }));
+}
+/* Mientras se prepara el reporte (18 nov. 2026): "Estamos preparando tu reporte…" y, en la misma tarjeta,
+   "¿Te sirvió este resultado?". No bloquea: el reporte aparece al responder o a los 3 segundos, y la escala
+   sigue ahí para responder después. Mismo evento report_satisfaction, ahora con {desde:'espera'}. */
+const SAT_WAIT_MS = 3000;
+function prepareReport(){
+  if(state.satisfaction) return showReport();
+  const id = 'sat' + (reportSeq + 1);
+  return revealCard(
+    `<p class="prep-title" id="${id}t"><span class="prep-spin" aria-hidden="true"></span><span>Estamos preparando tu reporte…</span></p>` +
+    `<p><strong id="${id}q">Mientras tanto, ¿te sirvió este resultado?</strong></p><div class="report-sat" id="${id}"></div>`, 'calm', 300
+  ).then(()=> new Promise((resolve)=>{
+    let shown = false;
+    const go = ()=>{
+      if(shown) return;
+      shown = true;
+      // Ya no "se prepara": se quita esa línea y la pregunta queda sola (el reporte aparece debajo).
+      const t = document.getElementById(id + 't'), q = document.getElementById(id + 'q');
+      if(t) t.remove();
+      if(q) q.textContent = SATISFACTION_QUESTION;
+      showReport();
+      resolve();
+    };
+    reportSatisfaction(document.getElementById(id), ()=> setTimeout(go, 700));
+    setTimeout(go, SAT_WAIT_MS);
   }));
 }
 
