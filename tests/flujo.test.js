@@ -50,7 +50,7 @@ test('del chat al test: botón solo con recommend_test, máximo dos veces, nunca
 test('al terminar el test o la salida del filtro se ofrece ir al chat con IA', () => {
   // Sin la invitación al canal de WhatsApp (16 nov. 2026): del cierre va directo al chat.
   assert.doesNotMatch(main, /channelInvite/);
-  assert.match(main, /botSay\(\['Fue un gusto\. Cuídate mucho\.'\]\)\.then\(\(\)=> afterGuided\(true\)\)/);
+  assert.match(main, /botSay\(\['Fue un gusto\. Cuídate mucho\.'\]\)\.then\(showLaunchCard\)\.then\(\(\)=> afterGuided\(true\)\)/);
   assert.equal(count(/\]\)\.then\(\(\)=> afterGuided\(false\)\)/g), 2);
 });
 
@@ -133,14 +133,16 @@ test('inicio del test: saludo y nombre (opcional) antes de la primera pregunta',
   assert.doesNotMatch(main, /function askName\(/);
 });
 
-test('cierre-v3: metas → ¿usarías una herramienta? → diario → satisfacción mientras se prepara → reporte → cierre', () => {
+test('cierre-v3: metas → ¿usarías una herramienta? → satisfacción mientras se prepara → reporte → cierre → lo que viene', () => {
   assert.match(main, /const FLOW_VERSION = 'cierre-v3';/);
   assert.match(main, /askToolInterest\(\); \/\/ cierre-v3/);
-  const tool = main.slice(main.indexOf('function askToolInterest('), main.indexOf('function setupToggleForm('));
+  const tool = main.slice(main.indexOf('function askToolInterest('), main.indexOf('function showLaunchCard('));
   assert.match(tool, /track\('tool_interest', \{answer:v\}\);/);
-  assert.match(tool, /mountInlineWaitlist\(box, 'plus', \{origin:'reporte_diario'/);
   assert.equal((tool.match(/prepareReport/g) || []).length >= 3, true); // sí, tal vez/no y sin metas llegan al reporte
-  assert.match(tool, /only:\['whatsapp'\], optional:true/); // el diario pide solo el WhatsApp, opcional
+  assert.doesNotMatch(tool, /mountInlineWaitlist/); // la pregunta solo mide; no pide datos
+  // "Lo que viene en Mindi": aparte, después del reporte y del cierre; WhatsApp opcional (lista plus).
+  assert.match(main, /botSay\(\['Fue un gusto\. Cuídate mucho\.'\]\)\.then\(showLaunchCard\)/);
+  assert.match(main, /mountInlineWaitlist\(document\.getElementById\(id \+ 'f'\), 'plus', \{origin:'reporte_lanzamiento', only:\['whatsapp'\]/);
   assert.match(main, /closeFlow\(\); \/\/ la satisfacción se pregunta mientras se prepara el reporte/);
   // La satisfacción va en la espera del reporte (18 nov.): mismo evento, con {desde:'espera'}; no bloquea.
   assert.match(main, /track\('report_satisfaction', \{answer:label, score, desde:'espera'\}\);/);
@@ -163,7 +165,7 @@ test('reporte: "Tus metas", agendar cita (lista consultas) y diario (lista plus)
   assert.deepEqual(goalSteps(['Dormir mejor', 'otra cosa']).map(x => x[1]), ['Para dormir mejor']);
   assert.equal(goalSteps(GOAL_OPTIONS).length, 9); // cada meta tiene su primer paso
   assert.match(main, /else mountInlineWaitlist\(box, 'consultas', \{origin:desde,/); // sin WhatsApp ni calendario: el formulario
-  assert.match(main, /mountInlineWaitlist\(box, 'plus', \{origin:'reporte_diario'/);
+  assert.match(main, /origin:'reporte_lanzamiento'/); // el diario (lista plus), en "Lo que viene en Mindi"
   assert.match(main, /const \{ error \} = waitlistRow\(list, values\);/);
 });
 

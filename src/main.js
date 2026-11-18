@@ -1475,23 +1475,18 @@ function mountCitaEn(box, desde){
   else mountInlineWaitlist(box, 'consultas', {origin:desde, submit:'Quiero agendar mi cita', done:citaDoneText(null), slots:true});
 }
 /* Reporte: la caja de cita destacada para quien la necesita y discreta para el nivel A. */
-function citaHtml(id){
-  const need = citaNivel() === 'emergencia' ? 'urgente' : citaNivel(); // después de la emergencia, la consulta
-  return `<div class="report-cita${need === 'opcional' ? ' is-discreta' : ''}">` +
-    `<p>${need === 'opcional' ? CITA_TEXTO.opcional : `<strong>${CITA_TEXTO[need]}</strong>`}</p>` +
-    `<button type="button" class="rbtn rbtn-cita" id="${id}c" aria-expanded="false" aria-controls="${id}cf">${ICON_CALENDAR}<span>Agendar cita con un especialista</span></button>` +
-    `<div id="${id}cf" hidden></div></div>`;
-}
+/* La caja "Agendar cita con un especialista" del reporte se quitó el 18 nov. 2026 (a pedido de Aracely): en el test,
+   la recomendación de consultar queda en el resultado, y "Agendar" en el chat y en el menú de la landing. */
 /* Formulario corto dentro del chat para una lista de espera (consultas o el diario), con la misma
    validación que la landing (waitlistRow) y Turnstile recién al abrirlo. */
-function mountInlineWaitlist(box, list, {origin, submit, done, slots:withSlots, only, optional, onDone, skipDone}){
+function mountInlineWaitlist(box, list, {origin, submit, done, slots:withSlots, only, optional, onDone, skipDone, emptyError}){
   const form = document.createElement('form');
   form.className = 'inline-wl';
   form.noValidate = true;
   // Campos y obligatoriedad de cada lista (landing.js): en la cita, WhatsApp obligatorio y correo opcional.
   // En lugar de la casilla de la política, un aviso al pie: enviar es aceptar (aviso-envio-v1).
   form.innerHTML = (withSlots ? `<div class="wl-slots"></div>` : '') +
-    waitlistFields(list).filter(d=> !only || only.includes(d.f) || (d.f === 'name' && !state.name)).map(d=> `<label>${d.label}<input class="m-input" name="${d.f}" type="${d.type}" autocomplete="${d.autocomplete}" maxlength="${d.max}"${d.required ? ' required' : ''}></label>`).join('') +
+    waitlistFields(list).filter(d=> !only || only.includes(d.f)).map(d=> `<label>${d.label}<input class="m-input" name="${d.f}" type="${d.type}" autocomplete="${d.autocomplete}" maxlength="${d.max}"${d.required ? ' required' : ''}></label>`).join('') +
     `<p class="wl-notice">${WAITLIST_NOTICE}</p>` +
     `<div class="wl-ts"></div><p class="hint err" role="alert" hidden></p>` +
     `<button type="submit" class="rbtn rbtn-main"><span>${submit}</span></button>`;
@@ -1505,7 +1500,9 @@ function mountInlineWaitlist(box, list, {origin, submit, done, slots:withSlots, 
     e.preventDefault();
     const field = (f)=> form.elements[f] ? form.elements[f].value : '';
     const values = {name: form.elements.name ? field('name') : (state.name || ''), email:field('email'), whatsapp:field('whatsapp'), consent:true};
-    // Campo opcional vacío (aviso del diario): no se envía nada y se sigue.
+    const err0 = form.querySelector('.err');
+    if(emptyError && only && only.every((f)=> !String(values[f] || '').trim())){ err0.textContent = emptyError; err0.hidden = false; return; }
+    // Campo opcional vacío: no se envía nada y se sigue.
     if(optional && only && only.every((f)=> !String(values[f] || '').trim())){
       captcha.remove();
       box.innerHTML = `<p class="email-done" role="status">${skipDone || done}</p>`;
@@ -1549,37 +1546,29 @@ function askToolInterest(){
       state.toolInterest = v;
       track('tool_interest', {answer:v});
       if(v !== 'si') return botSay([v === 'tal_vez' ? 'Gracias, lo tomo en cuenta.' : 'Entendido.']).then(prepareReport);
-      askDiaryNotice().then(prepareReport);
+      botSay(['¡Qué bueno! Estamos creando un diario para eso.']).then(prepareReport);
     });
   });
 }
-/* Diario (18 nov. 2026): "¡Qué bueno! … ¿Te avisamos cuando esté listo?" en una sola tarjeta. "Sí, avísame"
-   abre un campo de WhatsApp opcional (lista plus, origen reporte_diario); "Ahora no" sigue. El reporte
-   aparece recién después de elegir. Eventos: diario_invite_open, diario_skip, diario_sin_numero, waitlist_join. */
-function askDiaryNotice(){
-  if(!BACKEND_ON) return botSay(['¡Qué bueno! Estamos creando un diario para eso.']);
-  const id = 'dia' + (reportSeq + 1);
+/* "Lo que viene en Mindi" (18 nov. 2026): tarjeta aparte, DESPUÉS del reporte y del "Fue un gusto", para no tocar
+   la experiencia de recibirlo. Diario + especialistas a un clic; WhatsApp opcional (lista plus, origen
+   reporte_lanzamiento). Una sola vez: no aparece al volver a abrir el reporte guardado. Emojis pedidos por
+   Aracely para esta tarjeta (excepción al sistema de diseño, como las caritas). Eventos: lanzamiento_shown, waitlist_join. */
+function showLaunchCard(){
+  if(!BACKEND_ON) return Promise.resolve();
+  const id = 'lan' + (reportSeq + 1);
   return revealCard(
-    `<p>¡Qué bueno! Estamos creando un diario para eso. ¿Te avisamos cuando esté listo?</p>` +
-    `<div class="dia-actions"><button type="button" class="rbtn rbtn-mail" id="${id}b"><span>Sí, avísame</span></button>` +
-    `<button type="button" class="btn btn-ghost" id="${id}n">Ahora no</button></div>` +
-    `<div id="${id}f" hidden></div>`, 'calm', 300
-  ).then(()=> new Promise((resolve)=>{
-    const yes = document.getElementById(id + 'b'), no = document.getElementById(id + 'n'), box = document.getElementById(id + 'f');
-    no.addEventListener('click', ()=>{
-      track('diario_skip');
-      no.closest('.dia-actions').remove();
-      resolve();
-    }, {once:true});
-    yes.addEventListener('click', ()=>{
-      track('diario_invite_open');
-      yes.closest('.dia-actions').remove();
-      box.hidden = false;
-      mountInlineWaitlist(box, 'plus', {origin:'reporte_diario', only:['whatsapp'], optional:true, submit:'Listo',
-        done:'¡Listo! Te avisaremos por WhatsApp apenas el diario esté disponible.',
-        skipDone:'¡Gracias! Tomamos en cuenta tu interés en el diario.', onDone:resolve});
-    }, {once:true});
-  }));
+    `<h3>Lo que viene en Mindi</h3>` +
+    `<ul class="launch-list"><li><span aria-hidden="true">📔</span> Un diario para seguir tus síntomas y tus metas día a día.</li>` +
+    `<li><span aria-hidden="true">👩‍⚕️</span> Especialistas en menopausia a un clic, que te reciben con tu reporte ya listo.</li></ul>` +
+    `<p>Sé de las primeras en probarlo. Déjanos tu WhatsApp y te avisamos antes que a nadie.</p>` +
+    `<div id="${id}f"></div><p class="launch-fine">Solo te escribiremos para avisarte del lanzamiento.</p>`, 'calm', 300
+  ).then(()=>{
+    track('lanzamiento_shown');
+    mountInlineWaitlist(document.getElementById(id + 'f'), 'plus', {origin:'reporte_lanzamiento', only:['whatsapp'],
+      submit:'Quiero acceso anticipado', emptyError:'Escribe tu WhatsApp para avisarte.',
+      done:'¡Listo! Te avisaremos por WhatsApp antes que a nadie.'});
+  });
 }
 function setupToggleForm(btn, box, mount){
   btn.addEventListener('click', ()=>{
@@ -1622,7 +1611,7 @@ function showReport({restored = false} = {}){
     : '';
   revealCard(
     `<h3>Tu reporte está listo</h3><p class="card-note">${pdfContents()}</p>` +
-    reportSummary() + actions + inApp + (BACKEND_ON ? citaHtml(id) : '') +
+    reportSummary() + actions + inApp +
     `<p class="topics-disclaimer">${DISCLAIMER}</p>`, 'report'
   ).then(()=>{
     track('report_shown', {in_app: IN_APP_BROWSER, desde: restored ? 'restaurado' : 'test'});
@@ -1631,7 +1620,6 @@ function showReport({restored = false} = {}){
       setupDownloadButton(document.getElementById(id + 'd'), pdf);
       setupWhatsAppShare(document.getElementById(id + 'w'), CAN_SHARE_PDF ? pdf : null);
       setupEmailButton(document.getElementById(id + 'm'), document.getElementById(id + 'e'));
-      setupToggleForm(document.getElementById(id + 'c'), document.getElementById(id + 'cf'), (box)=> mountCitaEn(box, 'reporte'));
     }
     clearComposer();
     if(restored) return afterGuided(true);
@@ -1743,7 +1731,7 @@ function prepareReport(){
 
 /* Cierre: aparece siempre debajo del reporte, deje o no su correo. */
 function closeFlow(){
-  botSay(['Fue un gusto. Cuídate mucho.']).then(()=> afterGuided(true));
+  botSay(['Fue un gusto. Cuídate mucho.']).then(showLaunchCard).then(()=> afterGuided(true));
 }
 
 /* Oculta el degradado del carrusel de síntomas cuando ya no hay más hacia dónde

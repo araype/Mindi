@@ -10,8 +10,8 @@
 import { mountSlotPicker, citaDoneText, mountCita } from './citas.js';
 
 export const WAITLISTS = {
-  // Correo o WhatsApp (al menos uno): en el test, el aviso del diario pide solo el WhatsApp (18 nov. 2026).
-  plus: { title: 'Mindi Plus', lead: 'Quiero acceso anticipado.', fields: ['name', 'email', 'whatsapp'], required: { email: false }, oneContact: true },
+  // Correo o WhatsApp (al menos uno) y nombre opcional: en el test, el aviso del diario pide solo el WhatsApp (18 nov. 2026).
+  plus: { title: 'Mindi Plus', lead: 'Quiero acceso anticipado.', fields: ['name', 'email', 'whatsapp'], required: { email: false, name: false }, oneContact: true },
   // Citas (17 nov. 2026): lo más común es el WhatsApp, así que es obligatorio y el correo, opcional (SQL 029).
   consultas: { title: 'Consultas con especialistas', lead: 'Próximamente.', fields: ['name', 'whatsapp', 'email'], required: { whatsapp: true, email: false }, submit: 'Quiero agendar mi cita' },
   especialistas: { title: 'Para especialistas', lead: 'Red Mindi · próximamente.', fields: ['name', 'email', 'whatsapp'] },

@@ -4,11 +4,11 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { waitlistRow, WAITLISTS, WAITLIST_ROUTES } from '../src/landing.js';
 
-test('lista Plus: nombre y correo obligatorios, WhatsApp opcional y solo dígitos', () => {
+test('lista Plus: correo o WhatsApp (al menos uno), nombre opcional y WhatsApp solo dígitos', () => {
   assert.deepEqual(waitlistRow('plus', { name: ' Ana ', email: 'ana@mail.com', whatsapp: '', consent: true }).row,
     { segment: 'plus', name: 'Ana', contact: 'ana@mail.com' });
   assert.equal(waitlistRow('plus', { name: 'Ana', email: 'ana@mail.com', whatsapp: '+51 927 671 423', consent: true }).row.whatsapp, '51927671423');
-  assert.match(waitlistRow('plus', { name: '', email: 'ana@mail.com', consent: true }).error, /Nombre/);
+  assert.equal(waitlistRow('plus', { name: '', whatsapp: '987654321', consent: true }).row.whatsapp, '987654321'); // el diario no pide el nombre
   assert.match(waitlistRow('plus', { name: 'Ana', email: 'ana@', consent: true }).error, /correo/);
   assert.match(waitlistRow('plus', { name: 'Ana', email: 'ana@mail.com', whatsapp: '123', consent: true }).error, /WhatsApp/);
 });

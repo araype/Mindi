@@ -13,8 +13,10 @@ La cita se ofrece según lo que dice la guía (el mismo nivel del resultado), nu
 | C (tratamiento muy recomendable) | Sin botón (solo la recomendación de consultar) | Caja destacada | Igual que B |
 | Alerta de evaluación | Sin botón (solo la recomendación de consultar) | Caja destacada | Igual que B |
 
-Desde el 18 nov. 2026 la tarjeta de resultado ya no lleva el botón "Agendar con un especialista": repetía la
-recomendación que ya está arriba. "Agendar" queda en "Tu reporte" y en el chat.
+Desde el 18 nov. 2026 el test ya no lleva botones de cita: ni en el resultado (repetía la recomendación de arriba) ni
+en "Tu reporte" (la columna Reporte de la tabla ya no aplica). La recomendación de consultar sigue en el resultado;
+"Agendar" queda en el chat (`ofrecer_cita`) y en el menú de la landing. Ojo al leer "Citas pedidas": desde esa fecha
+solo llegan del chat y de la landing.
 | Alerta de emergencia | **Sin botón: primero el 106** | Caja destacada (para después) | Nunca mientras dure la alerta |
 
 En el chat, el agente usa la herramienta `ofrecer_cita` (como máximo dos veces por conversación). La landing mantiene

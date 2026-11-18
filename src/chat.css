@@ -409,7 +409,9 @@ body.no-scroll{overflow:hidden}
 .prep-spin{width:16px;height:16px;flex:none;border-radius:50%;border:2px solid var(--bubble-bot-border);border-top-color:var(--magenta-btn);animation:prep-spin .8s linear infinite}
 @keyframes prep-spin{to{transform:rotate(360deg)}}
 @media (prefers-reduced-motion:reduce){.prep-spin{animation:none}}
-.dia-actions{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.launch-list{margin:6px 0 10px;padding:0;list-style:none;display:grid;gap:6px}
+.launch-list li{line-height:1.45}
+.launch-fine{margin:6px 0 0;font-size:13px;color:var(--plum-soft)}
 .result-cita{margin:14px 0 4px;padding:12px 14px;border:1.5px solid var(--bubble-bot-border);border-radius:14px;background:#fff}
 .result-cita.is-urgente{border-color:var(--magenta-btn)}
 .result-cita p{margin:0 0 10px;font-size:14.5px;line-height:1.45;font-weight:600}

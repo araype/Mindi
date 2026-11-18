@@ -252,11 +252,12 @@ Cada evento de `events` lleva `props.flujo` desde cierre-v2. Los eventos sin `fl
 
 ## Cierre más corto: diario, satisfacción en la espera y sin segunda oportunidad (18 nov. 2026)
 
-- Resultado: sin el botón "Agendar con un especialista" (repetía la recomendación de arriba). Desde aquí,
-  `cita_offer` solo viene del chat; "Agendar" sigue en "Tu reporte".
-- Diario: "¡Qué bueno! … ¿Te avisamos cuando esté listo?" en una sola tarjeta, con "Sí, avísame" (abre un campo de
-  WhatsApp opcional, lista `plus`) y "Ahora no". El reporte aparece recién después de elegir. Eventos nuevos:
-  `diario_skip`, `diario_sin_numero`. La lista `plus` acepta correo o WhatsApp (al menos uno).
+- Resultado y reporte: sin botones de cita. La recomendación de consultar sigue en el resultado; "Agendar" queda en
+  el chat y en el menú de la landing. Desde aquí, `cita_offer` y `cita_open` solo vienen del chat y la landing.
+- Diario: la pregunta "¿Usarías una herramienta…?" solo mide (`tool_interest`); ya no pide datos. El WhatsApp se
+  pide en una tarjeta aparte, "Lo que viene en Mindi" (diario + especialistas a un clic), DESPUÉS del reporte y del
+  "Fue un gusto", para no tocar la experiencia de recibirlo. Lista `plus`, origen `reporte_lanzamiento`; evento
+  `lanzamiento_shown`. La lista `plus` acepta correo o WhatsApp (al menos uno) y el nombre es opcional.
 - Satisfacción: se pregunta mientras se prepara el reporte ("Estamos preparando tu reporte…"), sin bloquear: el
   reporte aparece al responder o a los 3 segundos. Mismo evento `report_satisfaction`, ahora con `desde: 'espera'`.
   Antes (16 al 18 nov.) estaba dentro del reporte: al comparar, separar por esa fecha.
