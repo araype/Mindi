@@ -423,7 +423,7 @@ h1 {
 
 /* Secciones de la pestaña Test y filas de "Por canal" que filtran (18 nov. 2026) */
 .sec-title { margin: 18px 0 8px; font-size: 13px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-soft); }
-#tabChat > .sec-title:first-of-type { margin-top: 4px; }
+#tabChat > .sec-title:first-of-type { margin-top: 20px; }
 .canales tbody tr[data-canal] { cursor: pointer; }
 .canales tbody tr[data-canal]:hover td, .canales tbody tr.is-sel td { background: var(--track); }
 .canales tbody tr.is-sel td:first-child { font-weight: 600; }

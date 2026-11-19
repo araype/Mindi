@@ -290,6 +290,14 @@ function renderEventos(e, at, missing){
 function render(f, at, filtered, satReporte){
   setMeta(at, filtered);
 
+  // Tarjetas de resumen (vuelven el 18 nov. 2026, a pedido de Aracely)
+  $('tVisitas').textContent = fmt(f.visitas);
+  $('tReportes').textContent = f.reportes == null ? '—' : fmt(f.reportes);
+  $('tReportesSub').textContent = f.reportes == null ? '' : `${pctTxt(pct(f.reportes, f.visitas))} de las visitas`;
+  $('tLeads').textContent = fmt(f.leads);
+  $('tConvChat').textContent = pctTxt(pct(f.reportes, f.inician_chat));
+  $('tConvSub').textContent = f.version >= 2 && f.descargan_pdf != null ? `${fmt(f.descargan_pdf)} descargan el PDF` : '';
+
   const v2 = f.version >= 2;
   $('panelV2Missing').hidden = v2 || !filtered;
 
@@ -331,21 +339,33 @@ function render(f, at, filtered, satReporte){
     ['No, gracias', f.investigacion_no, 'var(--div-neg)'],
   ], v2 ? null : 'Corre supabase/023_panel_v2.sql para ver este desglose.');
 
-  renderSplit($('splitSat'), filters.period === 'exp1' ? '¿Qué tal te pareció esta experiencia?' : '¿Te sirvió este resultado?', `${filters.period === 'exp1' ? 'Experimento 1: al final del test.' : 'Pregunta anterior: al final del test (Experimento 1) y antes del reporte (hasta el 16 nov. 2026).'}${v2 && f.ven_resultado ? ` Responden ${pctTxt(pct((f.satisfaccion_alta || 0) + (f.satisfaccion_neutra || 0) + (f.satisfaccion_baja || 0), f.ven_resultado))} de quienes ven su resultado.` : ''}`, [
-    ['Alta', f.satisfaccion_alta, 'var(--div-pos)'],
-    ['Neutra', f.satisfaccion_neutra, 'var(--div-mid)'],
-    ['Baja', f.satisfaccion_baja, 'var(--div-neg)'],
-    ...(v2 && filters.period !== 'exp1' ? [['Prefiero no responder', f.satisfaccion_omitida, 'var(--cat-5, #9a8a95)']] : []),
-  ]);
-
-  // Satisfacción dentro del reporte (031, desde el 16 nov. 2026): tarjeta aparte para no mezclar las series.
-  const satNew = $('splitSatNew');
-  satNew.hidden = filters.period === 'exp1';
-  if(!satNew.hidden) renderSplit(satNew, '¿Te sirvió este resultado? · en el reporte', 'Pregunta actual, dentro del reporte (desde el 16 nov. 2026).', [
-    ['Alta', satReporte?.alta, 'var(--div-pos)'],
-    ['Neutra', satReporte?.neutra, 'var(--div-mid)'],
-    ['Baja', satReporte?.baja, 'var(--div-neg)'],
-  ], satReporte == null ? 'Corre supabase/031_satisfaccion_reporte.sql en Supabase para ver esta tarjeta.' : null);
+  /* Satisfacción en UNA tarjeta (18 nov. 2026). Desde el 5 nov. 2026 es la misma pregunta y la misma escala,
+     "¿Te sirvió este resultado?": antes del reporte (evento satisfaction, hasta el 16 nov.) y en el reporte o
+     mientras se prepara (report_satisfaction, 031). El Experimento 1 hizo otra pregunta ("¿Qué tal te pareció
+     esta experiencia?"): no se suma y se ve sola al elegir "Experimento 1". Con 032, la serie anterior viene sin
+     el Experimento 1 (satisfaccion_*_v2); sin 032, se usa la cuenta de siempre. */
+  $('splitSatNew').hidden = true;
+  if(filters.period === 'exp1'){
+    renderSplit($('splitSat'), '¿Qué tal te pareció esta experiencia?', 'Experimento 1: al final del test.', [
+      ['Alta', f.satisfaccion_alta, 'var(--div-pos)'],
+      ['Neutra', f.satisfaccion_neutra, 'var(--div-mid)'],
+      ['Baja', f.satisfaccion_baja, 'var(--div-neg)'],
+    ]);
+  } else {
+    const v = (k)=> f[k + '_v2'] ?? f[k] ?? 0;
+    const prev = {alta:v('satisfaccion_alta'), neutra:v('satisfaccion_neutra'), baja:v('satisfaccion_baja')};
+    const rep = {alta:satReporte?.alta || 0, neutra:satReporte?.neutra || 0, baja:satReporte?.baja || 0};
+    const nPrev = prev.alta + prev.neutra + prev.baja, nRep = rep.alta + rep.neutra + rep.baja;
+    const omit = v('satisfaccion_omitida');
+    const detalle = `Desde el 5 nov. 2026: ${fmt(nPrev)} antes del reporte · ${fmt(nRep)} en el reporte` +
+      (omit ? ` · ${fmt(omit)} ${omit === 1 ? 'prefirió' : 'prefirieron'} no responder` : '') + '.' +
+      (f.ven_resultado ? ` Responden ${pctTxt(pct(nPrev + nRep, f.ven_resultado))} de quienes ven su resultado.` : '');
+    renderSplit($('splitSat'), '¿Te sirvió este resultado?', detalle, [
+      ['Alta', prev.alta + rep.alta, 'var(--div-pos)'],
+      ['Neutra', prev.neutra + rep.neutra, 'var(--div-mid)'],
+      ['Baja', prev.baja + rep.baja, 'var(--div-neg)'],
+    ], satReporte == null ? 'Corre supabase/031_satisfaccion_reporte.sql en Supabase para sumar las respuestas del reporte.' : null);
+  }
 
   const noSessions = filtered ? null : 'Corre supabase/009_panel_stats.sql para ver este desglose.';
   // Mismos nombres que ve la usuaria (acción según la guía HNHU, no intensidad). A se divide
