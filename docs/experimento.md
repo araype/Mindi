@@ -258,6 +258,9 @@ Cada evento de `events` lleva `props.flujo` desde cierre-v2. Los eventos sin `fl
   pide en una tarjeta aparte, "Lo que viene en Mindi" (diario + especialistas a un clic), DESPUÉS del reporte y del
   "Fue un gusto", para no tocar la experiencia de recibirlo. Lista `plus`, origen `reporte_lanzamiento`; evento
   `lanzamiento_shown`. La lista `plus` acepta correo o WhatsApp (al menos uno) y el nombre es opcional.
+  **21 nov. 2026:** se quitó "Lo que viene en Mindi". En su lugar, la conexión por área: según el área más afectada,
+  una tarjeta invita a escribir al WhatsApp de Mindi para agendar (eventos `conexion_shown`, `conexion_whatsapp`;
+  panel con `supabase/034_panel_conexion.sql`). Ya no hay alta a la lista `plus` desde el reporte.
 - Satisfacción: se pregunta mientras se prepara el reporte ("Estamos preparando tu reporte…"), sin bloquear: el
   reporte aparece al responder o a los 3 segundos. Mismo evento `report_satisfaction`, ahora con `desde: 'espera'`.
   Antes (16 al 18 nov.) estaba dentro del reporte: al comparar, separar por esa fecha.

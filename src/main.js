@@ -1550,26 +1550,6 @@ function askToolInterest(){
     });
   });
 }
-/* "Lo que viene en Mindi" (18 nov. 2026): tarjeta aparte, DESPUÉS del reporte y del "Fue un gusto", para no tocar
-   la experiencia de recibirlo. Diario + especialistas a un clic; WhatsApp opcional (lista plus, origen
-   reporte_lanzamiento). Una sola vez: no aparece al volver a abrir el reporte guardado. Emojis pedidos por
-   Aracely para esta tarjeta (excepción al sistema de diseño, como las caritas). Eventos: lanzamiento_shown, waitlist_join. */
-function showLaunchCard(){
-  if(!BACKEND_ON) return Promise.resolve();
-  const id = 'lan' + (reportSeq + 1);
-  return revealCard(
-    `<h3>Lo que viene en Mindi</h3>` +
-    `<ul class="launch-list"><li><span aria-hidden="true">📔</span> Un diario para seguir tus síntomas y tus metas día a día.</li>` +
-    `<li><span aria-hidden="true">👩‍⚕️</span> Especialistas en menopausia a un clic, que te reciben con tu reporte ya listo.</li></ul>` +
-    `<p>Sé de las primeras en probarlo. Déjanos tu WhatsApp y te avisamos antes que a nadie.</p>` +
-    `<div id="${id}f"></div><p class="launch-fine">Solo te escribiremos para avisarte del lanzamiento.</p>`, 'calm', 300
-  ).then(()=>{
-    track('lanzamiento_shown');
-    mountInlineWaitlist(document.getElementById(id + 'f'), 'plus', {origin:'reporte_lanzamiento', only:['whatsapp'],
-      submit:'Quiero acceso anticipado', emptyError:'Escribe tu WhatsApp para avisarte.',
-      done:'¡Listo! Te avisaremos por WhatsApp antes que a nadie.'});
-  });
-}
 function setupToggleForm(btn, box, mount){
   btn.addEventListener('click', ()=>{
     const open = box.hidden;
@@ -1731,14 +1711,15 @@ function prepareReport(){
 
 /* Cierre: aparece siempre debajo del reporte, deje o no su correo. */
 function closeFlow(){
-  botSay(['Fue un gusto. Cuídate mucho.']).then(showConnectCard).then(showLaunchCard).then(()=> afterGuided(true));
+  botSay(['Fue un gusto. Cuídate mucho.']).then(showConnectCard).then(()=> afterGuided(true));
 }
 
 /* Conexión por área (21 nov. 2026): según su área más afectada (misma regla que el reporte y el chat), la
    invita a escribirle al WhatsApp de Mindi para agendar con quien la puede ayudar. Ella decide escribir, así que
    no se pide ni se comparte su número. Cuerpo: centro aliado (piloto). Ánimo y vida íntima: el equipo la orienta
    mientras se suman especialistas. No se muestra con señal de alerta (ahí manda su médico) ni sin área sobre
-   el corte. Eventos conexion_shown y conexion_whatsapp, SIN el área: el panel la calcula desde su resultado (034). */
+   el corte. Eventos conexion_shown y conexion_whatsapp, SIN el área: el panel la calcula desde su resultado (034).
+   Desde el 21 nov. 2026 reemplaza a la tarjeta del diario y las especialistas, que se quitó del cierre. */
 const CONEXION = {
   somatico: {titulo:'Tu cuerpo es lo que más te está afectando',
     texto:'Trabajamos con un centro aliado para mujeres de más de 40: terapia de fuerza sin impacto para aliviar el dolor y cuidar tu cuerpo. Escríbenos y te ayudamos a agendar tu primera evaluación.',
