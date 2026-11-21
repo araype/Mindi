@@ -7,7 +7,7 @@ import {
   AREAS, areaStatus, AREA_TAG, SKIPPED_INTIMATE_NOTE, doctorRecommendation, EMERGENCY_NOW, agentMrsResult,
   areaNotes as mrsAreaNotes, SUBSCALES,
 } from '../supabase/functions/_shared/mrs.js';
-import { prioritizedSelfCare, SELF_CARE_SOURCE, GOAL_OPTIONS } from '../supabase/functions/_shared/autocuidado.js';
+import { prioritizedSelfCare, SELF_CARE_SOURCE, GOAL_OPTIONS, mostAffectedArea } from '../supabase/functions/_shared/autocuidado.js';
 import { whyNotes, WHY_TITLE } from '../supabase/functions/_shared/notas.js';
 import { stageFilter, STAGE_EXIT } from './etapa.js';
 import { whatsappUrl, WHATSAPP_TEXT } from './whatsapp.js';
@@ -1731,7 +1731,38 @@ function prepareReport(){
 
 /* Cierre: aparece siempre debajo del reporte, deje o no su correo. */
 function closeFlow(){
-  botSay(['Fue un gusto. Cuídate mucho.']).then(showLaunchCard).then(()=> afterGuided(true));
+  botSay(['Fue un gusto. Cuídate mucho.']).then(showConnectCard).then(showLaunchCard).then(()=> afterGuided(true));
+}
+
+/* Conexión por área (21 nov. 2026): según su área más afectada (misma regla que el reporte y el chat), la
+   invita a escribirle al WhatsApp de Mindi para agendar con quien la puede ayudar. Ella decide escribir, así que
+   no se pide ni se comparte su número. Cuerpo: centro aliado (piloto). Ánimo y vida íntima: el equipo la orienta
+   mientras se suman especialistas. No se muestra con señal de alerta (ahí manda su médico) ni sin área sobre
+   el corte. Eventos conexion_shown y conexion_whatsapp, SIN el área: el panel la calcula desde su resultado (034). */
+const CONEXION = {
+  somatico: {titulo:'Tu cuerpo es lo que más te está afectando',
+    texto:'Trabajamos con un centro aliado para mujeres de más de 40: terapia de fuerza sin impacto para aliviar el dolor y cuidar tu cuerpo. Escríbenos y te ayudamos a agendar tu primera evaluación.',
+    wa:'Hola Mindi, hice el test y quiero agendar con su centro aliado para cuidar mi cuerpo'},
+  psicologico: {titulo:'Tu ánimo es lo que más te pesa',
+    texto:'Estamos sumando profesionales de psicología que conocen esta etapa. Escríbenos y te ayudamos a encontrar a quien te pueda acompañar.',
+    wa:'Hola Mindi, hice el test y quiero conectar con un profesional de psicología'},
+  urogenital: {titulo:'Tu vida íntima es lo que más te afecta',
+    texto:'Estamos sumando especialistas en salud íntima. Escríbenos y te ayudamos a encontrar a quien te pueda ayudar.',
+    wa:'Hola Mindi, hice el test y quiero conectar con un especialista en salud íntima'},
+};
+function showConnectCard(){
+  const c = !hasFlag() && CONEXION[mostAffectedArea(state.scores)];
+  const url = c && whatsappUrl(WHATSAPP_NUMBER, c.wa);
+  if(!url) return Promise.resolve();
+  const medico = computeLevel() === 'C' ? '<p>Lo primero es conversar tu resultado con tu médico. Además:</p>' : '';
+  return revealCard(
+    `<h3>${c.titulo}</h3>${medico}<p>${c.texto}</p>` +
+    `<a class="rbtn rbtn-wa" href="${url}" target="_blank" rel="noopener" data-conexion>${ICON_WHATSAPP}<span>Agendar por WhatsApp</span></a>` +
+    `<p class="launch-fine">Te responde el equipo de Mindi. Tú decides si escribir.</p>`, 'calm', 300
+  ).then((card)=>{
+    track('conexion_shown');
+    card?.querySelector('[data-conexion]')?.addEventListener('click', ()=> track('conexion_whatsapp'));
+  });
 }
 
 /* Oculta el degradado del carrusel de síntomas cuando ya no hay más hacia dónde

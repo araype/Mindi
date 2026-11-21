@@ -50,7 +50,7 @@ test('del chat al test: botón solo con recommend_test, máximo dos veces, nunca
 test('al terminar el test o la salida del filtro se ofrece ir al chat con IA', () => {
   // Sin la invitación al canal de WhatsApp (16 nov. 2026): del cierre va directo al chat.
   assert.doesNotMatch(main, /channelInvite/);
-  assert.match(main, /botSay\(\['Fue un gusto\. Cuídate mucho\.'\]\)\.then\(showLaunchCard\)\.then\(\(\)=> afterGuided\(true\)\)/);
+  assert.match(main, /botSay\(\['Fue un gusto\. Cuídate mucho\.'\]\)\.then\(showConnectCard\)\.then\(showLaunchCard\)\.then\(\(\)=> afterGuided\(true\)\)/);
   assert.equal(count(/\]\)\.then\(\(\)=> afterGuided\(false\)\)/g), 2);
 });
 
@@ -141,7 +141,7 @@ test('cierre-v3: metas → ¿usarías una herramienta? → satisfacción mientra
   assert.equal((tool.match(/prepareReport/g) || []).length >= 3, true); // sí, tal vez/no y sin metas llegan al reporte
   assert.doesNotMatch(tool, /mountInlineWaitlist/); // la pregunta solo mide; no pide datos
   // "Lo que viene en Mindi": aparte, después del reporte y del cierre; WhatsApp opcional (lista plus).
-  assert.match(main, /botSay\(\['Fue un gusto\. Cuídate mucho\.'\]\)\.then\(showLaunchCard\)/);
+  assert.match(main, /botSay\(\['Fue un gusto\. Cuídate mucho\.'\]\)\.then\(showConnectCard\)\.then\(showLaunchCard\)/);
   assert.match(main, /mountInlineWaitlist\(document\.getElementById\(id \+ 'f'\), 'plus', \{origin:'reporte_lanzamiento', only:\['whatsapp'\]/);
   assert.match(main, /closeFlow\(\); \/\/ la satisfacción se pregunta mientras se prepara el reporte/);
   // La satisfacción va en la espera del reporte (18 nov.): mismo evento, con {desde:'espera'}; no bloquea.
@@ -149,6 +149,18 @@ test('cierre-v3: metas → ¿usarías una herramienta? → satisfacción mientra
   assert.match(main, /setTimeout\(go, SAT_WAIT_MS\);/);
   assert.doesNotMatch(main, /track\('satisfaction'/);
   assert.match(main, /const SATISFACTION_QUESTION = '¿Te sirvió este resultado\?';/);
+});
+
+test('conexión por área: tarjeta con "Agendar por WhatsApp" según el área más afectada, sin el área en el evento', () => {
+  const fn = main.slice(main.indexOf('function showConnectCard('), main.indexOf('const symptomsEl'));
+  assert.match(fn, /const c = !hasFlag\(\) && CONEXION\[mostAffectedArea\(state\.scores\)\];/); // nunca con señal de alerta
+  assert.match(fn, /whatsappUrl\(WHATSAPP_NUMBER, c\.wa\)/); // al WhatsApp de Mindi: ella decide escribir
+  assert.match(fn, /track\('conexion_shown'\);/);
+  assert.match(fn, /track\('conexion_whatsapp'\)/);
+  assert.doesNotMatch(fn, /track\('conexion_\w+', \{/); // sin props: el área sale del resultado en el panel (034)
+  const textos = main.slice(main.indexOf('const CONEXION = {'), main.indexOf('function showConnectCard('));
+  for (const k of ['somatico:', 'psicologico:', 'urogenital:']) assert.match(textos, new RegExp(k));
+  assert.doesNotMatch(textos, /diagn|receta|cura/i);
 });
 
 test('resultado: un solo desplegable "Entender mi resultado" con las tres áreas', () => {

@@ -310,6 +310,8 @@ body.no-scroll{overflow:hidden}
 /* WhatsApp: su verde de siempre */
 .rbtn-wa{background:#25D366;border-color:#25D366;color:#fff}
 .rbtn-wa:hover{background:#1EBE5A;border-color:#1EBE5A}
+/* Como enlace ("Agendar por WhatsApp" de la conexión por área): sin el subrayado ni el color de los enlaces */
+a.rbtn-wa,a.rbtn-wa:hover{color:#fff;text-decoration:none}
 /* Correo dentro de la tarjeta del reporte */
 .report-email{margin-top:12px}
 .report-email .email-title{margin:0 0 8px;font-size:15px}

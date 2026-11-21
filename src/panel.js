@@ -396,6 +396,14 @@ function render(f, at, filtered, satReporte, areas){
     ['Ninguna sobre el corte', areas?.principal_ninguna, 'var(--cat-5, #9a8a95)'],
   ], sinAreas);
 
+  /* Conexión por área (034, 21 nov. 2026): tarjeta al final del reporte que invita a agendar por WhatsApp. */
+  const conx = areas?.conexion_vista;
+  const porArea = conx == null ? '' : [['Cuerpo', 'cuerpo'], ['Ánimo', 'animo'], ['Vida íntima', 'intima']]
+    .map(([n, k]) => `${n}: ${fmt(areas[`conexion_${k}_whatsapp`] || 0)} de ${fmt(areas[`conexion_${k}_vista`] || 0)}`).join(' · ');
+  renderRel($('splitConexion'), 'Quieren conectarse', `Tarjeta "Agendar por WhatsApp" según su área más afectada (desde el 21 nov. 2026).${porArea ? ` Por área, tocan / ven: ${porArea}.` : ''}`, [
+    ['Tocan el botón', areas?.conexion_whatsapp],
+  ], conx, 'quienes ven la tarjeta', areas == null ? sinAreas : (conx == null ? 'Corre supabase/034_panel_conexion.sql en Supabase para ver esta tarjeta.' : null));
+
   renderSplit($('splitAge'), 'Rango de edad', 'De quienes terminaron el test.', [
     ['Menor de 40', f.edad_menor_40, 'var(--ord-1)'],
     ['40 a 45', f.edad_40_45, 'var(--ord-2)'],
