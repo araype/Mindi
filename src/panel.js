@@ -141,7 +141,7 @@ async function load(){
       renderEventos(res.eventos, res.generated_at, res.missing);
     } else {
       syncFilterUI(res.filters !== false);
-      render(res.funnel, res.generated_at, res.filters !== false, res.sat_reporte);
+      render(res.funnel, res.generated_at, res.filters !== false, res.sat_reporte, res.areas);
       renderCanales(res.canales);
     }
   } catch {
@@ -287,7 +287,7 @@ function renderEventos(e, at, missing){
   $('eListaEmpty').hidden = !!lista.length;
 }
 
-function render(f, at, filtered, satReporte){
+function render(f, at, filtered, satReporte, areas){
   setMeta(at, filtered);
 
   // Tarjetas de resumen (vuelven el 18 nov. 2026, a pedido de Aracely)
@@ -380,6 +380,21 @@ function render(f, at, filtered, satReporte){
     ['El tratamiento suele ser muy recomendable (C)', f.nivel_c, 'var(--ord-4)'],
     ['Señal de alerta', f.nivel_alerta, 'var(--critical)'],
   ], noSessions);
+
+  /* Áreas de la MRS (033, 20 nov. 2026): qué necesita cada mujer según su test. Cortes de la Guía HNHU:
+     cuerpo ≥ 8, ánimo ≥ 6, vida íntima ≥ 3. El área más afectada usa la misma regla que el reporte y el chat. */
+  const sinAreas = areas == null ? 'Corre supabase/033_panel_areas.sql en Supabase para ver esta tarjeta.' : null;
+  renderRel($('splitAreas'), 'Áreas sobre el punto de corte', `Cuerpo: calores, sueño, dolor muscular o articular (≥ 8). Ánimo: tristeza, irritabilidad, ansiedad, cansancio (≥ 6). Vida íntima: sexualidad, vejiga, sequedad (≥ 3). Cortes de la Guía HNHU (Escala MRS). Una misma mujer puede tener varias${areas?.dos_o_mas ? `: ${fmt(areas.dos_o_mas)} tienen dos o más` : ''}.`, [
+    ['Cuerpo', areas?.cuerpo],
+    ['Ánimo', areas?.animo],
+    ['Vida íntima', areas?.intima],
+  ], areas?.total, 'quienes terminaron el test', sinAreas);
+  renderSplit($('splitPrincipal'), 'Área más afectada', `La que más pesa en su test, en proporción a su máximo.${areas?.omiten_intimas ? ` ${fmt(areas.omiten_intimas)} omitieron alguna pregunta íntima: su vida íntima podría estar subestimada.` : ''}`, [
+    ['Cuerpo', areas?.principal_cuerpo, 'var(--cat-1, #2a7f8f)'],
+    ['Ánimo', areas?.principal_animo, 'var(--cat-2, #c46a8a)'],
+    ['Vida íntima', areas?.principal_intima, 'var(--cat-3, #8a6fc4)'],
+    ['Ninguna sobre el corte', areas?.principal_ninguna, 'var(--cat-5, #9a8a95)'],
+  ], sinAreas);
 
   renderSplit($('splitAge'), 'Rango de edad', 'De quienes terminaron el test.', [
     ['Menor de 40', f.edad_menor_40, 'var(--ord-1)'],

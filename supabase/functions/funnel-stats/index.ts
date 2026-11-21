@@ -93,8 +93,11 @@ Deno.serve(async (req) => {
     const can = await supabase.rpc('panel_canales', { p_since: since, p_until: until, p_include_test: includeTest });
     // Satisfacción dentro del reporte (031, desde el 16 nov. 2026): serie aparte de la anterior.
     const sat = await supabase.rpc('panel_satisfaccion_reporte', { p_since: since, p_until: until, p_include_test: includeTest, p_origin: origin });
+    // Áreas de la MRS sobre el corte y área más afectada (033), de quienes terminaron el test.
+    const areas = await supabase.rpc('panel_areas', { p_since: since, p_until: until, p_include_test: includeTest, p_origin: origin });
     return json({ ok: true, funnel: data ?? {}, conversaciones: conv.error ? null : (conv.data ?? {}),
-      canales: can.error ? null : (can.data ?? []), sat_reporte: sat.error ? null : (sat.data ?? {}), filters: true, generated_at });
+      canales: can.error ? null : (can.data ?? []), sat_reporte: sat.error ? null : (sat.data ?? {}),
+      areas: areas.error ? null : (areas.data ?? {}), filters: true, generated_at });
   }
   if (origin) return json({ error: 'Para filtrar por origen, corre supabase/012_origin.sql en Supabase.' }, 500);
 
